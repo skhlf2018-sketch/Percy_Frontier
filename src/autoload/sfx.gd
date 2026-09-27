@@ -230,6 +230,13 @@ func _ready() -> void:
 		_streams[id] = synthesize(RECIPES[id])
 
 
+func _exit_tree() -> void:
+	# 종료할 때 재생 중인 소리를 멈춰 재생 객체가 남지 않게 한다.
+	for child in get_children():
+		if child is AudioStreamPlayer or child is AudioStreamPlayer3D:
+			child.stop()
+
+
 func has_sound(id: StringName) -> bool:
 	return _streams.has(id)
 

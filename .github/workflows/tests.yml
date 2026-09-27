@@ -1,0 +1,27 @@
+name: 테스트
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  godot-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GODOT_VERSION: "4.7.2"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Godot 내려받기
+        run: |
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$RUNNER_TEMP/godot"
+          "$RUNNER_TEMP/godot" --version
+
+      - name: 리소스 가져오기
+        run: GODOT="$RUNNER_TEMP/godot" tools/run_tests.sh --import-only
+
+      - name: 헤드리스 테스트
+        run: GODOT="$RUNNER_TEMP/godot" tools/run_tests.sh

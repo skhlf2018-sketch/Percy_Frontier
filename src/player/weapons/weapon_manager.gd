@@ -270,6 +270,9 @@ func simulate_aim(value: bool) -> void:
 
 func _update_aim(delta: float) -> void:
 	var want := _aim_toggled if Settings.get_value(&"aim_toggle") else _aim_held
+	# 조준·방어 입력은 달리기를 끊는다(서로 막아 둘 다 안 되는 상황 방지).
+	if want and player.sprinting:
+		player.cancel_sprint()
 	var can := player.can_act() and is_ready() and not player.sprinting and _guard_broken_left <= 0.0
 	if current_slot == Slot.MELEE:
 		var block := want and can and melee.can_block and _melee_phase == MeleePhase.NONE

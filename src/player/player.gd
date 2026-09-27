@@ -80,6 +80,8 @@ var _iframes: float = 0.0
 var _dodge_cooldown: float = 0.0
 var _knockback_immune: float = 0.0
 var _move_lock: float = 0.0
+## 사격·조준 직후 달리기를 잠시 막는 시간
+var _sprint_lock: float = 0.0
 
 var _mantling: bool = false
 var _mantle_from := Vector3.ZERO
@@ -254,6 +256,7 @@ func _tick_timers(delta: float) -> void:
 	_dodge_cooldown = maxf(0.0, _dodge_cooldown - delta)
 	_knockback_immune = maxf(0.0, _knockback_immune - delta)
 	_move_lock = maxf(0.0, _move_lock - delta)
+	_sprint_lock = maxf(0.0, _sprint_lock - delta)
 	_consumable_busy = maxf(0.0, _consumable_busy - delta)
 	if is_on_floor():
 		_coyote = COYOTE_TIME
@@ -305,7 +308,7 @@ func _update_sprint(input_dir: Vector2, delta: float) -> void:
 			_sprint_toggled = false
 	else:
 		want = Input.is_action_pressed(&"sprint")
-	var allowed := can_act() and input_dir.y < -0.3 and not stats.exhausted \
+	var allowed := can_act() and input_dir.y < -0.3 and not stats.exhausted and _sprint_lock <= 0.0 \
 		and not weapons.blocks_sprint() and not is_busy_with_consumable()
 	if want and allowed and crouching and not _can_stand():
 		allowed = false
@@ -317,10 +320,11 @@ func _update_sprint(input_dir: Vector2, delta: float) -> void:
 			_sprint_toggled = false
 
 
-## 사격 등으로 달리기를 멈춘다.
-func cancel_sprint() -> void:
+## 사격·조준·회피 등으로 달리기를 멈춘다. 잠시 동안은 달리기 키를 누르고 있어도 다시 달리지 않는다.
+func cancel_sprint(lock_time: float = 0.35) -> void:
 	sprinting = false
 	_sprint_toggled = false
+	_sprint_lock = maxf(_sprint_lock, lock_time)
 
 
 func _target_speed() -> float:

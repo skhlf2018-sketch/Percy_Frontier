@@ -421,3 +421,76 @@ func test_mantle_onto_low_ledge() -> void:
 	assert_true(p.try_mantle(), "1m 높이 난간은 넘을 수 있다")
 	await wait_seconds(0.6)
 	assert_gt(p.global_position.y, 0.9, "난간 위로 올라섰다")
+
+
+func test_hidden_rabbit_waits_until_close() -> void:
+	var p := world.spawn_player(Vector3(0, 0, 0))
+	var rabbit: KillerRabbit = world.spawn(RABBIT, Vector3(0, 0, -15), PI)
+	rabbit.hidden = true
+	rabbit.ambush = true
+	world.bake()
+	await wait_seconds(1.5)
+	assert_true(rabbit.can_see(p), "시야 안에 있다")
+	assert_eq(rabbit.state, Enemy.State.IDLE, "숨어 있으면 멀리서 보고 튀어나오지 않는다")
+	assert_true(rabbit.hidden)
+	p.global_position = Vector3(0, 0, -10)
+	await wait_seconds(0.5)
+	assert_false(rabbit.hidden, "가까이 오면 튀어나온다")
+	assert_eq(rabbit.target, p)
+
+
+func test_aim_input_cancels_sprint() -> void:
+	var p := world.spawn_player(Vector3(0, 0, 0))
+	await wait_physics_frames(3)
+	var ev := InputEventAction.new()
+	ev.action = &"sprint"
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	var fwd := InputEventAction.new()
+	fwd.action = &"move_forward"
+	fwd.pressed = true
+	fwd.strength = 1.0
+	Input.parse_input_event(fwd)
+	await wait_seconds(0.5)
+	assert_true(p.sprinting, "달리는 중")
+	p.weapons.simulate_aim(true)
+	await wait_seconds(0.5)
+	assert_false(p.sprinting, "조준 입력은 달리기를 끊는다")
+	assert_true(p.weapons.is_aiming(), "정조준이 시작된다")
+	p.weapons.simulate_aim(false)
+	for action in [&"sprint", &"move_forward"]:
+		var up := InputEventAction.new()
+		up.action = action
+		up.pressed = false
+		Input.parse_input_event(up)
+	await wait_physics_frames(2)
+
+
+func test_firing_stops_sprint_briefly() -> void:
+	var p := world.spawn_player(Vector3(0, 0, 0))
+	await wait_physics_frames(3)
+	var ev := InputEventAction.new()
+	ev.action = &"sprint"
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	var fwd := InputEventAction.new()
+	fwd.action = &"move_forward"
+	fwd.pressed = true
+	fwd.strength = 1.0
+	Input.parse_input_event(fwd)
+	await wait_seconds(0.8)
+	assert_true(p.sprinting)
+	p.weapons.simulate_hold(true)
+	var sprint_frames := 0
+	for i in 20:
+		await wait_physics_frames(1)
+		if p.sprinting:
+			sprint_frames += 1
+	p.weapons.simulate_hold(false)
+	assert_eq(sprint_frames, 0, "쏘는 동안은 달리지 않는다")
+	for action in [&"sprint", &"move_forward"]:
+		var up := InputEventAction.new()
+		up.action = action
+		up.pressed = false
+		Input.parse_input_event(up)
+	await wait_physics_frames(2)

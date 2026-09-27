@@ -11,6 +11,7 @@ const AMBUSH_TRIGGER := 6.0
 const CIRCLE_RADIUS := 4.5
 const CIRCLE_ENGAGE := 7.5
 const FLEE_HEALTH := 0.3
+const REHIDE_DELAY := 3.0
 
 var hidden: bool = false
 var _rustle_timer: float = 0.0
@@ -19,15 +20,26 @@ var _fled: bool = false
 var _hop_phase: float = 0.0
 
 
+
 func _on_ready() -> void:
 	hidden = ambush
 	_circle_sign = 1.0 if randf() < 0.5 else -1.0
 	_rustle_timer = randf_range(1.0, 3.0)
 
 
+## 숨어 있는 동안은 멀리서 보고 반응하지 않는다. 가까이 오거나(_process_idle) 소리가 나거나 공격받을 때만 깨어난다.
+func _perceive() -> void:
+	if hidden and state == State.IDLE:
+		return
+	super._perceive()
+
+
 func _process_idle(delta: float) -> void:
 	_stop(delta)
 	if not hidden:
+		# 매복 무리는 거점에 돌아와 잠시 있으면 다시 숨는다.
+		if ambush and _state_time > REHIDE_DELAY:
+			hidden = true
 		return
 	var p := _find_player()
 	if p == null or not p.alive:
