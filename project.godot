@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Percy Frontier"
 config/description="PC 1인칭 오픈월드 액션 RPG — 전투 시험 단계"
-config/version="0.1.0"
+config/version="0.2.0"
 run/main_scene="res://src/ui/menus/title_screen.tscn"
 run/main_scene.export_smoke="res://tools/export_smoke.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")

@@ -33,6 +33,8 @@ var _notices: NoticeFeed
 var _vignette: TextureRect
 var _death_panel: Control
 var _banner: SystemBanner
+var _save_label: Label
+var _save_time: float = 0.0
 var _level_label: Label
 var _xp_bar: StatBar
 
@@ -142,6 +144,11 @@ func _build() -> void:
 	_banner = SystemBanner.new()
 	_place(_banner, Vector2(0.5, 0), Vector2(-430, 120), Vector2(860, 130))
 
+	# 오른쪽 아래 구석: 저장 표시(기획서 §20.2: 저장 중임을 명확히 표시)
+	_save_label = _label("", 18, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
+	_save_label.add_theme_color_override("font_color", Color(0.55, 0.92, 1.0))
+	_place(_save_label, Vector2(1, 1), Vector2(-420, -30), Vector2(400, 24))
+
 	# 오른쪽 위: 알림
 	_notices = NoticeFeed.new()
 	_notices.alignment = BoxContainer.ALIGNMENT_BEGIN
@@ -248,6 +255,17 @@ func notify(text: String, kind: int) -> void:
 	_notices.push(text, kind)
 
 
+func show_saving() -> void:
+	_save_label.text = "● 저장 중… 게임을 끄지 마세요"
+	_save_time = 2.0
+
+
+func show_saved(ok: bool) -> void:
+	_save_label.text = "● 저장 완료" if ok else "● 저장하지 못했습니다"
+	_save_label.add_theme_color_override("font_color", Color(0.55, 0.92, 1.0) if ok else WARNING_COLOR)
+	_save_time = 2.2
+
+
 func flash_center(text: String, color: Color) -> void:
 	_center_flash.text = text
 	_center_flash.add_theme_color_override("font_color", color)
@@ -278,6 +296,9 @@ func _on_player_damaged(amount: float, source_position: Vector3, blocked: bool) 
 
 func _process(delta: float) -> void:
 	_hit_sound_cooldown = maxf(0.0, _hit_sound_cooldown - delta)
+	if _save_time > 0.0:
+		_save_time -= delta
+		_save_label.modulate.a = clampf(_save_time / 0.5, 0.0, 1.0)
 	if player == null or not is_instance_valid(player):
 		return
 	_update_vitals(delta)

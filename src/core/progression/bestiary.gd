@@ -97,8 +97,7 @@ func record(data: EnemyData, event: Event) -> float:
 	return gained
 
 
-## 처치 시 스킬 핵 드롭 판정. 얻었으면 true(즉시 해금).
-## 스킬 핵 드롭 판정. bonus는 행운 능력치로 더해지는 확률.
+## 처치 시 스킬 핵 드롭 판정. 얻었으면 true(즉시 해금). bonus는 행운 능력치로 더해지는 확률.
 func roll_core_drop(data: EnemyData, bonus: float = 0.0) -> bool:
 	if data == null or not data.is_analyzable():
 		return false
@@ -144,3 +143,37 @@ func analysis_of(enemy_id: StringName) -> float:
 func is_discovered(enemy_id: StringName) -> bool:
 	var e: Entry = entries.get(enemy_id)
 	return e != null and e.discovered
+
+
+# --- 저장 ---
+
+func to_dict() -> Dictionary:
+	var out := {}
+	for id: StringName in entries:
+		var e: Entry = entries[id]
+		var counts := {}
+		for k in e.event_counts:
+			counts[str(k)] = e.event_counts[k]
+		out[String(id)] = {
+			"discovered": e.discovered, "kills": e.kills, "analysis": e.analysis,
+			"skill": e.skill_unlocked, "events": counts,
+		}
+	return out
+
+
+## 저장된 기록을 되살린다. 알림 신호는 내보내지 않는다.
+func from_dict(d: Dictionary) -> void:
+	entries.clear()
+	for key in d:
+		var data := GameDB.enemy(StringName(key))
+		if data == null:
+			continue
+		var v: Dictionary = d[key]
+		var e := _ensure(data)
+		e.discovered = bool(v.get("discovered", false))
+		e.kills = maxi(int(v.get("kills", 0)), 0)
+		e.analysis = clampf(float(v.get("analysis", 0.0)), 0.0, MAX_ANALYSIS)
+		e.skill_unlocked = bool(v.get("skill", false))
+		var counts: Dictionary = v.get("events", {})
+		for k in counts:
+			e.event_counts[int(k)] = maxi(int(counts[k]), 0)

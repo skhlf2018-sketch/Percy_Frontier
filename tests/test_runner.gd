@@ -35,6 +35,8 @@ var _catcher := ErrorCatcher.new()
 
 
 func _ready() -> void:
+	# 테스트가 실제 저장 파일을 건드리지 않게 따로 둔다.
+	SaveSystem.directory = "user://test_saves_runner"
 	OS.add_logger(_catcher)
 	await get_tree().process_frame
 	var filter := ""

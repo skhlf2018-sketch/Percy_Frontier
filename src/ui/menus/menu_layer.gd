@@ -10,17 +10,24 @@ var settings_menu := SettingsMenu.new()
 var controls_help := ControlsHelp.new()
 var choice_menu := ChoiceMenu.new()
 var status_window := StatusWindow.new()
+var save_menu := SaveSlotsMenu.new()
 
 
 func _ready() -> void:
 	layer = 10
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu, status_window]:
+	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu, status_window, save_menu]:
 		add_child(m)
 		m.closed.connect(_on_menu_closed.bind(m))
 	pause_menu.resume_requested.connect(close_all)
 	pause_menu.settings_requested.connect(_open_sub.bind(settings_menu))
 	pause_menu.controls_requested.connect(_open_sub.bind(controls_help))
+	pause_menu.save_requested.connect(func() -> void:
+		pause_menu.visible = false
+		save_menu.open_mode(SaveSlotsMenu.Mode.SAVE))
+	pause_menu.load_requested.connect(func() -> void:
+		pause_menu.visible = false
+		save_menu.open_mode(SaveSlotsMenu.Mode.LOAD))
 	pause_menu.title_requested.connect(func() -> void:
 		close_all()
 		title_requested.emit())
@@ -28,7 +35,7 @@ func _ready() -> void:
 
 
 func is_open() -> bool:
-	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu, status_window]:
+	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu, status_window, save_menu]:
 		if m.visible:
 			return true
 	return false
@@ -51,7 +58,7 @@ func open_status(tab: int = StatusWindow.TAB_STATUS) -> void:
 
 
 func close_all() -> void:
-	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu, status_window]:
+	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu, status_window, save_menu]:
 		m.visible = false
 	Settings.save_settings()
 	_set_paused(false)
@@ -63,7 +70,7 @@ func _open_sub(menu: MenuPanel) -> void:
 
 
 func _on_menu_closed(menu: MenuPanel) -> void:
-	if menu == settings_menu or menu == controls_help:
+	if menu == settings_menu or menu == controls_help or menu == save_menu:
 		pause_menu.open()
 		return
 	if not is_open():

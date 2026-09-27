@@ -7,10 +7,15 @@ enum Mode { FIELD, TRAINING }
 const ARENA_SCENE := preload("res://src/world/combat_arena.tscn")
 const PLAYER_SCENE := preload("res://src/player/player.tscn")
 const TITLE_SCENE_PATH := "res://src/ui/menus/title_screen.tscn"
+const GAME_SCENE_PATH := "res://src/main/game.tscn"
 const RESPAWN_DELAY := 2.5
 
 ## 다음에 시작할 공간(타이틀이 장면을 바꾸기 전에 정한다)
 static var next_mode: int = Mode.FIELD
+## 다음 게임을 새 캐릭터로 시작할 때의 설정(캐릭터 생성 화면이 정한다)
+static var next_new_game: Dictionary = {}
+## 다음 게임에서 불러올 저장 문서(SaveSystem.read 결과)
+static var next_load: Dictionary = {}
 
 ## 이 게임의 공간. 트리에 넣기 전에 정하지 않으면 next_mode를 따른다.
 var mode: int = -1
@@ -25,6 +30,15 @@ var hud: Hud
 var menus: MenuLayer
 ## 부활 위치(마지막으로 휴식한 거점)
 var checkpoint := Transform3D()
+## 부활 위치의 거점(저장용 이름을 얻는다)
+var checkpoint_point: SupplyPoint
+## 새 캐릭터 설정. 비어 있으면 next_new_game을 따른다.
+var new_game_config: Dictionary = {}
+## 불러올 저장 문서. 비어 있으면 next_load를 따른다.
+var load_doc: Dictionary = {}
+var intro: IntroSequence
+
+var _autosave_pending: float = -1.0
 
 var _respawn_timer: float = -1.0
 ## 사망 순간에 교전 중이던 야외 무리(부활할 때 처음 상태로 되돌린다)
@@ -34,7 +48,19 @@ var _engaged_at_death: Array[EncounterGroup] = []
 func _ready() -> void:
 	if mode < 0:
 		mode = next_mode
-	GameState.reset_session()
+	if new_game_config.is_empty() and load_doc.is_empty():
+		new_game_config = next_new_game
+		load_doc = next_load
+	next_new_game = {}
+	next_load = {}
+	if not load_doc.is_empty():
+		mode = Mode.FIELD
+		GameState.from_dict(load_doc.get("game", {}).get("state", {}))
+	elif not new_game_config.is_empty():
+		mode = Mode.FIELD
+		GameState.start_new_character(new_game_config)
+	else:
+		GameState.reset_session()
 	if mode == Mode.TRAINING:
 		arena = ARENA_SCENE.instantiate()
 		world = arena
@@ -50,10 +76,10 @@ func _ready() -> void:
 	player.yaw = start.basis.get_euler().y
 	player.reset_physics_interpolation()
 	if mode == Mode.TRAINING:
-		checkpoint = arena.supply_points[0].respawn_transform() if not arena.supply_points.is_empty() else start
+		checkpoint_point = arena.supply_points[0] if not arena.supply_points.is_empty() else null
 	else:
-		var first := field.supply_point_by_name("Supply_drop_site")
-		checkpoint = first.respawn_transform() if first else start
+		checkpoint_point = field.supply_point_by_name("Supply_drop_site")
+	checkpoint = checkpoint_point.respawn_transform() if checkpoint_point else start
 	hud = Hud.new()
 	add_child(hud)
 	hud.bind(player)
@@ -61,17 +87,42 @@ func _ready() -> void:
 	add_child(menus)
 	menus.status_window.setup(player)
 	menus.title_requested.connect(_go_to_title)
+	menus.save_menu.save_requested.connect(_on_manual_save)
+	menus.save_menu.load_requested.connect(_on_load_slot)
 	player.died.connect(_on_player_died)
 	if field:
 		field.area_entered.connect(func(area_id: StringName, area_name: String) -> void:
-			GameState.discover_area(area_id, area_name))
+			if GameState.discover_area(area_id, area_name):
+				request_autosave())
 	world.rest_requested.connect(_on_rest_requested)
 	world.rack_requested.connect(_open_weapon_rack)
 	world.terminal_requested.connect(_open_test_terminal)
 	_capture_mouse()
+	if not load_doc.is_empty():
+		_apply_loaded(load_doc.get("game", {}))
+		hud.notify("저장한 곳에서 이어서 시작합니다.", GameEvents.NoticeKind.INFO)
+	elif not new_game_config.is_empty():
+		_start_intro()
 	if mode == Mode.TRAINING:
 		hud.notify("훈련장에 들어왔습니다. %s: 메뉴 · 조작 안내는 메뉴에서 볼 수 있습니다." % "Esc",
 			GameEvents.NoticeKind.INFO)
+
+
+# --- 도입부 ---
+
+func _start_intro() -> void:
+	intro = IntroSequence.new()
+	intro.lines = IntroSequence.lines_for(GameState.progress.character_name, GameState.progress.origin_name())
+	player.input_enabled = false
+	intro.finished.connect(func() -> void:
+		player.input_enabled = true
+		intro = null
+		hud.notify("공명 장치: 구조 신호를 따라 동쪽(퍼시 방향)으로 이동하십시오.", GameEvents.NoticeKind.INFO))
+	add_child(intro)
+
+
+func is_intro_playing() -> bool:
+	return intro != null and is_instance_valid(intro)
 
 
 func _capture_mouse() -> void:
@@ -80,9 +131,9 @@ func _capture_mouse() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"pause") and not menus.is_open():
+	if event.is_action_pressed(&"pause") and not menus.is_open() and not is_intro_playing():
 		get_viewport().set_input_as_handled()
-		menus.open_pause()
+		open_pause()
 		return
 	if event.is_action_pressed(&"status_window") and not menus.is_open() and player.alive:
 		get_viewport().set_input_as_handled()
@@ -97,12 +148,27 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and is_inside_tree() and menus \
-			and not menus.is_open() and DisplayServer.get_name() != "headless":
-		menus.open_pause()
+			and not menus.is_open() and DisplayServer.get_name() != "headless" and not is_intro_playing():
+		open_pause()
+
+
+func open_pause() -> void:
+	var reason := save_block_reason()
+	menus.pause_menu.set_save_state(field != null, reason == "", reason)
+	menus.open_pause()
 
 
 func _process(delta: float) -> void:
 	world.track_player(player)
+	if not get_tree().paused:
+		GameState.play_time += delta
+	if _autosave_pending >= 0.0:
+		_autosave_pending -= delta
+		if _autosave_pending < 0.0:
+			if save_block_reason() == "":
+				save_to(SaveSystem.AUTO)
+			else:
+				_autosave_pending = 3.0
 	if _respawn_timer >= 0.0:
 		_respawn_timer -= delta
 		if _respawn_timer < 0.0:
@@ -139,6 +205,9 @@ func _on_rest_requested(p: Player, point: SupplyPoint) -> void:
 	p.rest()
 	world.reset_all_encounters()
 	checkpoint = point.respawn_transform()
+	checkpoint_point = point
+	if field:
+		save_to(SaveSystem.AUTO)
 	Sfx.play_ui(&"respawn")
 	hud.notify("휴식했습니다. HP·스태미나 회복, 탄약·소모품 보급. 이 거점에서 다시 시작하며, 야외 무리가 다시 나타났습니다.",
 		GameEvents.NoticeKind.INFO)
@@ -220,3 +289,119 @@ func _open_test_terminal(_p: Player) -> void:
 func _go_to_title() -> void:
 	get_tree().paused = false
 	get_tree().change_scene_to_file(TITLE_SCENE_PATH)
+
+
+# --- 저장·불러오기(기획서 §20) ---
+
+## 저장할 수 없으면 이유, 가능하면 빈 문자열
+func save_block_reason() -> String:
+	if field == null:
+		return "훈련장에서는 저장하지 않습니다."
+	if not player.alive:
+		return "쓰러진 동안에는 저장할 수 없습니다."
+	if player.is_in_combat():
+		return "전투 중에는 저장할 수 없습니다."
+	if is_intro_playing():
+		return "도입부가 끝난 뒤 저장할 수 있습니다."
+	return ""
+
+
+## 잠시 뒤 자동 저장한다(전투 중이면 끝날 때까지 미룬다).
+func request_autosave() -> void:
+	if field != null:
+		_autosave_pending = 1.5
+
+
+func save_summary() -> Dictionary:
+	var area: String = FieldWorld.AREAS.get(field.current_area(), "퍼시 외곽권") if field else ""
+	return {
+		"name": GameState.progress.character_name, "level": GameState.progress.level, "area": area,
+		"clock": field.day_night.clock_text() if field else "", "play_time": int(GameState.play_time),
+	}
+
+
+func collect_save() -> Dictionary:
+	var p := player
+	var cons := {}
+	for id in p.consumable_counts:
+		cons[String(id)] = int(p.consumable_counts[id])
+	var ammo := {}
+	for t in p.ammo.counts:
+		ammo[String(t)] = int(p.ammo.counts[t])
+	var mags := {}
+	for d: WeaponData in [p.weapons.primary, p.weapons.secondary]:
+		if d:
+			mags[String(d.id)] = p.weapons.gun_state_for(d.id).mag
+	return {
+		"mode": "field",
+		"state": GameState.to_dict(),
+		"player": {
+			"pos": [p.global_position.x, p.global_position.y, p.global_position.z],
+			"yaw": p.yaw, "hp": p.stats.hp, "stamina": p.stats.stamina,
+			"consumables": cons, "ammo": ammo, "mags": mags,
+		},
+		"checkpoint": String(checkpoint_point.name) if checkpoint_point else "",
+		"time": field.day_night.hour if field else 12.0,
+	}
+
+
+func save_to(slot: String) -> bool:
+	_autosave_pending = -1.0
+	if save_block_reason() != "":
+		return false
+	hud.show_saving()
+	var err := SaveSystem.write(slot, collect_save(), save_summary())
+	hud.show_saved(err == OK)
+	return err == OK
+
+
+func _apply_loaded(game_data: Dictionary) -> void:
+	var pd: Dictionary = game_data.get("player", {})
+	var pos: Array = pd.get("pos", [])
+	if pos.size() == 3:
+		player.global_position = Vector3(float(pos[0]), float(pos[1]) + 0.1, float(pos[2]))
+	player.yaw = float(pd.get("yaw", player.yaw))
+	player.velocity = Vector3.ZERO
+	player.reset_physics_interpolation()
+	player.stats.hp = clampf(float(pd.get("hp", player.stats.max_hp)), 1.0, player.stats.max_hp)
+	player.stats.stamina = clampf(float(pd.get("stamina", player.stats.max_stamina)), 0.0, player.stats.max_stamina)
+	var cons: Dictionary = pd.get("consumables", {})
+	for id in cons:
+		var sid := StringName(id)
+		if player.consumable_counts.has(sid):
+			player.consumable_counts[sid] = maxi(int(cons[id]), 0)
+	var ammo: Dictionary = pd.get("ammo", {})
+	for t in ammo:
+		var st := StringName(t)
+		if AmmoInventory.TYPES.has(st):
+			player.ammo.counts[st] = clampi(int(ammo[t]), 0, player.ammo.get_max(st))
+	var mags: Dictionary = pd.get("mags", {})
+	for id in mags:
+		var gs := player.weapons.gun_state_for(StringName(id))
+		if gs:
+			gs.mag = clampi(int(mags[id]), 0, gs.data.magazine_size)
+	var sp := field.supply_point_by_name(String(game_data.get("checkpoint", "")))
+	if sp:
+		checkpoint_point = sp
+		checkpoint = sp.respawn_transform()
+	field.day_night.advance_to(float(game_data.get("time", 9.0)))
+	player.stats.changed.emit()
+	player.consumables_changed.emit()
+	player.weapons.ammo_changed.emit()
+
+
+func _on_manual_save(slot: String) -> void:
+	if save_to(slot):
+		menus.save_menu.show_message("%s에 저장했습니다." % SaveSystem.slot_label(slot))
+	else:
+		menus.save_menu.show_message(save_block_reason() if save_block_reason() != "" else "저장하지 못했습니다.")
+
+
+func _on_load_slot(slot: String) -> void:
+	var doc := SaveSystem.read(slot)
+	if doc.is_empty():
+		menus.save_menu.show_message("불러올 수 없는 저장 파일입니다.")
+		return
+	next_load = doc
+	get_tree().paused = false
+	get_tree().change_scene_to_file(GAME_SCENE_PATH)

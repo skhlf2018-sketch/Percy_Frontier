@@ -19,6 +19,10 @@ var skill_slots: Array[StringName] = []
 var primary_weapon: StringName = &"rifle_bfa3"
 var secondary_weapon: StringName = &"pistol_bf9"
 var melee_weapon: StringName = &"sword_survey"
+## 캐릭터 외형(HumanoidModel 사전)
+var appearance: Dictionary = {}
+## 누적 플레이 시간(초)
+var play_time: float = 0.0
 
 
 func _ready() -> void:
@@ -38,6 +42,71 @@ func reset_session() -> void:
 	primary_weapon = &"rifle_bfa3"
 	secondary_weapon = &"pistol_bf9"
 	melee_weapon = &"sword_survey"
+	appearance = HumanoidModel.default_appearance()
+	play_time = 0.0
+	skills_changed.emit()
+	loadout_changed.emit()
+
+
+## 새 캐릭터로 시작한다(캐릭터 생성 결과).
+func start_new_character(config: Dictionary) -> void:
+	reset_session()
+	progress.character_name = String(config.get("name", "탐사자"))
+	progress.set_origin(StringName(config.get("origin", "")))
+	appearance = HumanoidModel.default_appearance()
+	appearance.merge(config.get("appearance", {}), true)
+
+
+# --- 저장(기획서 §20.1) ---
+
+func to_dict() -> Dictionary:
+	var unlocked: Array[String] = []
+	for s in unlocked_skills:
+		unlocked.append(String(s))
+	var slots: Array[String] = []
+	for s in skill_slots:
+		slots.append(String(s))
+	var areas: Array[String] = []
+	for a in discovered_areas:
+		areas.append(String(a))
+	return {
+		"progress": progress.to_dict(),
+		"appearance": appearance.duplicate(),
+		"bestiary": bestiary.to_dict(),
+		"unlocked_skills": unlocked,
+		"skill_slots": slots,
+		"primary": String(primary_weapon),
+		"secondary": String(secondary_weapon),
+		"melee": String(melee_weapon),
+		"areas": areas,
+		"play_time": play_time,
+	}
+
+
+func from_dict(d: Dictionary) -> void:
+	reset_session()
+	progress.from_dict(d.get("progress", {}))
+	appearance.merge(d.get("appearance", {}), true)
+	bestiary.from_dict(d.get("bestiary", {}))
+	unlocked_skills = [STARTER_SKILL]
+	for s in d.get("unlocked_skills", []):
+		var id := StringName(s)
+		if GameDB.skill(id) and not unlocked_skills.has(id):
+			unlocked_skills.append(id)
+	var slots: Array = d.get("skill_slots", [])
+	for i in SKILL_SLOT_COUNT:
+		var id := StringName(slots[i]) if i < slots.size() else &""
+		skill_slots[i] = id if (id == &"" or unlocked_skills.has(id)) else &""
+	if GameDB.weapon(StringName(d.get("primary", ""))):
+		primary_weapon = StringName(d.primary)
+	if GameDB.weapon(StringName(d.get("secondary", ""))):
+		secondary_weapon = StringName(d.secondary)
+	if GameDB.melee(StringName(d.get("melee", ""))):
+		melee_weapon = StringName(d.melee)
+	discovered_areas = []
+	for a in d.get("areas", []):
+		discovered_areas.append(StringName(a))
+	play_time = maxf(float(d.get("play_time", 0.0)), 0.0)
 	skills_changed.emit()
 	loadout_changed.emit()
 

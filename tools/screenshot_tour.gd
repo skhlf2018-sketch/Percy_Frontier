@@ -15,6 +15,8 @@ func _ready() -> void:
 		if arg.begins_with("--out="):
 			out_dir = arg.substr(6)
 	DirAccess.make_dir_recursive_absolute(out_dir if out_dir.is_absolute_path() else ProjectSettings.globalize_path(out_dir))
+	# 화면 확인 중의 자동 저장이 실제 저장 칸을 덮지 않게 한다.
+	SaveSystem.directory = "user://tool_saves"
 	Settings.load_settings("user://screenshot_settings.cfg")
 	await _run()
 	get_tree().quit()

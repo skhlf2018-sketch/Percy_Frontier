@@ -16,6 +16,8 @@ func _ready() -> void:
 		elif arg.begins_with("--only="):
 			only = arg.substr(7)
 	DirAccess.make_dir_recursive_absolute(out_dir if out_dir.is_absolute_path() else ProjectSettings.globalize_path(out_dir))
+	# 화면 확인 중의 자동 저장이 실제 저장 칸을 덮지 않게 한다.
+	SaveSystem.directory = "user://tool_saves"
 	Settings.load_settings("user://field_tour_settings.cfg")
 	await _run()
 	get_tree().quit()
@@ -53,7 +55,38 @@ func _view(shot_name: String, p: Vector2, target: Vector2, hour: float, pitch_de
 	await _shot(shot_name)
 
 
+func _menu_shots() -> void:
+	var title: Control = load("res://src/ui/menus/title_screen.tscn").instantiate()
+	add_child(title)
+	await _frames(40)
+	await _shot("30_title")
+	title._open_creation()
+	await _frames(30)
+	await _shot("31_character_creation")
+	title._creation._step("hair_style", HumanoidModel.HAIR_STYLES.size(), 1)
+	title._creation._step("outfit", HumanoidModel.OUTFIT_COLORS.size(), 3)
+	title._creation._step("gear", HumanoidModel.GEAR_NAMES.size(), 2)
+	await _frames(10)
+	await _shot("32_character_creation_changed")
+	title.queue_free()
+	await _frames(3)
+	var g: Game = GAME.instantiate()
+	g.new_game_config = {"name": "하람", "origin": &"blade", "appearance": {}}
+	add_child(g)
+	await _frames(90)
+	await _shot("33_intro")
+	if g.intro:
+		g.intro.skip()
+	await _frames(120)
+	await _shot("34_after_intro")
+	g.queue_free()
+	await _frames(3)
+
+
 func _run() -> void:
+	if only == "menus":
+		await _menu_shots()
+		return
 	game = GAME.instantiate()
 	game.mode = Game.Mode.FIELD
 	add_child(game)
