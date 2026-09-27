@@ -295,7 +295,7 @@ func _on_voice_finished(p: Node) -> void:
 
 func _is_occluded(position: Vector3) -> bool:
 	var vp := get_viewport()
-	var cam := vp.get_camera_3d() if vp else null
+	var cam: Camera3D = vp.get_camera_3d() if vp else null
 	if cam == null or not cam.is_inside_tree():
 		return false
 	var space := cam.get_world_3d().direct_space_state

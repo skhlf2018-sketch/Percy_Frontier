@@ -1,0 +1,40 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/player/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://src/player/camera_rig.gd" id="2_rig"]
+[ext_resource type="Script" path="res://src/player/weapons/weapon_manager.gd" id="3_weapons"]
+[ext_resource type="Script" path="res://src/player/skills/skill_caster.gd" id="4_skills"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+radius = 0.35
+height = 1.8
+
+[node name="Player" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 5
+floor_max_angle = 0.87266463
+floor_snap_length = 0.3
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_body")
+
+[node name="Head" type="Node3D" parent="."]
+top_level = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.62, 0)
+
+[node name="CameraRig" type="Node3D" parent="Head"]
+script = ExtResource("2_rig")
+
+[node name="Camera3D" type="Camera3D" parent="Head/CameraRig"]
+current = true
+fov = 59.0
+near = 0.03
+far = 600.0
+
+[node name="WeaponManager" type="Node3D" parent="Head/CameraRig/Camera3D"]
+script = ExtResource("3_weapons")
+
+[node name="SkillCaster" type="Node" parent="."]
+script = ExtResource("4_skills")

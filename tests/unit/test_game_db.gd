@@ -67,6 +67,15 @@ func test_attack_windups_are_readable() -> void:
 				assert_ge(a.windup, 0.8, "%s/%s 패링 불가 공격은 더 긴 전조" % [e.id, a.id])
 
 
+func test_moving_attacks_can_reach_their_max_range() -> void:
+	# 뛰어들기·돌진은 최대 사거리에서 시작해도 판정이 닿아야 한다(헛공격만 하는 패턴 방지).
+	for e: EnemyData in GameDB.ENEMIES:
+		for a in e.attacks:
+			if a.kind == EnemyAttackData.Kind.LUNGE or a.kind == EnemyAttackData.Kind.CHARGE:
+				var reach := a.move_speed * a.active_time + a.reach + Player.RADIUS
+				assert_le(a.max_range, reach, "%s/%s" % [e.id, a.id])
+
+
 func test_default_loadout_exists() -> void:
 	assert_not_null(GameDB.weapon(GameState.primary_weapon))
 	assert_not_null(GameDB.weapon(GameState.secondary_weapon))

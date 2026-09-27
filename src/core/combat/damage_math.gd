@@ -35,6 +35,7 @@ static func falloff(distance: float, start: float, end: float, min_mult: float) 
 
 
 ## 명중 결과에 따른 공명 획득량(기획서 §8.2: 약점 명중, 부위 파괴, 처치 등으로 얻는다).
+## 처치 보상은 몬스터마다 다르므로 EnemyData.resonance_on_kill로 따로 준다.
 static func resonance_for_hit(result: HitResult) -> float:
 	if result == null:
 		return 0.0
@@ -49,6 +50,4 @@ static func resonance_for_hit(result: HitResult) -> float:
 	gain *= result.resonance_mult
 	if result.armor_broken:
 		gain += 15.0
-	if result.killed:
-		gain += 4.0
 	return gain
