@@ -32,6 +32,9 @@ var encounters_node: FieldEncounters
 var npcs: Dictionary = {}
 ## 의뢰 물품 자리
 var quest_items: Array[QuestItemSpot] = []
+## 유니크 단서 자리와 유니크 사건
+var clue_spots: Array[ClueSpot] = []
+var predator_event: NightPredatorEvent
 
 ## 지도가 드러나는 반경(m)
 const MAP_REVEAL_RADIUS := 44.0
@@ -76,6 +79,10 @@ func _ready() -> void:
 	_place_inn()
 	_place_npcs()
 	_place_quest_items()
+	_place_clues()
+	predator_event = NightPredatorEvent.new()
+	predator_event.setup(self)
+	add_child(predator_event)
 	encounters_node = FieldEncounters.new()
 	encounters_node.name = "Encounters"
 	add_child(encounters_node)
@@ -130,6 +137,55 @@ func _shore_point(from: Vector2, dir: Vector2) -> Vector3:
 	return terrain.point_at(p)
 
 
+## 밤의 포식자 단서(기획서 §15.2: 존재·위치·조건 단서를 서로 다른 곳에). 네 번째 단서는 밤의 숲에서 직접 본다.
+const CLUE_PLACES := {
+	&"claw_marks": Vector2(-10, -116),
+	&"night_tracks": Vector2(-44, -128),
+	&"explorer_journal": FieldLayout.CAMP + Vector2(3.2, -2.6),
+}
+
+
+func _place_clues() -> void:
+	for id: StringName in CLUE_PLACES:
+		var spot := ClueSpot.new()
+		spot.setup(id, self)
+		var at: Vector2 = CLUE_PLACES[id]
+		if id != &"explorer_journal":
+			at = _clear_spot(at, 1.4)
+		spot.position = terrain.point_at(at)
+		# 발자국은 월드 방향(숲 한가운데 쪽)으로 이미 놓이므로 돌리지 않는다.
+		if id != &"night_tracks":
+			spot.rotation.y = atan2(FieldLayout.SHADE_CENTER.x - at.x, FieldLayout.SHADE_CENTER.y - at.y) + PI
+		add_child(spot)
+		clue_spots.append(spot)
+
+
+## 나무·바위 충돌체가 없는 가까운 자리(단서가 나무에 파묻히지 않게)
+func _clear_spot(at: Vector2, radius: float) -> Vector2:
+	var space := get_world_3d().direct_space_state if is_inside_tree() else null
+	if space == null:
+		return at
+	var shape := SphereShape3D.new()
+	shape.radius = radius
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = shape
+	q.collision_mask = CombatLayers.WORLD
+	for ring in 6:
+		for k in maxi(ring * 6, 1):
+			var a := TAU * float(k) / float(maxi(ring * 6, 1))
+			var c := at + Vector2(cos(a), sin(a)) * ring * 2.0
+			var h := terrain.height_at(c.x, c.y)
+			q.transform = Transform3D(Basis.IDENTITY, Vector3(c.x, h + radius + 0.4, c.y))
+			var hits := space.intersect_shape(q, 4)
+			var blocked := false
+			for hit in hits:
+				if hit.collider.name != "TerrainBody":
+					blocked = true
+			if not blocked:
+				return c
+	return at
+
+
 func refresh_quest_items() -> void:
 	for it in quest_items:
 		it.refresh()
@@ -155,6 +211,8 @@ func track_player(player: Player) -> void:
 	grass.focus = player
 	ambience.player = player
 	encounters_node.focus = player
+	predator_event.player = player
+	day_night.night_vision = 1.0 if GameState.has_mark(&"predator_mark") else 0.0
 	var p := Vector2(player.global_position.x, player.global_position.z)
 	day_night.local_shade = layout.shade_factor(p)
 	town.set_night_amount(1.0 - day_night.daylight())

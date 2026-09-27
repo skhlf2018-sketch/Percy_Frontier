@@ -26,6 +26,7 @@ const ENEMIES := [
 	preload("res://data/enemies/rock_charger.tres"),
 	preload("res://data/enemies/spore_spitter.tres"),
 	preload("res://data/enemies/training_dummy.tres"),
+	preload("res://data/enemies/night_predator.tres"),
 ]
 const CONSUMABLES := [
 	preload("res://data/consumables/field_suture.tres"),
@@ -72,6 +73,14 @@ static func all_melee() -> Array[MeleeData]:
 	var out: Array[MeleeData] = []
 	for m: MeleeData in MELEE:
 		out.append(m)
+	return out
+
+
+static func unique_enemies() -> Array[EnemyData]:
+	var out: Array[EnemyData] = []
+	for e: EnemyData in ENEMIES:
+		if e.threat_tier == EnemyData.ThreatTier.UNIQUE:
+			out.append(e)
 	return out
 
 

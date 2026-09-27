@@ -52,6 +52,13 @@ func _process_idle(delta: float) -> void:
 			Sfx.play_at(&"rustle", global_position + Vector3.UP * 0.3, -2.0)
 	if dist < AMBUSH_TRIGGER and CombatQuery.has_line_of_sight(get_world_3d(),
 			global_position + Vector3.UP * eye_height, p.get_chest_position()):
+		if fears_mark():
+			# 밤의 포식자의 각인: 덮치는 대신 풀숲에서 튀어나와 달아난다.
+			hidden = false
+			target = p
+			_mark_fleeing = true
+			_set_state(State.FLEE)
+			return
 		alert(p)
 
 

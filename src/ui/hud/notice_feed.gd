@@ -25,8 +25,11 @@ func push(text: String, kind: int) -> void:
 	l.add_theme_font_size_override("font_size", 20)
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# 긴 알림(단서 내용 등)은 줄을 바꾸고 더 오래 보여 준다.
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.add_theme_color_override("font_color", COLORS.get(kind, Color.WHITE))
 	l.set_meta("t", 0.0)
+	l.set_meta("life", minf(LIFE + text.length() * 0.04, 10.0))
 	add_child(l)
 	while get_child_count() > MAX_ITEMS:
 		var old := get_child(0)
@@ -42,8 +45,9 @@ func push(text: String, kind: int) -> void:
 func _process(delta: float) -> void:
 	for child in get_children():
 		var t: float = child.get_meta("t", 0.0) + delta
+		var life: float = child.get_meta("life", LIFE)
 		child.set_meta("t", t)
-		if t > LIFE - 0.6:
-			child.modulate.a = clampf((LIFE - t) / 0.6, 0.0, 1.0)
-		if t >= LIFE:
+		if t > life - 0.6:
+			child.modulate.a = clampf((life - t) / 0.6, 0.0, 1.0)
+		if t >= life:
 			child.queue_free()

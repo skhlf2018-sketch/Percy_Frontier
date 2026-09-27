@@ -1,0 +1,88 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Resource_claw"]
+script = ExtResource("1_atk")
+id = &"shadow_claw"
+display_name = "발톱 휘두르기"
+max_range = 4.8
+windup = 0.6
+active_time = 0.2
+recovery = 0.75
+cooldown = 1.8
+damage = 20.0
+reach = 4.5
+hit_angle_deg = 110.0
+knockback = 6.0
+weight = 1.3
+
+[sub_resource type="Resource" id="Resource_pounce"]
+script = ExtResource("1_atk")
+id = &"shadow_pounce"
+display_name = "그림자 도약"
+kind = 1
+parryable = false
+min_range = 6.0
+max_range = 14.5
+windup = 1.0
+active_time = 0.55
+recovery = 1.2
+cooldown = 5.5
+damage = 34.0
+reach = 3.2
+hit_angle_deg = 100.0
+move_speed = 21.0
+knockback = 9.0
+weight = 1.0
+
+[sub_resource type="Resource" id="Resource_sweep"]
+script = ExtResource("1_atk")
+id = &"shadow_sweep"
+display_name = "꼬리 쓸기"
+parryable = false
+max_range = 5.0
+windup = 0.85
+active_time = 0.25
+recovery = 1.0
+cooldown = 6.5
+damage = 24.0
+reach = 4.8
+hit_angle_deg = 220.0
+knockback = 10.0
+weight = 0.6
+
+[resource]
+script = ExtResource("2_data")
+id = &"night_predator"
+display_name = "밤의 포식자"
+family = "그림자 짐승"
+threat_tier = 5
+combat_role = "추적·매복"
+description = "빛이 사라지는 밤에만 그늘 숲 깊은 곳을 거니는 거대한 짐승. 뼈처럼 흰 가면 같은 얼굴, 등을 따라 솟은 가시, 푸르게 타는 눈. 사냥감을 곧장 죽이지 않고 시험하듯 쫓다가 어둠 속으로 사라진다. 버텨 낸 자에게는 지워지지 않는 표식을 남긴다고 한다."
+max_hp = 2400.0
+level = 24
+xp_reward = 0
+defense = 0.35
+walk_speed = 3.6
+run_speed = 9.0
+turn_speed_deg = 300.0
+poise = 240.0
+stagger_duration = 0.7
+mass_kg = 600.0
+sight_range = 60.0
+sight_fov_deg = 220.0
+proximity_sense = 8.0
+hearing_mult = 2.0
+leash_radius = 160.0
+attacks = Array[ExtResource("1_atk")]([SubResource("Resource_claw"), SubResource("Resource_pounce"), SubResource("Resource_sweep")])
+burn_mult = 0.4
+chill_mult = 0.3
+shock_mult = 0.5
+bleed_mult = 0.5
+boss_status_rules = true
+resonance_on_kill = 0.0
+ammo_drop_chance = 0.0
+heal_drop_chance = 0.0
+core_drop_chance = 0.0

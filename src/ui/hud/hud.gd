@@ -49,6 +49,11 @@ var _tracker_title: Label
 var _tracker_step: Label
 var _tracker_dist: Label
 var _silver_label: Label
+## 유니크 조우: 이름(정체를 모르면 ???)과 흥미 게이지
+var _unique_panel: VBoxContainer
+var _unique_name: Label
+var _unique_hint: Label
+var _unique_bar: StatBar
 
 var _hit_sound_cooldown: float = 0.0
 var _damage_flash: float = 0.0
@@ -200,6 +205,24 @@ func _build() -> void:
 	_tracker_dist = _label("", 16, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_LEFT)
 	_tracker_dist.add_theme_color_override("font_color", MUTED)
 	_tracker.add_child(_tracker_dist)
+
+	# 아래 가운데 스킬 칸 위: 유니크 조우(이름과 흥미 게이지)
+	_unique_panel = VBoxContainer.new()
+	_unique_panel.add_theme_constant_override("separation", 3)
+	_unique_panel.visible = false
+	_place(_unique_panel, Vector2(0.5, 1), Vector2(-360, -250), Vector2(720, 96))
+	_unique_name = _label("", 24, &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	_unique_name.add_theme_color_override("font_color", Color(0.62, 0.9, 1.0))
+	_unique_panel.add_child(_unique_name)
+	_unique_bar = StatBar.new()
+	_unique_bar.label = "포식자의 흥미"
+	_unique_bar.fill_color = Color(0.35, 0.75, 1.0)
+	_unique_bar.custom_minimum_size = Vector2(720, 16)
+	_unique_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_unique_panel.add_child(_unique_bar)
+	_unique_hint = _label("살아남아라 — 패링과 간발의 회피로 흥미를 끌면 물러난다", 16, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	_unique_hint.add_theme_color_override("font_color", MUTED)
+	_unique_panel.add_child(_unique_hint)
 
 	# 왼쪽 아래 레벨 줄 위: 은화
 	_silver_label = _label("", 17, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_LEFT)
@@ -541,3 +564,13 @@ func _update_field(delta: float) -> void:
 	var dn := _field.day_night
 	_area_label.text = "%s  ·  %s %s" % [area_name if area_name != "" else "퍼시 외곽권", dn.phase_name(), dn.clock_text()]
 	_silver_label.text = "은화 %d" % GameState.silver
+	var ev := _field.predator_event
+	var pred := ev.predator if ev and ev.state == NightPredatorEvent.State.ENCOUNTER else null
+	if pred and is_instance_valid(pred):
+		_unique_panel.visible = true
+		_unique_name.text = "%s  ·  유니크" % UniqueDB.unique_name(&"night_predator", pred.revealed)
+		_unique_bar.set_state(pred.interest_ratio(), "%d%%" % int(pred.interest_ratio() * 100.0))
+		_unique_hint.text = "물러나고 있다…" if pred.phase == NightPredator.Phase.RETREAT else \
+			"살아남아라 — 패링과 간발의 회피로 흥미를 끌면 물러난다"
+	else:
+		_unique_panel.visible = false

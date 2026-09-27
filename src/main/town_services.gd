@@ -151,16 +151,25 @@ func _allocated_total() -> int:
 
 func _guard(npc: TownNpc) -> void:
 	var text := "밤에는 정문 밖으로 멀리 나가지 마. 그늘 숲 쪽은 특히. 요즘 밤이면 숲이 이상할 만큼 조용해진다더군. 사냥꾼 노라한테 물어봐."
+	if GameState.unique_record(&"night_predator").survived:
+		text = "소문 들었어. 그 숲에서 밤을 넘겼다며? …요즘 정문 밖 토끼들이 너만 보면 달아난다더군."
 	_say(npc, text, [])
 
 
 func _hunter(npc: TownNpc, progressed: Array[StringName]) -> void:
 	var q := GameState.quests
 	var text := "숲에서 먹고사는 사람이야. 요즘 숲이 이상해."
+	var survived: bool = GameState.unique_record(&"night_predator").survived
 	if progressed.has(&"night_silence"):
 		text = "…그걸 봤다고? 그리고 살아서 돌아왔고. 그 표식, 한동안 지워지지 않을 거야. 숲의 작은 것들은 이제 너를 피하겠지."
+	elif q.is_active(&"night_silence") and q.step_of(&"night_silence") == 0:
+		text = "그늘 숲 가장자리를 살펴봐. 나무에 난 자국, 이상하게 큰 발자국. 북쪽 야영지에 누가 남기고 간 물건도 있다더군. " \
+			+ "밤에 숲에 들어가 보는 것도 방법이지만… 풀벌레 소리가 멎으면, 뒤를 보지 말고 뛰어."
 	elif q.is_active(&"night_silence"):
-		text = "그늘 숲 가장자리를 살펴봐. 부러진 나무, 이상하게 큰 발자국. 그리고 밤에… 풀벌레 소리가 멎으면, 뒤를 보지 말고 뛰어."
+		text = "흔적은 모였군. 밤에, 숲 한가운데로 가 봐. 풀벌레 소리가 멎으면 그게 신호야. 이기려 들지 마. 버텨. " \
+			+ "막는 것보다 피하는 게 낫고, 발톱은 흘려 낼 수 있어. 회복약은 넉넉히."
+	elif survived:
+		text = "살아남은 사람 눈빛이군. 그 각인, 자랑하고 다니진 마. 강한 놈들은 그 냄새를 더 잘 맡으니까."
 	var entries: Array = []
 	_quest_offer(entries, &"night_silence",
 		"밤이 되면 그늘 숲이 조용해져. 새도 벌레도 다 입을 닫지. 무언가가 있어. 흔적을 찾아 봐. (추적 의뢰)")

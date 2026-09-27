@@ -1,7 +1,8 @@
 class_name QuestDB
 extends RefCounted
 ## 이 개발 빌드의 의뢰(기획서 §17): 메인 1, 지역 1, 인물 1, 발견·추적 1.
-## 단계 종류: area(지역 도착), talk(주민과 대화), kill(몬스터 처치 수), item(아이템 보유 수).
+## 단계 종류: area(지역 도착), talk(주민과 대화), kill(몬스터 처치 수), item(아이템 보유 수),
+## clue(유니크 단서 수), unique(유니크 사건에서 살아남기).
 ## hint는 지도와 추적 표시에 쓰는 대략적인 목표 지점(정확한 표식이 아니라 방향과 거리만 알려 준다).
 
 const QUESTS := {
@@ -44,12 +45,12 @@ const QUESTS := {
 	&"night_silence": {
 		"title": "밤에 조용해지는 숲", "type": "추적", "giver": &"hunter",
 		"steps": [
-			{"text": "그늘 숲 가장자리에서 이상한 흔적을 찾는다", "type": &"clue", "target": &"any", "need": 2,
-				"hint": Vector2(-40, -110)},
-			{"text": "밤에 그늘 숲 깊은 곳으로 들어가 본다 — 준비를 단단히 할 것", "type": &"unique", "target": &"night_predator",
-				"need": 1, "hint": Vector2(-72, -140)},
+			{"text": "그늘 숲 주변에서 이상한 흔적(단서)을 찾는다 — 숲 가장자리, 북쪽 야영지, 밤의 숲", "type": &"clue",
+				"target": &"night_predator", "need": 2, "hint": Vector2(-40, -110), "radius": 60.0},
+			{"text": "밤에 그늘 숲 깊은 곳으로 들어가 살아남는다 — 회복약을 챙길 것", "type": &"unique",
+				"target": &"night_predator", "need": 1, "hint": Vector2(-72, -140), "radius": 55.0},
 			{"text": "사냥꾼 노라에게 본 것을 이야기한다", "type": &"talk", "target": &"hunter", "need": 1,
-				"hint": Vector2(107, 144)},
+				"hint": Vector2(114, 128)},
 		],
 		"reward": {"xp": 250, "silver": 60},
 		"done_text": "노라는 오래 말이 없었다. 그 짐승은 아직 숲 어딘가에 있다.",

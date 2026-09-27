@@ -29,6 +29,10 @@ const RETURN_HEAL_PER_SEC := 0.3
 const NAV_REPATH_INTERVAL := 0.2
 const CORPSE_TIME := 3.0
 const OBSERVE_RANGE := 35.0
+## 밤의 포식자의 각인: 약한 야생 몬스터가 이 거리 안에서 달아난다.
+const MARK_FLEE_DISTANCE := 14.0
+## 각인: 강한 몬스터의 감지 거리 배율
+const MARK_SIGHT_MULT := 1.3
 
 const TELEGRAPH_PARRY_COLOR := Color(1.0, 0.82, 0.2)
 const TELEGRAPH_HEAVY_COLOR := Color(1.0, 0.18, 0.12)
@@ -81,6 +85,8 @@ var _knockback := Vector3.ZERO
 var _corpse_timer: float = 0.0
 var _last_hit_zone: int = Hurtbox.Zone.NORMAL
 var _sees_target: bool = false
+## 각인 때문에 달아나는 중(공격받으면 맞서 싸운다)
+var _mark_fleeing: bool = false
 
 static var _overlay_cache: Dictionary = {}
 
@@ -301,6 +307,7 @@ func _process_return(delta: float) -> void:
 
 func _process_flee(delta: float) -> void:
 	if target == null or _state_time > 3.5:
+		_mark_fleeing = false
 		_set_state(State.RETURN)
 		return
 	var away := global_position - target.global_position
@@ -324,7 +331,7 @@ func can_see(p: Player) -> bool:
 	var point := p.get_chest_position()
 	var to := point - eye
 	var dist := to.length()
-	var sight := data.sight_range * (0.6 if p.crouching else 1.0)
+	var sight := data.sight_range * (0.6 if p.crouching else 1.0) * _mark_sight_mult()
 	if dist > sight:
 		return false
 	if dist > data.proximity_sense:
@@ -349,6 +356,13 @@ func _perceive() -> void:
 	_check_observed(p)
 	match state:
 		State.IDLE, State.INVESTIGATE, State.RETURN:
+			if _sees_target and fears_mark():
+				# 밤의 포식자의 각인: 약한 야생 몬스터는 먼저 덤비지 않고 달아난다.
+				if global_position.distance_to(p.global_position) < MARK_FLEE_DISTANCE:
+					target = p
+					_mark_fleeing = true
+					_set_state(State.FLEE)
+				return
 			if _sees_target:
 				var dist := global_position.distance_to(p.global_position)
 				var rate := lerpf(3.5, 0.7, clampf(dist / maxf(data.sight_range, 1.0), 0.0, 1.0))
@@ -371,6 +385,20 @@ func _perceive() -> void:
 					target = null
 			if _beyond_leash(p):
 				_lose_target()
+
+
+## 플레이어의 각인을 두려워하는 약한 야생 몬스터인지(일반·강화 등급, 레벨이 플레이어+3 이하)
+func fears_mark() -> bool:
+	return GameState.has_mark(&"predator_mark") and data.threat_tier <= EnemyData.ThreatTier.ENHANCED \
+		and data.level <= GameState.progress.level + 3
+
+
+## 각인을 알아보는 강한 몬스터는 더 멀리서 알아챈다.
+func _mark_sight_mult() -> float:
+	if GameState.has_mark(&"predator_mark") and data.level > GameState.progress.level \
+			and data.threat_tier != EnemyData.ThreatTier.UNIQUE:
+		return MARK_SIGHT_MULT
+	return 1.0
 
 
 func _beyond_leash(p: Player) -> bool:
@@ -840,7 +868,9 @@ func _on_hit_zone(_hurtbox: Hurtbox, _zone: int, _info: DamageInfo) -> void:
 
 
 func _on_damaged_by(p: Player) -> void:
-	if state == State.RETURN or state == State.IDLE or state == State.INVESTIGATE:
+	if state == State.RETURN or state == State.IDLE or state == State.INVESTIGATE \
+			or (state == State.FLEE and _mark_fleeing):
+		_mark_fleeing = false
 		alert(p)
 	elif target == null:
 		alert(p)

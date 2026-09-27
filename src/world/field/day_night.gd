@@ -25,6 +25,8 @@ var paused: bool = false
 var local_shade: float = 0.0
 ## 0..1. 유니크 접근 시 빛이 사그라드는 정도
 var eerie: float = 0.0
+## 0..1. 밤눈(밤의 포식자의 각인): 밤과 그늘 숲이 덜 어둡다.
+var night_vision: float = 0.0
 
 var environment: Environment
 var sun: DirectionalLight3D
@@ -165,7 +167,7 @@ func _apply() -> void:
 	var day := daylight()
 	var dusk := clampf(1.0 - absf(sh) * 4.0, 0.0, 1.0) * clampf(sh * 3.0 + 1.0, 0.0, 1.0)
 	var night := 1.0 - day
-	var shade := clampf(local_shade * 0.85 + eerie, 0.0, 1.0)
+	var shade := clampf(local_shade * 0.85 * (1.0 - night_vision * 0.45) + eerie, 0.0, 1.0)
 
 	# 햇빛: 낮게 뜰수록 따뜻한 색
 	var warm := clampf(1.0 - sh * 2.2, 0.0, 1.0)
@@ -197,10 +199,11 @@ func _apply() -> void:
 	# 주변광과 안개: 밤에도 달빛 아래 지형 윤곽은 보이게 한다.
 	var ambient := Color(0.58, 0.63, 0.72).lerp(Color(0.26, 0.32, 0.5), night).lerp(Color(0.85, 0.6, 0.5), dusk * 0.3)
 	environment.ambient_light_color = ambient
-	environment.ambient_light_energy = lerpf(0.62, 0.62, night) * (1.0 - shade * 0.35) * (1.0 - eerie * 0.5)
+	environment.ambient_light_energy = lerpf(0.62, 0.62, night) * (1.0 - shade * 0.35) * (1.0 - eerie * 0.35) \
+		+ night * night_vision * 0.35
 	var fog_col := horizon.lerp(Color(0.1, 0.13, 0.12), shade * 0.7)
 	environment.fog_light_color = fog_col
-	environment.fog_density = lerpf(0.0022, 0.0055, night) + shade * 0.012 + eerie * 0.02
+	environment.fog_density = lerpf(0.0022, 0.0055, night) + shade * 0.012 + eerie * 0.012
 	environment.fog_height_density = shade * 0.05
 
 	var p := phase()

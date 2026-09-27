@@ -15,6 +15,10 @@ var quests: Dictionary = {}
 var tracked: StringName = &""
 ## 아이템 수를 셀 때 부르는 함수(아이템 id → 개수)
 var item_counter: Callable
+## 단서 수를 셀 때 부르는 함수(유니크 id 또는 &"any" → 개수)
+var clue_counter: Callable
+## 유니크 사건에서 살아남았는지 셀 때 부르는 함수(유니크 id → 0 또는 1)
+var unique_counter: Callable
 
 
 func state_of(id: StringName) -> int:
@@ -51,7 +55,7 @@ func start(id: StringName) -> bool:
 	tracked = id
 	GameEvents.announce("의뢰 수락 · %s" % QuestDB.title(id), String(current_step(id).get("text", "")),
 		GameEvents.AnnounceKind.QUEST)
-	_check_items(id)
+	_check_counts(id)
 	changed.emit()
 	return true
 
@@ -66,8 +70,8 @@ func notify(kind: StringName, target: StringName, amount: int = 1) -> void:
 			continue
 		if step.target != &"any" and step.target != target:
 			continue
-		if kind == &"item":
-			_check_items(id)
+		if kind == &"item" or kind == &"clue" or kind == &"unique":
+			_check_counts(id)
 			continue
 		quests[id].count = count_of(id) + amount
 		if count_of(id) >= int(step.need):
@@ -93,11 +97,21 @@ func try_talk_step(id: StringName, npc_id: StringName) -> bool:
 	return true
 
 
-func _check_items(id: StringName) -> void:
+## 가진 아이템·찾은 단서처럼 "지금 가진 수"로 판정하는 단계를 센다(이미 이룬 것은 받자마자 인정, 기획서 §17.2).
+func _check_counts(id: StringName) -> void:
 	var step := current_step(id)
-	if step.is_empty() or step.type != &"item" or not item_counter.is_valid():
+	if step.is_empty():
 		return
-	var have := int(item_counter.call(step.target))
+	var counter: Callable
+	if step.type == &"item":
+		counter = item_counter
+	elif step.type == &"clue":
+		counter = clue_counter
+	elif step.type == &"unique":
+		counter = unique_counter
+	if not counter.is_valid():
+		return
+	var have := int(counter.call(step.target))
 	quests[id].count = mini(have, int(step.need))
 	if have >= int(step.need):
 		_advance(id)
@@ -121,8 +135,8 @@ func _advance(id: StringName) -> void:
 	GameEvents.announce("의뢰 갱신 · %s" % QuestDB.title(id), String(steps[next].text), GameEvents.AnnounceKind.QUEST)
 	step_advanced.emit(id, next)
 	changed.emit()
-	# 다음 단계가 아이템이면 이미 가진 것을 바로 센다.
-	_check_items(id)
+	# 다음 단계가 아이템·단서면 이미 가진 것을 바로 센다.
+	_check_counts(id)
 
 
 func _next_tracked() -> StringName:

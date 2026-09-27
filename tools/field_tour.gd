@@ -96,6 +96,9 @@ func _run() -> void:
 	if only == "town":
 		await _town_shots()
 		return
+	if only == "unique":
+		await _unique_shots()
+		return
 	var t := game.field.landmarks.spots["new_game"] as Transform3D
 	var start := Vector2(t.origin.x, t.origin.z)
 	await _view("01_start_morning", start, FieldLayout.DROP_SITE + Vector2(-2, -4), 8.5, -4.0)
@@ -222,3 +225,98 @@ func _town_shots() -> void:
 	game.hud.visible = false
 	game.field.town.fix_tower()
 	await _view("54_tower_fixed_night", tc + Vector2(-20, 8), tc + Vector2(31, -2), 22.5, 14.0)
+
+
+## 유니크 사건 「밤의 포식자」: 단서, 전조, 조우, 단서판과 각인
+func _unique_shots() -> void:
+	only = ""
+	var f := game.field
+	var ev := f.predator_event
+	f.day_night.paused = true
+	for spot in f.clue_spots:
+		var at := Vector2(spot.global_position.x, spot.global_position.z)
+		var from := at + Vector2(0, 0)
+		match spot.clue_id:
+			&"claw_marks":
+				var out := (at - FieldLayout.SHADE_CENTER).normalized()
+				await _view("60_claw_tree", at + out * 5.5, at, 15.0, 8.0)
+			&"explorer_journal":
+				await _view("61_journal_camp", at + Vector2(-1.6, 1.8), at, 16.0, -28.0)
+			&"night_tracks":
+				var out := (at - FieldLayout.SHADE_CENTER).normalized()
+				await _view("62_night_tracks", at + out * 4.0, FieldLayout.SHADE_CENTER, 23.5, -22.0)
+	# 흘끗 보기
+	game.hud.visible = true
+	await _view("63a_night_forest_calm", FieldLayout.SHADE_CENTER + Vector2(40, 30), FieldLayout.SHADE_CENTER, 23.0, 2.0)
+	f.day_night.eerie = 0.0
+	ev.player = game.player
+	ev._start_glimpse()
+	ev._timer = NightPredatorEvent.GLIMPSE_TIME - 3.2
+	ev._spawn_eyes()
+	for m in ev._eye_materials:
+		m.emission_energy_multiplier = 5.0
+	f.day_night.eerie = 0.55
+	await _frames(8)
+	await _shot("63b_glimpse_eyes")
+	ev._timer = 0.01
+	await _frames(4)
+	# 전조와 조우
+	GameState.add_clue(&"claw_marks")
+	GameState.add_clue(&"explorer_journal")
+	var stand := FieldLayout.SHADE_CENTER + Vector2(4, 6)
+	await _view("64_omen", stand, FieldLayout.SHADE_CENTER + Vector2(-20, -10), 23.2, 3.0)
+	f.day_night.eerie = 0.85
+	await _frames(8)
+	await _shot("64_omen")
+	ev._timer = 0.01
+	for i in 20:
+		await get_tree().physics_frame
+		if ev.state == NightPredatorEvent.State.ENCOUNTER:
+			break
+	var pred := ev.predator
+	if pred == null:
+		push_warning("포식자가 나타나지 않았습니다")
+		return
+	f.day_night.eerie = 1.0
+	var pl := game.player
+	var fwd := -Basis(Vector3.UP, pl.yaw).z
+	pred.global_position = f.terrain.point_at(Vector2(pl.global_position.x, pl.global_position.z) + Vector2(fwd.x, fwd.z) * 11.0)
+	pred.look_at(pl.global_position, Vector3.UP, true)
+	pred.reset_physics_interpolation()
+	await _frames(3)
+	pred.process_mode = Node.PROCESS_MODE_DISABLED
+	await _frames(6)
+	await _shot("65_predator_stalk")
+	pred.process_mode = Node.PROCESS_MODE_INHERIT
+	pred.global_position = f.terrain.point_at(Vector2(pl.global_position.x, pl.global_position.z) + Vector2(fwd.x, fwd.z) * 5.0)
+	pred.look_at(pl.global_position, Vector3.UP, true)
+	pred.reset_physics_interpolation()
+	pred.interest = 42.0
+	pred._start_phase(NightPredator.Phase.ASSAULT)
+	for i in 120:
+		await get_tree().physics_frame
+		if not pred.telegraph_info().is_empty():
+			break
+	await _frames(4)
+	await _shot("66_predator_windup")
+	pred._fade = 0.45
+	pred._fade_target = 0.45
+	pred._apply_fade()
+	pred.process_mode = Node.PROCESS_MODE_DISABLED
+	await _frames(4)
+	await _shot("67_predator_vanishing")
+	pred.process_mode = Node.PROCESS_MODE_INHERIT
+	pred.interest = NightPredator.MAX_INTEREST
+	pred.retreat(NightPredator.RetreatReason.INTEREST)
+	for i in 400:
+		await get_tree().physics_frame
+		if ev.state != NightPredatorEvent.State.ENCOUNTER:
+			break
+	await _frames(20)
+	await _shot("68_survived_banner")
+	game.menus.open_status(StatusWindow.TAB_QUESTS)
+	await _menu_shot("69_clue_board")
+	game.menus.open_status(StatusWindow.TAB_STATUS)
+	await _menu_shot("70_status_mark")
+	game.menus.open_status(StatusWindow.TAB_BESTIARY)
+	await _menu_shot("71_bestiary_unique")

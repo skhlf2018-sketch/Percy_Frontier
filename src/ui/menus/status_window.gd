@@ -185,6 +185,11 @@ func _build_status() -> void:
 	left.add_theme_constant_override("separation", 8)
 	row.add_child(left)
 	_text(left, pr.character_name, 36)
+	if not GameState.titles.is_empty():
+		var names: Array[String] = []
+		for t in GameState.titles:
+			names.append("「%s」" % UniqueDB.title_name(t))
+		_text(left, "칭호 " + " ".join(names), 19, Color(0.62, 0.9, 1.0))
 	var origin_name := pr.origin_name()
 	_text(left, "Lv %d%s" % [pr.level, "  ·  " + origin_name if origin_name != "" else ""], 22, MUTED)
 	var need := PlayerProgress.xp_to_next(pr.level)
@@ -256,6 +261,13 @@ func _build_status() -> void:
 		plus.custom_minimum_size = Vector2(44, 0)
 		_text(stats, pr.stat_effect_text(i), 17, MUTED)
 	right.add_child(desc)
+	for m in GameState.marks:
+		var mark: Dictionary = UniqueDB.MARKS.get(m, {})
+		if mark.is_empty():
+			continue
+		_section(right, "각인 · " + String(mark.name))
+		for e in mark.effects:
+			_text(right, "· " + String(e), 17, Color(0.72, 0.92, 1.0))
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_END
 	right.add_child(buttons)
@@ -418,6 +430,19 @@ func _build_bestiary() -> void:
 			Color(0.7, 1.0, 0.8) if unlocked else MUTED)
 		_text(_bestiary_box, "%s · %s" % [data.family, data.combat_role], 17, MUTED)
 		_text(_bestiary_box, data.description, 17)
+	for data in GameDB.unique_enemies():
+		var rec := GameState.unique_record(data.id)
+		if not rec.sighted:
+			hidden += 1
+			continue
+		var known: bool = rec.survived
+		_section(_bestiary_box, "%s  ·  %s  ·  Lv %s" % [UniqueDB.unique_name(data.id, known), data.tier_label(),
+			str(data.level) if known else "??"])
+		_text(_bestiary_box, "분석 불가 · 추적 대상 — 공명 장치로는 읽히지 않는 개체", 18, Color(0.62, 0.9, 1.0))
+		_text(_bestiary_box, "%s · %s" % [data.family, data.combat_role] if known else "정체 불명", 17, MUTED)
+		_text(_bestiary_box, data.description if known else "어둠 속에서 푸른 눈을 보았다. 살아남아야 더 알 수 있다.", 17)
+		_text(_bestiary_box, "조우 %d회 · 최초 발견 %s · 최초 생존 %s · 최초 처치 %s" % [int(rec.encounters),
+			"✓" if rec.sighted else "—", "✓" if rec.survived else "—", "✓" if rec.defeated else "—"], 17, MUTED)
 	if hidden > 0:
 		_text(_bestiary_box, "아직 만나지 못한 기록 %d건" % hidden, 18, MUTED)
 
@@ -459,6 +484,7 @@ func _build_quests() -> void:
 			_text(_quests_box, "✓ %s  ·  %s" % [QuestDB.title(id), quest.get("type", "")], 19, Color(0.7, 1.0, 0.8))
 			if quest.has("done_text"):
 				_text(_quests_box, "   " + String(quest.done_text), 17, MUTED)
+	_build_clue_board()
 	_section(_quests_box, "탐사 기록")
 	var names: Array[String] = []
 	for a in GameState.discovered_areas:
@@ -467,6 +493,32 @@ func _build_quests() -> void:
 		int(GameState.map_explored_ratio() * 100.0)], 19)
 	if not names.is_empty():
 		_text(_quests_box, "  ·  ".join(names), 17, MUTED)
+
+
+## 탐사 단서판(기획서 §22.3): 본 사실과 추정을 나눠 적고, 아직 모르는 정답은 드러내지 않는다.
+func _build_clue_board() -> void:
+	for data in GameDB.unique_enemies():
+		var uid := data.id
+		var info: Dictionary = UniqueDB.UNIQUES.get(uid, {})
+		var found: Array[StringName] = []
+		for c in UniqueDB.clues_for(uid):
+			if GameState.clues.has(c):
+				found.append(c)
+		var rec := GameState.unique_record(uid)
+		if found.is_empty() and not rec.sighted:
+			continue
+		_section(_quests_box, "탐사 단서판 · %s" % UniqueDB.unique_name(uid, rec.survived))
+		for c in found:
+			var clue := UniqueDB.clue(c)
+			_text(_quests_box, "[%s] %s — %s" % [UniqueDB.clue_kind_name(c), clue.title, clue.where], 19)
+			_text(_quests_box, "   사실: " + String(clue.fact), 17, MUTED)
+		if found.size() >= int(info.get("clues_needed", 2)):
+			_text(_quests_box, "추정: " + String(info.deduction), 19, GOLD)
+		else:
+			_text(_quests_box, "추정: 아직 단서가 부족하다. " + String(info.get("hint_before", "")), 18, MUTED)
+		_text(_quests_box, "기록: 최초 발견 %s · 최초 생존 %s · 최초 처치 %s" % [
+			"✓" if rec.sighted else "—", "✓" if rec.survived else "—", "✓" if rec.defeated else "—"], 17,
+			Color(0.62, 0.9, 1.0))
 
 
 static func _reward_text(reward: Dictionary) -> String:

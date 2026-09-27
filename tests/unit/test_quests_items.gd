@@ -37,12 +37,29 @@ func test_wrong_kill_target_does_not_count() -> void:
 	assert_eq(q.count_of(&"rabbit_trouble"), 1)
 
 
-func test_clue_step_accepts_any_clue() -> void:
+func test_clue_step_counts_found_clues() -> void:
+	var q := GameState.quests
+	assert_true(GameState.add_clue(&"claw_marks"), "의뢰를 받기 전에 찾은 단서도 센다")
+	assert_false(GameState.add_clue(&"claw_marks"), "같은 단서는 한 번만")
+	assert_false(GameState.add_clue(&"no_such_clue"))
+	q.start(&"night_silence")
+	assert_eq(q.count_of(&"night_silence"), 1)
+	GameState.add_clue(&"explorer_journal")
+	assert_eq(q.step_of(&"night_silence"), 1, "단서 두 개면 다음 단계")
+	q.notify(&"unique", &"night_predator")
+	assert_eq(q.step_of(&"night_silence"), 1, "살아남기 전에는 넘어가지 않는다")
+	GameState.record_unique(&"night_predator", "survived")
+	q.notify(&"unique", &"night_predator")
+	assert_eq(q.step_of(&"night_silence"), 2, "살아남으면 보고 단계")
+
+
+func test_survival_before_accepting_counts() -> void:
+	GameState.add_clue(&"claw_marks")
+	GameState.add_clue(&"night_glimpse")
+	GameState.record_unique(&"night_predator", "survived")
 	var q := GameState.quests
 	q.start(&"night_silence")
-	q.notify(&"clue", &"broken_trees")
-	q.notify(&"clue", &"giant_tracks")
-	assert_eq(q.step_of(&"night_silence"), 1, "단서 두 개면 다음 단계")
+	assert_eq(q.step_of(&"night_silence"), 2, "이미 이룬 단서·생존은 의뢰를 받자마자 인정한다")
 
 
 func test_completion_grants_rewards_once() -> void:
@@ -66,6 +83,10 @@ func test_quest_log_round_trip() -> void:
 	GameState.add_item(&"rabbit_fur", 4)
 	GameState.add_silver(33)
 	GameState.reveal_map(Vector2(10, 10), 30.0)
+	GameState.add_clue(&"night_tracks")
+	GameState.record_unique(&"night_predator", "sighted")
+	GameState.grant_mark(&"predator_mark")
+	GameState.grant_title(&"night_survivor")
 	var d := GameState.to_dict()
 	var json := JSON.stringify(d)
 	GameState.reset_session()
@@ -79,6 +100,11 @@ func test_quest_log_round_trip() -> void:
 	assert_eq(GameState.silver, 33)
 	assert_true(GameState.is_map_revealed(Vector2(10, 10)), "지도 기록이 저장된다")
 	assert_false(GameState.is_map_revealed(Vector2(200, -200)))
+	assert_true(GameState.clues.has(&"night_tracks"), "단서가 저장된다")
+	assert_true(GameState.unique_record(&"night_predator").sighted, "유니크 기록이 저장된다")
+	assert_false(GameState.unique_record(&"night_predator").survived)
+	assert_true(GameState.has_mark(&"predator_mark"), "각인이 저장된다")
+	assert_true(GameState.titles.has(&"night_survivor"))
 
 
 func test_charger_always_drops_stone_scales() -> void:

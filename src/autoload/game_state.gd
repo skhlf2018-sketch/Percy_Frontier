@@ -9,6 +9,8 @@ signal inventory_changed
 signal quests_changed
 ## 지도에 새 칸이 드러났다
 signal map_revealed
+## 탐사 단서·유니크 기록·각인·칭호가 바뀌었다
+signal exploration_changed
 
 ## 공명 장치 기본 기록에 들어 있는 시작 스킬
 const STARTER_SKILL := &"frost_pulse"
@@ -38,6 +40,13 @@ var owned_weapons: Array[StringName] = []
 var upgrades: Dictionary = {}
 ## 지도에 드러난 칸(기획서 §13.3: 방문한 지형을 기록한다). MAP_CELLS×MAP_CELLS, 1이면 드러남.
 var map_cells := PackedByteArray()
+## 발견한 탐사 단서 id(기획서 §13.2)
+var clues: Array[StringName] = []
+## 유니크 기록(기획서 §15.1: 최초 발견·최초 생존·최초 처치): id → {"sighted", "survived", "defeated", "encounters"}
+var unique_log: Dictionary = {}
+## 유니크가 남긴 각인과 칭호
+var marks: Array[StringName] = []
+var titles: Array[StringName] = []
 
 const MAP_CELLS := 64
 const MAP_CELL_SIZE := 8.0
@@ -73,11 +82,18 @@ func reset_session() -> void:
 	upgrades = {}
 	map_cells = PackedByteArray()
 	map_cells.resize(MAP_CELLS * MAP_CELLS)
+	clues = []
+	unique_log = {}
+	marks = []
+	titles = []
+	quests.clue_counter = clue_count
+	quests.unique_counter = func(unique_id: StringName) -> int: return 1 if unique_record(unique_id).survived else 0
 	skills_changed.emit()
 	loadout_changed.emit()
 	inventory_changed.emit()
 	quests_changed.emit()
 	map_revealed.emit()
+	exploration_changed.emit()
 
 
 ## 새 캐릭터로 시작한다(캐릭터 생성 결과).
@@ -122,6 +138,10 @@ func to_dict() -> Dictionary:
 		"owned_weapons": owned_weapons.map(func(x: StringName) -> String: return String(x)),
 		"upgrades": _string_keys(upgrades),
 		"map": _pack_bits(map_cells),
+		"clues": clues.map(func(x: StringName) -> String: return String(x)),
+		"unique_log": _string_keys(unique_log),
+		"marks": marks.map(func(x: StringName) -> String: return String(x)),
+		"titles": titles.map(func(x: StringName) -> String: return String(x)),
 	}
 
 
@@ -198,11 +218,30 @@ func from_dict(d: Dictionary) -> void:
 	for k in up:
 		upgrades[StringName(k)] = clampi(int(up[k]), 0, MAX_UPGRADE)
 	map_cells = _unpack_bits(String(d.get("map", "")), MAP_CELLS * MAP_CELLS)
+	for c in d.get("clues", []):
+		var id := StringName(c)
+		if UniqueDB.has_clue(id) and not clues.has(id):
+			clues.append(id)
+	var ul: Dictionary = d.get("unique_log", {})
+	for k in ul:
+		var id := StringName(k)
+		if not UniqueDB.UNIQUES.has(id) or not (ul[k] is Dictionary):
+			continue
+		var rec: Dictionary = ul[k]
+		unique_log[id] = {"sighted": bool(rec.get("sighted", false)), "survived": bool(rec.get("survived", false)),
+			"defeated": bool(rec.get("defeated", false)), "encounters": maxi(int(rec.get("encounters", 0)), 0)}
+	for m in d.get("marks", []):
+		if UniqueDB.MARKS.has(StringName(m)) and not marks.has(StringName(m)):
+			marks.append(StringName(m))
+	for t in d.get("titles", []):
+		if UniqueDB.TITLES.has(StringName(t)) and not titles.has(StringName(t)):
+			titles.append(StringName(t))
 	skills_changed.emit()
 	loadout_changed.emit()
 	inventory_changed.emit()
 	quests_changed.emit()
 	map_revealed.emit()
+	exploration_changed.emit()
 
 
 ## 경험치를 준다(처치, 발견, 의뢰).
@@ -245,6 +284,80 @@ func unlock_skill(skill_id: StringName) -> int:
 		skill_slots[slot] = skill_id
 	skills_changed.emit()
 	return slot
+
+
+# --- 탐사 단서와 유니크 기록(기획서 §13, §15) ---
+
+## 단서를 기록한다. 처음이면 true.
+func add_clue(id: StringName) -> bool:
+	if clues.has(id) or not UniqueDB.has_clue(id):
+		return false
+	clues.append(id)
+	var unique_id: StringName = UniqueDB.clue(id).unique
+	var n := clue_count(unique_id)
+	var sub := "%s 단서 · %s — J: 탐사 기록" % [UniqueDB.clue_kind_name(id), UniqueDB.clue(id).where]
+	GameEvents.announce("탐사 단서 · %s" % UniqueDB.clue_title(id), sub, GameEvents.AnnounceKind.DISCOVERY)
+	Sfx.play_ui(&"clue_found")
+	var need := int(UniqueDB.UNIQUES[unique_id].clues_needed)
+	if n == need:
+		GameEvents.notify("탐사 기록에 추정이 정리되었습니다: %s" % UniqueDB.UNIQUES[unique_id].deduction,
+			GameEvents.NoticeKind.ANALYSIS)
+	grant_xp(15, "탐사 단서")
+	exploration_changed.emit()
+	# 의뢰의 단서 단계는 유니크별로 센다.
+	quests.notify(&"clue", unique_id)
+	return true
+
+
+## 유니크별(또는 &"any": 전체) 단서 수
+func clue_count(unique_id: StringName = &"any") -> int:
+	if unique_id == &"any":
+		return clues.size()
+	var n := 0
+	for c in clues:
+		if UniqueDB.clue(c).unique == unique_id:
+			n += 1
+	return n
+
+
+func unique_record(unique_id: StringName) -> Dictionary:
+	return unique_log.get(unique_id, {"sighted": false, "survived": false, "defeated": false, "encounters": 0})
+
+
+## 유니크 기록 항목(sighted/survived/defeated)을 채운다. 처음이면 true.
+func record_unique(unique_id: StringName, key: String) -> bool:
+	var rec := unique_record(unique_id).duplicate()
+	if key == "encounters":
+		rec.encounters = int(rec.encounters) + 1
+		unique_log[unique_id] = rec
+		exploration_changed.emit()
+		return true
+	if bool(rec.get(key, false)):
+		return false
+	rec[key] = true
+	unique_log[unique_id] = rec
+	exploration_changed.emit()
+	return true
+
+
+func has_mark(id: StringName) -> bool:
+	return marks.has(id)
+
+
+func grant_mark(id: StringName) -> bool:
+	if marks.has(id) or not UniqueDB.MARKS.has(id):
+		return false
+	marks.append(id)
+	exploration_changed.emit()
+	return true
+
+
+func grant_title(id: StringName) -> bool:
+	if titles.has(id) or not UniqueDB.TITLES.has(id):
+		return false
+	titles.append(id)
+	exploration_changed.emit()
+	return true
 
 
 # --- 지도 ---

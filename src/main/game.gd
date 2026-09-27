@@ -104,6 +104,9 @@ func _ready() -> void:
 		GameEvents.consumable_granted.connect(func(consumable_id: StringName, count: int) -> void:
 			player.add_consumable(consumable_id, count))
 		GameState.quests.completed.connect(_on_quest_completed)
+		field.predator_event.ended.connect(func(outcome: int) -> void:
+			if outcome == NightPredatorEvent.Outcome.SURVIVED:
+				request_autosave())
 	world.rest_requested.connect(_on_rest_requested)
 	world.rack_requested.connect(_open_weapon_rack)
 	world.terminal_requested.connect(_open_test_terminal)
@@ -219,6 +222,8 @@ func _respawn() -> void:
 	var had_tests := world.active_test_count() > 0
 	world.clear_test_spawns()
 	player.respawn_at(checkpoint)
+	if field:
+		field.predator_event.on_player_respawned()
 	var parts: Array[String] = ["거점에서 다시 시작합니다."]
 	if reset > 0:
 		parts.append("교전하던 야외 무리가 처음 상태로 돌아갔습니다.")
