@@ -40,6 +40,15 @@ var _save_label: Label
 var _save_time: float = 0.0
 var _level_label: Label
 var _xp_bar: StatBar
+## 필드 전용: 나침반, 지역·시각, 의뢰 추적
+var _field: FieldWorld
+var _compass: CompassBar
+var _area_label: Label
+var _tracker: VBoxContainer
+var _tracker_title: Label
+var _tracker_step: Label
+var _tracker_dist: Label
+var _silver_label: Label
 
 var _hit_sound_cooldown: float = 0.0
 var _damage_flash: float = 0.0
@@ -162,10 +171,41 @@ func _build() -> void:
 	_notices.alignment = BoxContainer.ALIGNMENT_BEGIN
 	_place(_notices, Vector2(1, 0), Vector2(-760, 30), Vector2(730, 300))
 
-	var mark := _label("Percy Frontier · 개발 빌드 v%s · ESC 메뉴 · Tab 공명 장치" % ProjectSettings.get_setting("application/config/version", "0"),
+	var mark := _label("Percy Frontier · 개발 빌드 v%s · ESC 메뉴 · Tab 공명 장치 · M 지도 · J 의뢰" % ProjectSettings.get_setting("application/config/version", "0"),
 		15, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_LEFT)
 	mark.add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
-	_place(mark, Vector2(0, 0), Vector2(20, 14), Vector2(700, 22))
+	_place(mark, Vector2(0, 0), Vector2(20, 14), Vector2(760, 22))
+
+	# 위 가운데: 나침반과 지역·시각(필드 전용)
+	_compass = CompassBar.new()
+	_compass.visible = false
+	_place(_compass, Vector2(0.5, 0), Vector2(-380, 12), Vector2(760, 58))
+	_area_label = _label("", 17, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	_area_label.add_theme_color_override("font_color", MUTED)
+	_area_label.visible = false
+	_place(_area_label, Vector2(0.5, 0), Vector2(-380, 72), Vector2(760, 24))
+
+	# 왼쪽 위: 추적 중인 의뢰(전투 중에는 옅어진다, 기획서 §22.1)
+	_tracker = VBoxContainer.new()
+	_tracker.add_theme_constant_override("separation", 2)
+	_tracker.visible = false
+	_place(_tracker, Vector2(0, 0), Vector2(40, 52), Vector2(520, 130))
+	_tracker_title = _label("", 21, &"HudLabel", HORIZONTAL_ALIGNMENT_LEFT)
+	_tracker_title.add_theme_color_override("font_color", CompassBar.QUEST_COLOR)
+	_tracker.add_child(_tracker_title)
+	_tracker_step = _label("", 18, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_LEFT)
+	_tracker_step.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tracker_step.custom_minimum_size = Vector2(520, 0)
+	_tracker.add_child(_tracker_step)
+	_tracker_dist = _label("", 16, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_LEFT)
+	_tracker_dist.add_theme_color_override("font_color", MUTED)
+	_tracker.add_child(_tracker_dist)
+
+	# 왼쪽 아래 레벨 줄 위: 은화
+	_silver_label = _label("", 17, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_LEFT)
+	_silver_label.add_theme_color_override("font_color", Color(0.85, 0.88, 0.95))
+	_silver_label.visible = false
+	_place(_silver_label, Vector2(0, 1), Vector2(40, -234), Vector2(520, 26))
 
 	_death_panel = ColorRect.new()
 	(_death_panel as ColorRect).color = Color(0.05, 0.0, 0.0, 0.6)
@@ -267,6 +307,14 @@ func bind(p: Player) -> void:
 	p.respawned.connect(func() -> void: _death_panel.visible = false)
 
 
+## 필드에서만 쓰는 표시(나침반, 지역·시각, 의뢰 추적, 은화)를 켠다.
+func bind_field(f: FieldWorld) -> void:
+	_field = f
+	_compass.visible = true
+	_area_label.visible = true
+	_silver_label.visible = true
+
+
 func notify(text: String, kind: int) -> void:
 	_notices.push(text, kind)
 
@@ -324,6 +372,8 @@ func _process(delta: float) -> void:
 	_update_weapon()
 	_update_skills()
 	_update_center(delta)
+	if _field:
+		_update_field(delta)
 
 
 func _update_vitals(delta: float) -> void:
@@ -449,3 +499,45 @@ func _update_center(delta: float) -> void:
 		_prompt.visible = false
 	_center_flash_time = maxf(0.0, _center_flash_time - delta)
 	_center_flash.modulate.a = clampf(_center_flash_time / 0.3, 0.0, 1.0)
+
+
+func _update_field(delta: float) -> void:
+	_compass.heading = fposmod(-rad_to_deg(player.yaw), 360.0)
+	var markers: Array = []
+	var q := GameState.quests
+	var id := q.tracked
+	var pos := player.global_position
+	if id != &"" and q.is_active(id):
+		var step := q.current_step(id)
+		var hint := _field.quest_hint(step)
+		_tracker.visible = true
+		_tracker_title.text = "◆ %s · %s" % [QuestDB.title(id), QuestDB.get_quest(id).get("type", "")]
+		_tracker_step.text = q.step_progress_text(id)
+		if hint != Vector2.INF:
+			var dist := Vector2(pos.x, pos.z).distance_to(hint)
+			var bearing := CompassBar.bearing_deg(pos, hint)
+			var radius := float(step.get("radius", 0.0 if step.get("type", &"") == &"talk" else 28.0))
+			if dist <= maxf(radius, 6.0):
+				_tracker_dist.text = "목표 지점 근처" if radius > 0.0 else "바로 앞"
+			else:
+				_tracker_dist.text = "%s쪽 %d m" % [CompassBar.direction_name(bearing), int(dist)]
+			markers.append({"bearing": bearing, "color": CompassBar.QUEST_COLOR, "kind": &"quest",
+				"text": "%d m" % int(dist)})
+		else:
+			_tracker_dist.text = ""
+	else:
+		_tracker.visible = false
+	var game := get_parent() as Game
+	if game and game.checkpoint_point:
+		var cp := game.checkpoint_point.global_position
+		var cp2 := Vector2(cp.x, cp.z)
+		if cp2.distance_to(Vector2(pos.x, pos.z)) > 12.0:
+			markers.append({"bearing": CompassBar.bearing_deg(pos, cp2), "color": CompassBar.ACCENT, "kind": &"home", "text": ""})
+	_compass.markers = markers
+	# 전투 중에는 의뢰 표시를 옅게(기획서 §22.1)
+	var target_alpha := 0.3 if player.is_in_combat() else 1.0
+	_tracker.modulate.a = move_toward(_tracker.modulate.a, target_alpha, delta * 2.0)
+	var area_name: String = FieldWorld.AREAS.get(_field.current_area(), "")
+	var dn := _field.day_night
+	_area_label.text = "%s  ·  %s %s" % [area_name if area_name != "" else "퍼시 외곽권", dn.phase_name(), dn.clock_text()]
+	_silver_label.text = "은화 %d" % GameState.silver

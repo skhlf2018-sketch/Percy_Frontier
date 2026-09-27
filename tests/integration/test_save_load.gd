@@ -84,7 +84,7 @@ func test_save_and_load_restores_progress_and_place() -> void:
 	game.player.ammo.counts[&"rifle"] = 42
 	await wait_physics_frames(10)
 	var camp := game.field.supply_point_by_name("Supply_camp")
-	game.field.rest_requested.emit(game.player, camp)
+	game.rest_at(game.player, camp)
 	await wait_frames(2)
 	assert_true(SaveSystem.exists(SaveSystem.AUTO), "휴식하면 자동 저장된다")
 	game.player.consumable_counts[&"field_suture"] = 1

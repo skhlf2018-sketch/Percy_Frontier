@@ -48,13 +48,22 @@ func close() -> void:
 
 
 func _focus_first() -> void:
+	_grab_first_focus.call_deferred()
+
+
+## 한 프레임 안에 목록을 여러 번 다시 만들 수 있으므로, 실제로 포커스를 줄 때 다시 찾는다.
+func _grab_first_focus() -> void:
+	if not visible or not is_inside_tree():
+		return
 	var first := _find_focusable(body)
-	if first:
-		first.grab_focus.call_deferred()
+	if first and first.is_inside_tree():
+		first.grab_focus()
 
 
 func _find_focusable(node: Node) -> Control:
 	for child in node.get_children():
+		if child.is_queued_for_deletion():
+			continue
 		if child is BaseButton and not child.disabled and child.visible:
 			return child
 		var inner := _find_focusable(child)

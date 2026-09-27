@@ -93,6 +93,9 @@ func _run() -> void:
 	await _frames(10)
 	game.menus.close_all()
 	game.hud.visible = false
+	if only == "town":
+		await _town_shots()
+		return
 	var t := game.field.landmarks.spots["new_game"] as Transform3D
 	var start := Vector2(t.origin.x, t.origin.z)
 	await _view("01_start_morning", start, FieldLayout.DROP_SITE + Vector2(-2, -4), 8.5, -4.0)
@@ -155,3 +158,67 @@ func _ui_shots() -> void:
 func start_point() -> Vector2:
 	var t := game.field.landmarks.spots["new_game"] as Transform3D
 	return Vector2(t.origin.x, t.origin.z)
+
+
+func _menu_shot(shot_name: String, frames: int = 6) -> void:
+	await _frames(frames)
+	await _shot(shot_name)
+	game.menus.close_all()
+	await _frames(2)
+
+
+## 퍼시 주민·시설·의뢰·지도 화면
+func _town_shots() -> void:
+	only = ""
+	var tc := FieldLayout.TOWN_CENTER
+	await _view("40_town_npcs_day", tc + Vector2(-8, 12), tc + Vector2(-16, 4), 10.5, -4.0)
+	await _view("41_hunter_corner", tc + Vector2(-28, 2), tc + Vector2(-36, -8), 16.0, -6.0)
+	await _view("42_smith_and_store", tc + Vector2(6, 0), tc + Vector2(20, 0), 13.0, -4.0)
+	await _view("43_town_aerial", tc + Vector2(-2, 30), tc, 12.0, -62.0, 38.0)
+	# 대화와 시설 메뉴
+	var npcs := game.field.npcs
+	game.hud.visible = true
+	await _view("44_clerk_front", tc + Vector2(-12.5, 7.0), tc + Vector2(-15, 7.4), 11.0, -8.0)
+	game.field.area_entered.emit(&"percy", "퍼시")
+	await _frames(4)
+	game.services.talk(npcs[&"clerk"])
+	await _menu_shot("45_dialogue_clerk")
+	GameState.add_silver(260)
+	game.player.consumable_counts[&"field_suture"] = 1
+	game.services.open_shop(npcs[&"merchant"])
+	await _menu_shot("46_shop_buy")
+	GameState.add_item(&"rabbit_fur", 7)
+	GameState.add_item(&"rabbit_fang", 3)
+	GameState.add_item(&"stone_scale", 2)
+	GameState.add_item(&"fire_spore", 4)
+	game.services.open_upgrade(npcs[&"smith"])
+	await _menu_shot("47_workshop_upgrade")
+	var inn := game.field.supply_point_by_name("Supply_inn")
+	game.open_rest_menu(game.player, inn)
+	await _menu_shot("48_rest_menu")
+	GameState.quests.start(&"rabbit_trouble")
+	GameState.quests.notify(&"kill", &"killer_rabbit", 2)
+	GameState.quests.start(&"herb_basket")
+	# 지도: 길을 따라 걸은 것처럼 드러낸다.
+	for i in 60:
+		var t := float(i) / 59.0
+		var idx := t * (FieldLayout.ROAD.size() - 1)
+		var a := FieldLayout.ROAD[int(floor(idx))]
+		var b := FieldLayout.ROAD[mini(int(floor(idx)) + 1, FieldLayout.ROAD.size() - 1)]
+		GameState.reveal_map(a.lerp(b, idx - floor(idx)), FieldWorld.MAP_REVEAL_RADIUS)
+	for area in [&"drop_site", &"border_forest", &"river", &"percy"]:
+		if not GameState.discovered_areas.has(area):
+			GameState.discovered_areas.append(area)
+	game.menus.open_status(StatusWindow.TAB_MAP)
+	await _menu_shot("49_map")
+	game.menus.open_status(StatusWindow.TAB_QUESTS)
+	await _menu_shot("50_journal")
+	game.menus.open_status(StatusWindow.TAB_ITEMS)
+	await _menu_shot("51_items")
+	# 의뢰 추적과 나침반
+	GameState.quests.tracked = &"herb_basket"
+	await _view("52_hud_tracker", tc + Vector2(-60, -2), tc + Vector2(-120, 20), 9.5, -2.0)
+	await _view("53_herb_basket", FieldLayout.POND_CENTER + Vector2(34, -22), FieldLayout.POND_CENTER + Vector2(18, -15), 10.0, -12.0)
+	game.hud.visible = false
+	game.field.town.fix_tower()
+	await _view("54_tower_fixed_night", tc + Vector2(-20, 8), tc + Vector2(31, -2), 22.5, 14.0)

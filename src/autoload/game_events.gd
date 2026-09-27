@@ -23,6 +23,12 @@ signal player_respawned
 signal announcement(title: String, subtitle: String, kind: int)
 ## 경험치를 얻었다
 signal xp_gained(amount: int, reason: String)
+## 재료·의뢰 물품을 얻었다
+signal item_collected(item_id: StringName, count: int)
+## 주민과 이야기했다(의뢰 진행용)
+signal npc_talked(npc_id: StringName)
+## 의뢰 보상 등으로 소모품을 받는다(플레이어가 받아 넣는다)
+signal consumable_granted(consumable_id: StringName, count: int)
 
 
 func notify(text: String, kind: int = NoticeKind.INFO) -> void:

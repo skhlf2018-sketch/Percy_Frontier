@@ -34,7 +34,9 @@ const REBINDABLE := [
 	[&"skill_4", "스킬 슬롯 4"],
 	[&"consumable_1", "소모품 1"],
 	[&"consumable_2", "소모품 2"],
-	[&"status_window", "공명 장치(상태·장비·스킬·도감)"],
+	[&"status_window", "공명 장치(상태·장비·소지품·스킬·도감)"],
+	[&"map", "지도"],
+	[&"journal", "의뢰·탐사 기록"],
 ]
 
 enum Difficulty { STORY, STANDARD, CHALLENGE }

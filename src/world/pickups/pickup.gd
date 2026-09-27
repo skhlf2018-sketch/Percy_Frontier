@@ -3,7 +3,7 @@ extends Node3D
 ## 떨어진 보상. 가까이 가면 끌려와 자동으로 회수된다(기획서 §11.1: 중요한 보상은 지형에 끼이거나 사라지지 않고 자동 회수).
 ## 가진 양이 가득 차 있으면 회수하지 않고 남겨 둔다.
 
-enum Kind { AMMO, CONSUMABLE }
+enum Kind { AMMO, CONSUMABLE, MATERIAL, SILVER }
 
 const MAGNET_RADIUS := 4.0
 const COLLECT_RADIUS := 1.1
@@ -14,6 +14,10 @@ const AMMO_FRACTION := 0.35
 
 var kind: int = Kind.AMMO
 var consumable_id: StringName = &""
+## 재료 id(MATERIAL)
+var item_id: StringName = &""
+## 재료 개수 또는 은화 양
+var amount: int = 1
 
 var _life: float = LIFETIME
 var _time: float = 0.0
@@ -40,6 +44,25 @@ static func spawn_consumable(ctx: Node, position: Vector3, id: StringName) -> Pi
 	return p._place(ctx, position)
 
 
+static func spawn_material(ctx: Node, position: Vector3, id: StringName, count: int) -> Pickup:
+	if ctx == null or not ctx.is_inside_tree() or count <= 0:
+		return null
+	var p := Pickup.new()
+	p.kind = Kind.MATERIAL
+	p.item_id = id
+	p.amount = count
+	return p._place(ctx, position)
+
+
+static func spawn_silver(ctx: Node, position: Vector3, value: int) -> Pickup:
+	if ctx == null or not ctx.is_inside_tree() or value <= 0:
+		return null
+	var p := Pickup.new()
+	p.kind = Kind.SILVER
+	p.amount = value
+	return p._place(ctx, position)
+
+
 func _place(ctx: Node, position: Vector3) -> Pickup:
 	var tree := ctx.get_tree()
 	var root: Node = tree.current_scene if tree.current_scene else tree.root
@@ -61,6 +84,29 @@ func _ready() -> void:
 		box.mesh = bm
 		box.material_override = CombatFx.glow_material(Color(1.0, 0.78, 0.3), 1.2)
 		_mesh.add_child(box)
+	elif kind == Kind.SILVER:
+		for i in 3:
+			var coin := MeshInstance3D.new()
+			var cm := CylinderMesh.new()
+			cm.top_radius = 0.07
+			cm.bottom_radius = 0.07
+			cm.height = 0.02
+			cm.radial_segments = 10
+			coin.mesh = cm
+			coin.material_override = CombatFx.glow_material(Color(0.85, 0.88, 0.95), 0.9)
+			coin.position = Vector3(i * 0.03 - 0.03, i * 0.025, 0.0)
+			coin.rotation.x = 0.3 * i
+			_mesh.add_child(coin)
+	elif kind == Kind.MATERIAL:
+		var pouch := MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = 0.1
+		sm.height = 0.16
+		sm.radial_segments = 8
+		sm.rings = 4
+		pouch.mesh = sm
+		pouch.material_override = CombatFx.glow_material(ItemDB.color_of(item_id), 1.1)
+		_mesh.add_child(pouch)
 	else:
 		var c := GameDB.consumable(consumable_id)
 		var color := c.color if c else Color(1, 0.3, 0.3)
@@ -117,6 +163,9 @@ func _process(_delta: float) -> void:
 
 
 func _can_accept(player: Player) -> bool:
+	if kind == Kind.MATERIAL or kind == Kind.SILVER:
+		# 재료 보관함에는 무게·개수 제한이 없다(기획서 §11.5).
+		return true
 	if kind == Kind.CONSUMABLE:
 		var c := GameDB.consumable(consumable_id)
 		return c != null and player.consumable_counts.get(consumable_id, 0) < c.max_carry
@@ -136,7 +185,13 @@ func _ammo_types(player: Player) -> Array[StringName]:
 
 func _give(player: Player) -> void:
 	var parts: Array[String] = []
-	if kind == Kind.CONSUMABLE:
+	if kind == Kind.MATERIAL:
+		GameState.add_item(item_id, amount)
+		parts.append("%s +%d" % [ItemDB.name_of(item_id), amount])
+	elif kind == Kind.SILVER:
+		GameState.add_silver(amount)
+		parts.append("은화 +%d" % amount)
+	elif kind == Kind.CONSUMABLE:
 		var c := GameDB.consumable(consumable_id)
 		if player.add_consumable(consumable_id, 1) > 0:
 			parts.append("%s +1" % c.display_name)

@@ -57,7 +57,7 @@ func _draw() -> void:
 		var screen := camera.unproject_position(world_pos) if not behind else Vector2.ZERO
 		var on_screen := not behind and Rect2(Vector2.ZERO, view).has_point(screen)
 		if on_screen:
-			if e.recently_damaged() and e.health_ratio() < 1.0:
+			if (e.recently_damaged() and e.health_ratio() < 1.0) or (e.is_engaged() and dist < 32.0):
 				_draw_health(font, screen, e)
 			if not tele.is_empty():
 				_draw_telegraph(screen + Vector2(0, -26), tele, boost, dist)
@@ -79,11 +79,16 @@ func _draw_health(font: Font, screen: Vector2, e: Enemy) -> void:
 	var r := Rect2(screen + Vector2(-w * 0.5, -6.0), Vector2(w, 7.0))
 	draw_rect(r.grow(1.0), Color(0, 0, 0, 0.7))
 	draw_rect(Rect2(r.position, Vector2(w * e.health_ratio(), r.size.y)), Color(0.9, 0.25, 0.2))
-	var label := e.data.display_name
-	if e.data.threat_tier != EnemyData.ThreatTier.NORMAL:
-		label += " · " + e.data.tier_label()
+	var label := e.display_label()
+	# 적 레벨이 내 레벨보다 한참 높으면 이름 색으로 알린다(기획서 §4.3: 위험을 명확히 전달).
+	var gap := e.data.level - GameState.progress.level
+	var col := Color(1, 1, 1, 0.92)
+	if gap >= 6:
+		col = Color(1.0, 0.4, 0.35, 0.95)
+	elif gap >= 3:
+		col = Color(1.0, 0.72, 0.35, 0.95)
 	draw_string_outline(font, screen + Vector2(0, -12), label, HORIZONTAL_ALIGNMENT_CENTER, -1, 16, 3, Color(0, 0, 0, 0.75))
-	draw_string(font, screen + Vector2(0, -12), label, HORIZONTAL_ALIGNMENT_CENTER, -1, 16, Color(1, 1, 1, 0.9))
+	draw_string(font, screen + Vector2(0, -12), label, HORIZONTAL_ALIGNMENT_CENTER, -1, 16, col)
 
 
 func _draw_telegraph(center: Vector2, tele: Dictionary, boost: bool, dist: float) -> void:

@@ -382,7 +382,7 @@ func _muzzle_position(aim: Transform3D) -> Vector3:
 
 func _gun_damage(data: WeaponData, distance: float, position: Vector3, dir: Vector3) -> DamageInfo:
 	var mult := DamageMath.falloff(distance, data.falloff_start, data.falloff_end, data.falloff_min_mult)
-	var info := DamageInfo.create(data.damage * mult, DamageInfo.Kind.GUN, player)
+	var info := DamageInfo.create(data.damage * mult * GameState.upgrade_mult(data.id), DamageInfo.Kind.GUN, player)
 	info.stagger = data.stagger
 	info.armor_damage_mult = data.armor_damage_mult
 	info.status_buildup = data.status_buildup()
@@ -641,7 +641,8 @@ func melee_strike(damage: float, stagger: float, bleed: float, heavy: bool, reac
 		technique_used.emit("반격")
 	for entity in targets:
 		var hb: Hurtbox = targets[entity]
-		var info := DamageInfo.create(damage * GameState.progress.melee_damage_mult(), DamageInfo.Kind.MELEE, player)
+		var info := DamageInfo.create(damage * GameState.progress.melee_damage_mult() * GameState.upgrade_mult(melee.id),
+			DamageInfo.Kind.MELEE, player)
 		info.stagger = stagger
 		info.armor_damage_mult = melee.armor_damage_mult
 		info.status_buildup = status_buildup
@@ -697,7 +698,8 @@ func melee_area(center: Vector3, radius: float, damage: float, stagger: float, b
 		var hb: Hurtbox = targets[entity]
 		var dir := hb.global_position - center
 		dir.y = 0.0
-		var info := DamageInfo.create(damage * GameState.progress.melee_damage_mult(), DamageInfo.Kind.MELEE, player)
+		var info := DamageInfo.create(damage * GameState.progress.melee_damage_mult() * GameState.upgrade_mult(melee.id),
+			DamageInfo.Kind.MELEE, player)
 		info.stagger = stagger
 		info.armor_damage_mult = melee.armor_damage_mult
 		info.status_buildup = status_buildup

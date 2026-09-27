@@ -41,6 +41,23 @@ const RIVER: Array[Vector2] = [
 	Vector2(-44, -262), Vector2(-58, -190), Vector2(-34, -118), Vector2(-48, -44),
 	Vector2(-24, 52), Vector2(-40, 120), Vector2(-14, 190), Vector2(-28, 262),
 ]
+## 야외 무리: [종류, x, z, 수, 매복]. 시작 지점에서 멀어질수록 위험해진다(기획서 §4.3, §5.1).
+const ENCOUNTERS := [
+	[&"rabbits", -128, 62, 3, true],
+	[&"rabbits", -150, 100, 3, true],
+	[&"rabbits", -84, 22, 4, true],
+	[&"rabbits", 14, 26, 4, true],
+	[&"rabbits", 70, 60, 3, true],
+	[&"rabbits", 32, -92, 3, true],
+	[&"rabbits", 118, -70, 4, true],
+	[&"charger", 150, -118, 1, false],
+	[&"charger", 190, -62, 1, false],
+	[&"charger", 120, -150, 1, false],
+	[&"spitters", -128, 150, 2, false],
+	[&"spitters", -170, 196, 2, false],
+	[&"spitters", -22, -100, 2, false],
+	[&"rabbits", -96, -150, 4, true],
+]
 const ROAD_HALF_WIDTH := 2.6
 const RIVER_HALF_WIDTH := 5.0
 const RIVER_DEPTH := 0.85

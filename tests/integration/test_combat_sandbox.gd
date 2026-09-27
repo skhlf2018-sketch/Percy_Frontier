@@ -43,7 +43,11 @@ func test_rifle_headshot_is_weak_point() -> void:
 	await wait_physics_frames(3)
 	TestWorld.aim_at(p, dummy.global_position + Vector3.UP * 1.8)
 	p.weapons.simulate_aim(true)
-	await wait_seconds(0.6)
+	# 꺼내는 동작(0.5초)이 끝난 뒤 정조준이 완전히 끝날 때까지 기다린다(덜 조준하면 탄이 퍼져 머리를 빗나갈 수 있다).
+	for i in 120:
+		if p.weapons.ads_blend >= 0.999:
+			break
+		await wait_physics_frames(1)
 	assert_true(p.weapons.is_aiming(), "정조준")
 	var before := dummy.hp
 	await _fire_once(p)

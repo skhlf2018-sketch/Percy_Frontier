@@ -132,6 +132,14 @@ func is_engaged() -> bool:
 	return state in [State.ALERT, State.CHASE, State.ATTACK, State.STAGGER, State.STUNNED]
 
 
+## 머리 위에 표시할 이름(레벨과 위협 등급 포함). 유니크처럼 정체를 숨기는 적은 덮어쓴다.
+func display_label() -> String:
+	var label := "%s  Lv %d" % [data.display_name, data.level]
+	if data.threat_tier != EnemyData.ThreatTier.NORMAL:
+		label += " · " + data.tier_label()
+	return label
+
+
 func health_ratio() -> float:
 	return clampf(hp / data.max_hp, 0.0, 1.0)
 
@@ -486,7 +494,12 @@ func _nav_direction(point: Vector3, delta: float) -> Vector3:
 		_nav.target_position = point
 	var next := point
 	if NavigationServer3D.map_get_iteration_id(_nav.get_navigation_map()) > 0 and not _nav.is_navigation_finished():
-		next = _nav.get_next_path_position()
+		var candidate := _nav.get_next_path_position()
+		# 이 자리의 내비게이션 구역이 아직 지도에 들어오지 않았으면(굽는 중) 길이 엉뚱한 구역에서 시작한다.
+		# 그때는 목표로 곧장 간다.
+		var path := _nav.get_current_navigation_path()
+		if not path.is_empty() and Vector2(path[0].x - global_position.x, path[0].z - global_position.z).length() < 3.0:
+			next = candidate
 	var dir := next - global_position
 	dir.y = 0.0
 	if dir.length_squared() < 0.0025:
@@ -973,6 +986,12 @@ func _reward(info: DamageInfo, zone: int) -> void:
 		Pickup.spawn_ammo(self, drop_origin)
 	if randf() < data.heal_drop_chance * luck:
 		Pickup.spawn_consumable(self, drop_origin + Vector3(0.4, 0.0, 0.0), &"field_suture")
+	# 재료와 은화(기획서 §11.1: 일반 몬스터는 탄약·회복 재료·몬스터 재료 중심)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for drop in ItemDB.roll_drops(data.id, luck, rng):
+		Pickup.spawn_material(self, drop_origin + Vector3(rng.randf_range(-0.4, 0.4), 0.1, rng.randf_range(-0.4, 0.4)), drop[0], drop[1])
+	Pickup.spawn_silver(self, drop_origin + Vector3(-0.3, 0.1, 0.2), ItemDB.roll_silver(data.id, rng))
 
 
 func _process_dead(delta: float) -> void:

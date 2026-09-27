@@ -20,6 +20,8 @@ var lantern_material: StandardMaterial3D
 var lantern_lights: Array[OmniLight3D] = []
 var forge_light: OmniLight3D
 var tower_light: OmniLight3D
+## 통신탑을 고쳤는지(메인 의뢰 「구조 신호」 완료)
+var tower_fixed: bool = false
 ## 시설·주민 자리: 이름 → Transform3D(앞쪽이 -Z가 아니라 바라보는 방향 +Z)
 var spots: Dictionary = {}
 
@@ -29,6 +31,7 @@ var _glow := MeshKit.Builder.new()
 var _body: StaticBody3D
 var _time: float = 0.0
 var _night: float = 0.0
+var _tower_tip: MeshInstance3D
 
 
 func build(layout: FieldLayout) -> void:
@@ -81,8 +84,31 @@ func _process(delta: float) -> void:
 	if forge_light:
 		forge_light.light_energy = 1.6 + sin(_time * 9.0) * 0.25 + sin(_time * 23.0) * 0.15
 	if tower_light:
-		# 고장 난 통신탑: 붉은 등이 불규칙하게 깜박인다.
-		tower_light.light_energy = 1.2 if fmod(_time, 2.7) < 0.25 or fmod(_time, 5.3) < 0.12 else 0.0
+		if tower_fixed:
+			# 고친 통신탑: 푸른 등이 일정하게 숨 쉬듯 신호를 보낸다.
+			tower_light.light_energy = 1.0 + 0.6 * sin(_time * 2.2)
+		else:
+			# 고장 난 통신탑: 붉은 등이 불규칙하게 깜박인다.
+			tower_light.light_energy = 1.2 if fmod(_time, 2.7) < 0.25 or fmod(_time, 5.3) < 0.12 else 0.0
+
+
+## 통신탑을 고친다(메인 의뢰 완료, 불러오기).
+func fix_tower() -> void:
+	if tower_fixed:
+		return
+	tower_fixed = true
+	var col := Color(0.4, 1.0, 0.85)
+	if tower_light:
+		tower_light.light_color = col
+		tower_light.omni_range = 16.0
+	if _tower_tip:
+		var m: StandardMaterial3D = _tower_tip.material_override
+		m.albedo_color = col
+		m.emission = col
+		m.emission_energy_multiplier = 5.0
+		# 신호등을 키워 멀리서도 보이게 한다(원점이 아니라 등 자리를 기준으로 키운다).
+		var tip := _tower_tip.get_aabb().get_center()
+		_tower_tip.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 2.2), tip - tip * 2.2)
 
 
 # --- 도우미 ---
@@ -219,7 +245,7 @@ func _build_facilities() -> void:
 	var store := _building(Vector2(18, -15), Vector3(8.0, 4.6, 7.0), ROOF_COLORS[3], 1, "잡화점")
 	_counter(store, 7.0, Color(0.72, 0.28, 0.24), Color(0.92, 0.88, 0.78))
 	spots["store_counter"] = _front_spot(store, 7.0, 2.6)
-	spots["merchant"] = _front_spot(store, 7.0, 0.9)
+	spots["merchant"] = _front_spot(store, 7.0, 0.75)
 	var shop := _building(Vector2(19, 15), Vector3(9.0, 5.0, 8.0), ROOF_COLORS[2], 1, "무기 공방")
 	_forge(shop, 8.0)
 	spots["workshop_counter"] = _front_spot(shop, 8.0, 2.8, -1.5)
@@ -241,6 +267,29 @@ func _build_facilities() -> void:
 	_label("의뢰 게시판", Transform3D(board_basis, board_pos + board_basis * Vector3(0.0, 2.45, 0.1)), 52)
 	spots["notice_board"] = Transform3D(board_basis, board_pos + board_basis * Vector3(0.0, 0.0, 1.3))
 	spots["clerk"] = Transform3D(board_basis, board_pos + board_basis * Vector3(1.9, 0.0, 0.9))
+	_hunter_corner()
+
+
+## 사냥꾼 노라의 자리: 정문 안쪽 길가, 가죽 말리는 틀 앞
+func _hunter_corner() -> void:
+	var pos := center + Vector3(-36.0, 0.0, -7.5)
+	var look := center + Vector3(-30.0, 0.0, 0.0) - pos
+	var basis := Basis(Vector3.UP, atan2(look.x, look.z))
+	spots["hunter"] = Transform3D(basis, pos)
+	var rack := pos + basis * Vector3(0.0, 0.0, -1.7)
+	for side in [-1.0, 1.0]:
+		_solid.box(rack + basis * Vector3(side * 1.1, 0.95, 0.0), Vector3(0.12, 1.9, 0.12), DARK_WOOD, basis)
+	_solid.box(rack + basis * Vector3(0.0, 1.8, 0.0), Vector3(2.5, 0.09, 0.09), DARK_WOOD, basis)
+	var pelts: Array[Color] = [Color(0.55, 0.42, 0.3), Color(0.82, 0.8, 0.74), Color(0.42, 0.36, 0.3)]
+	for i in 3:
+		var h := 0.7 + 0.15 * float(i % 2)
+		_solid.box(rack + basis * Vector3(-0.7 + i * 0.7, 1.75 - h * 0.5, 0.02), Vector3(0.5, h, 0.03), pelts[i], basis)
+	_collider(Vector3(2.4, 1.9, 0.3), Transform3D(basis, rack + Vector3.UP * 0.95))
+	# 그루터기 위의 활과 화살통
+	var stump := pos + basis * Vector3(1.3, 0.0, -0.6)
+	_solid.frustum(stump, stump + Vector3.UP * 0.55, 0.3, 0.27, 7, Color(0.45, 0.32, 0.2, 0.0))
+	_solid.box(stump + Vector3.UP * 0.62, Vector3(0.08, 0.12, 0.9), Color(0.3, 0.2, 0.12), basis * Basis(Vector3.RIGHT, 0.2))
+	_collider(Vector3(0.6, 0.6, 0.6), Transform3D(Basis.IDENTITY, stump + Vector3.UP * 0.3))
 
 
 ## 건물 앞쪽(광장 쪽)의 한 점. depth는 건물 깊이, dist는 벽에서 떨어진 거리, side는 옆으로 옮긴 거리.
@@ -413,7 +462,7 @@ func _antenna(xform: Transform3D, size: Vector3) -> void:
 	add_child(l)
 
 
-func _glow_blob(p: Vector3, radius: float, col: Color, squash := Vector3.ONE) -> void:
+func _glow_blob(p: Vector3, radius: float, col: Color, squash := Vector3.ONE) -> MeshInstance3D:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(p.x * 13.0 + p.z * 7.0)
 	var b := MeshKit.Builder.new()
@@ -428,6 +477,7 @@ func _glow_blob(p: Vector3, radius: float, col: Color, squash := Vector3.ONE) ->
 	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
+	return mi
 
 
 # --- 민가 ---
@@ -478,7 +528,7 @@ func _build_tower() -> void:
 	_solid.blob(base + Vector3(0.9, height + 2.2, 0.0), 0.9, Color(0.7, 0.7, 0.72, 0.0), 0.0, rng, 0.05, Vector3(0.25, 1.0, 1.0))
 	var tip := base + Vector3.UP * (height + 6.2)
 	var tip_mat_col := Color(1.0, 0.2, 0.15)
-	_glow_blob(tip, 0.2, tip_mat_col)
+	_tower_tip = _glow_blob(tip, 0.2, tip_mat_col)
 	tower_light = OmniLight3D.new()
 	tower_light.light_color = tip_mat_col
 	tower_light.omni_range = 12.0

@@ -37,6 +37,8 @@ var new_game_config: Dictionary = {}
 ## 불러올 저장 문서. 비어 있으면 next_load를 따른다.
 var load_doc: Dictionary = {}
 var intro: IntroSequence
+## 퍼시 주민과 시설(필드일 때만)
+var services: TownServices
 
 var _autosave_pending: float = -1.0
 
@@ -85,24 +87,36 @@ func _ready() -> void:
 	hud.bind(player)
 	menus = MenuLayer.new()
 	add_child(menus)
-	menus.status_window.setup(player)
+	menus.status_window.setup(player, field)
 	menus.title_requested.connect(_go_to_title)
 	menus.save_menu.save_requested.connect(_on_manual_save)
 	menus.save_menu.load_requested.connect(_on_load_slot)
 	player.died.connect(_on_player_died)
 	if field:
+		services = TownServices.new(self)
+		hud.bind_field(field)
 		field.area_entered.connect(func(area_id: StringName, area_name: String) -> void:
-			if GameState.discover_area(area_id, area_name):
+			var first := GameState.discover_area(area_id, area_name)
+			GameState.quests.notify(&"area", area_id)
+			if first:
 				request_autosave())
+		GameEvents.enemy_killed.connect(_on_enemy_killed)
+		GameEvents.consumable_granted.connect(func(consumable_id: StringName, count: int) -> void:
+			player.add_consumable(consumable_id, count))
+		GameState.quests.completed.connect(_on_quest_completed)
 	world.rest_requested.connect(_on_rest_requested)
 	world.rack_requested.connect(_open_weapon_rack)
 	world.terminal_requested.connect(_open_test_terminal)
+	world.facility_requested.connect(_on_facility_requested)
 	_capture_mouse()
 	if not load_doc.is_empty():
 		_apply_loaded(load_doc.get("game", {}))
 		hud.notify("저장한 곳에서 이어서 시작합니다.", GameEvents.NoticeKind.INFO)
+		_start_main_quest()
 	elif not new_game_config.is_empty():
 		_start_intro()
+	elif field:
+		_start_main_quest()
 	if mode == Mode.TRAINING:
 		hud.notify("훈련장에 들어왔습니다. %s: 메뉴 · 조작 안내는 메뉴에서 볼 수 있습니다." % "Esc",
 			GameEvents.NoticeKind.INFO)
@@ -117,8 +131,14 @@ func _start_intro() -> void:
 	intro.finished.connect(func() -> void:
 		player.input_enabled = true
 		intro = null
-		hud.notify("공명 장치: 구조 신호를 따라 동쪽(퍼시 방향)으로 이동하십시오.", GameEvents.NoticeKind.INFO))
+		_start_main_quest())
 	add_child(intro)
+
+
+## 메인 의뢰 「구조 신호」를 시작한다(새 게임은 도입부가 끝난 뒤, 불러온 게임은 아직 없을 때).
+func _start_main_quest() -> void:
+	if field and GameState.quests.state_of(&"main_signal") == QuestLog.State.INACTIVE:
+		GameState.quests.start(&"main_signal")
 
 
 func is_intro_playing() -> bool:
@@ -140,10 +160,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		open_pause()
 		return
-	if event.is_action_pressed(&"status_window") and not menus.is_open() and player.alive:
-		get_viewport().set_input_as_handled()
-		menus.open_status()
-		return
+	if not menus.is_open() and player.alive and not is_intro_playing():
+		for pair in [[&"status_window", StatusWindow.TAB_STATUS], [&"map", StatusWindow.TAB_MAP],
+				[&"journal", StatusWindow.TAB_QUESTS]]:
+			if event.is_action_pressed(pair[0]):
+				get_viewport().set_input_as_handled()
+				menus.open_status(pair[1])
+				return
 	# 창 밖을 눌렀다가 돌아오면 클릭으로 마우스를 다시 잡는다(이 클릭은 사격으로 쓰지 않는다).
 	if event is InputEventMouseButton and event.pressed and not menus.is_open() \
 			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and DisplayServer.get_name() != "headless":
@@ -206,16 +229,111 @@ func _respawn() -> void:
 
 # --- 시설 ---
 
+## 거점과 상호작용: 필드에서는 휴식 메뉴(기다리기·공명 이동)를 열고, 훈련장에서는 바로 쉰다.
 func _on_rest_requested(p: Player, point: SupplyPoint) -> void:
+	if field:
+		open_rest_menu(p, point)
+	else:
+		rest_at(p, point)
+
+
+func _point_title(point: SupplyPoint) -> String:
+	if point.name == "Supply_inn":
+		return "여관 「첫 등불」"
+	return point.label_text if point.label_text != "" else "보급 거점"
+
+
+## 휴식 메뉴(기획서 §13.4: 안전 거점에서 기다리기). 여관 주인과 이야기할 때도 연다.
+func open_rest_menu(p: Player, point: SupplyPoint) -> void:
+	var reason := point.get_block_reason(p)
+	if reason != "":
+		hud.notify(reason, GameEvents.NoticeKind.WARNING)
+		return
+	var entries: Array = [{
+		"text": "휴식한다",
+		"detail": "HP·스태미나 회복, 탄약·소모품 보급. 이 거점이 부활 지점이 되고 자동 저장합니다. 야외 무리가 다시 나타납니다.",
+		"action": func() -> void: rest_at(p, point),
+	}]
+	entries.append({"header": true, "text": "쉬면서 기다리기"})
+	for w in TownServices.WAIT_TIMES:
+		var hour: float = w[1]
+		entries.append({
+			"text": "%s까지 기다린다" % w[0],
+			"detail": "시간에 따라 나타나는 몬스터와 단서가 다릅니다. 밤에는 숲이 더 위험해집니다.",
+			"action": func() -> void: rest_at(p, point, hour),
+		})
+	var targets := travel_targets(point)
+	if not targets.is_empty():
+		entries.append({"header": true, "text": "공명 이동 (통신탑 복구)"})
+		for sp: SupplyPoint in targets:
+			var dest := sp
+			entries.append({
+				"text": "%s(으)로 이동" % _point_title(dest),
+				"detail": "복구한 통신탑의 신호를 타고 발견한 거점으로 이동합니다. 도착한 거점에서 휴식합니다.",
+				"action": func() -> void: travel_to(p, dest),
+			})
+	var clock := field.day_night.clock_text() if field else ""
+	menus.open_choice(_point_title(point), "안전한 거점입니다. 지금 시각 %s." % clock, entries)
+
+
+## 공명 이동으로 갈 수 있는 거점: 통신탑을 고친 뒤, 발견한 지역에 있는 다른 거점
+func travel_targets(from: SupplyPoint) -> Array[SupplyPoint]:
+	var out: Array[SupplyPoint] = []
+	if field == null or not GameState.quests.is_done(&"main_signal"):
+		return out
+	for sp in field.supply_points:
+		if sp == from:
+			continue
+		var area := field.area_at(Vector2(sp.global_position.x, sp.global_position.z))
+		if GameState.discovered_areas.has(area):
+			out.append(sp)
+	return out
+
+
+func travel_to(p: Player, point: SupplyPoint) -> void:
+	var t := point.respawn_transform()
+	p.global_position = t.origin + Vector3.UP * 0.1
+	p.velocity = Vector3.ZERO
+	p.yaw = t.basis.get_euler().y
+	p.reset_physics_interpolation()
+	field.track_player(p)
+	field.grass.fill_now()
+	rest_at(p, point)
+
+
+## 휴식: 회복·보급, 야외 무리 재배치, 부활 지점 갱신, 자동 저장. wait_hour를 주면 그 시각까지 기다린다.
+func rest_at(p: Player, point: SupplyPoint, wait_hour: float = -1.0) -> void:
 	p.rest()
 	world.reset_all_encounters()
 	checkpoint = point.respawn_transform()
 	checkpoint_point = point
+	var waited := ""
+	if field and wait_hour >= 0.0:
+		field.day_night.advance_to(wait_hour)
+		waited = " %s까지 기다렸습니다." % field.day_night.clock_text()
 	if field:
 		save_to(SaveSystem.AUTO)
 	Sfx.play_ui(&"respawn")
-	hud.notify("휴식했습니다. HP·스태미나 회복, 탄약·소모품 보급. 이 거점에서 다시 시작하며, 야외 무리가 다시 나타났습니다.",
+	hud.notify("휴식했습니다.%s HP·스태미나 회복, 탄약·소모품 보급. 이 거점에서 다시 시작하며, 야외 무리가 다시 나타났습니다." % waited,
 		GameEvents.NoticeKind.INFO)
+
+
+func _on_facility_requested(_p: Player, node: Interactable) -> void:
+	if node is TownNpc and services:
+		services.talk(node)
+
+
+func _on_enemy_killed(enemy: Node) -> void:
+	if enemy is Enemy and (enemy as Enemy).data:
+		GameState.quests.notify(&"kill", (enemy as Enemy).data.id)
+
+
+func _on_quest_completed(quest_id: StringName) -> void:
+	if quest_id == &"main_signal" and field:
+		field.town.fix_tower()
+		GameEvents.announce("통신탑 복구", "공명 이동 해금 · 거점에서 발견한 다른 거점으로 이동할 수 있습니다",
+			GameEvents.AnnounceKind.SYSTEM)
+	request_autosave()
 
 
 func _open_weapon_rack(_p: Player) -> void:

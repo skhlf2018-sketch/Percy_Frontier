@@ -100,10 +100,25 @@ func test_inn_rest_sets_checkpoint_and_heals() -> void:
 	var inn := game.field.supply_point_by_name("Supply_inn")
 	assert_not_null(inn)
 	p.stats.take_damage(40.0)
+	# 필드의 거점은 휴식 메뉴를 연다(쉬기·기다리기).
 	game.field.rest_requested.emit(p, inn)
+	await wait_frames(2)
+	assert_true(game.menus.choice_menu.visible, "휴식 메뉴가 열린다")
+	assert_true(tree().paused, "메뉴가 열려 있는 동안 멈춘다")
+	game.menus.close_all()
+	game.rest_at(p, inn)
 	await wait_frames(2)
 	assert_near(p.stats.hp, p.stats.max_hp, 0.01)
 	assert_true(game.checkpoint.origin.distance_to(inn.respawn_transform().origin) < 0.1, "여관이 부활 지점이 된다")
+
+
+func test_rest_and_wait_moves_clock() -> void:
+	var camp := game.field.supply_point_by_name("Supply_camp")
+	game.field.day_night.advance_to(10.0)
+	game.rest_at(game.player, camp, 23.0)
+	await wait_frames(2)
+	assert_near(game.field.day_night.hour, 23.0, 0.05, "기다리면 고른 시각이 된다")
+	assert_true(game.field.day_night.is_night())
 
 
 func test_status_window_allocates_points() -> void:
