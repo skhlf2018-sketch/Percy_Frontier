@@ -2,12 +2,24 @@ class_name Game
 extends Node
 ## 게임 진행 루트: 시험장·플레이어·HUD·메뉴를 묶고 일시정지, 사망과 부활, 시설 메뉴를 처리한다.
 
+enum Mode { FIELD, TRAINING }
+
 const ARENA_SCENE := preload("res://src/world/combat_arena.tscn")
 const PLAYER_SCENE := preload("res://src/player/player.tscn")
 const TITLE_SCENE_PATH := "res://src/ui/menus/title_screen.tscn"
 const RESPAWN_DELAY := 2.5
 
+## 다음에 시작할 공간(타이틀이 장면을 바꾸기 전에 정한다)
+static var next_mode: int = Mode.FIELD
+
+## 이 게임의 공간. 트리에 넣기 전에 정하지 않으면 next_mode를 따른다.
+var mode: int = -1
+## 현재 공간(필드 또는 훈련장)
+var world: GameWorld
+## 훈련장일 때만 있다.
 var arena: CombatArena
+## 필드일 때만 있다.
+var field: FieldWorld
 var player: Player
 var hud: Hud
 var menus: MenuLayer
@@ -20,15 +32,28 @@ var _engaged_at_death: Array[EncounterGroup] = []
 
 
 func _ready() -> void:
+	if mode < 0:
+		mode = next_mode
 	GameState.reset_session()
-	arena = ARENA_SCENE.instantiate()
-	add_child(arena)
+	if mode == Mode.TRAINING:
+		arena = ARENA_SCENE.instantiate()
+		world = arena
+	else:
+		field = FieldWorld.new()
+		field.name = "Field"
+		world = field
+	add_child(world)
 	player = PLAYER_SCENE.instantiate()
-	var start := arena.default_respawn()
+	var start := world.default_respawn()
 	player.position = start.origin
 	add_child(player)
 	player.yaw = start.basis.get_euler().y
-	checkpoint = arena.supply_points[0].respawn_transform() if not arena.supply_points.is_empty() else start
+	player.reset_physics_interpolation()
+	if mode == Mode.TRAINING:
+		checkpoint = arena.supply_points[0].respawn_transform() if not arena.supply_points.is_empty() else start
+	else:
+		var first := field.supply_point_by_name("Supply_drop_site")
+		checkpoint = first.respawn_transform() if first else start
 	hud = Hud.new()
 	add_child(hud)
 	hud.bind(player)
@@ -36,12 +61,13 @@ func _ready() -> void:
 	add_child(menus)
 	menus.title_requested.connect(_go_to_title)
 	player.died.connect(_on_player_died)
-	arena.rest_requested.connect(_on_rest_requested)
-	arena.rack_requested.connect(_open_weapon_rack)
-	arena.terminal_requested.connect(_open_test_terminal)
+	world.rest_requested.connect(_on_rest_requested)
+	world.rack_requested.connect(_open_weapon_rack)
+	world.terminal_requested.connect(_open_test_terminal)
 	_capture_mouse()
-	hud.notify("전투 시험장에 들어왔습니다. %s: 메뉴 · 조작 안내는 메뉴에서 볼 수 있습니다." % "Esc",
-		GameEvents.NoticeKind.INFO)
+	if mode == Mode.TRAINING:
+		hud.notify("훈련장에 들어왔습니다. %s: 메뉴 · 조작 안내는 메뉴에서 볼 수 있습니다." % "Esc",
+			GameEvents.NoticeKind.INFO)
 
 
 func _capture_mouse() -> void:
@@ -68,6 +94,7 @@ func _notification(what: int) -> void:
 
 
 func _process(delta: float) -> void:
+	world.track_player(player)
 	if _respawn_timer >= 0.0:
 		_respawn_timer -= delta
 		if _respawn_timer < 0.0:
@@ -78,17 +105,17 @@ func _process(delta: float) -> void:
 
 func _on_player_died() -> void:
 	# 적은 플레이어가 쓰러지면 곧 대상을 잃으므로, 교전 무리는 사망 순간에 기억해 둔다.
-	_engaged_at_death = arena.engaged_encounters()
+	_engaged_at_death = world.engaged_encounters()
 	_respawn_timer = RESPAWN_DELAY
 
 
 func _respawn() -> void:
 	var reset := 0
 	if not _engaged_at_death.is_empty():
-		reset = arena.reset_engaged_encounters(_engaged_at_death)
+		reset = world.reset_engaged_encounters(_engaged_at_death)
 	_engaged_at_death.clear()
-	var had_tests := arena.active_test_count() > 0
-	arena.clear_test_spawns()
+	var had_tests := world.active_test_count() > 0
+	world.clear_test_spawns()
 	player.respawn_at(checkpoint)
 	var parts: Array[String] = ["거점에서 다시 시작합니다."]
 	if reset > 0:
@@ -102,7 +129,7 @@ func _respawn() -> void:
 
 func _on_rest_requested(p: Player, point: SupplyPoint) -> void:
 	p.rest()
-	arena.reset_all_encounters()
+	world.reset_all_encounters()
 	checkpoint = point.respawn_transform()
 	Sfx.play_ui(&"respawn")
 	hud.notify("휴식했습니다. HP·스태미나 회복, 탄약·소모품 보급. 이 거점에서 다시 시작하며, 야외 무리가 다시 나타났습니다.",

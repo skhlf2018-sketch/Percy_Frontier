@@ -56,6 +56,7 @@ func _run() -> void:
 
 	# 2. 게임 시작(보급 기지)
 	game = GAME.instantiate()
+	game.mode = Game.Mode.TRAINING
 	add_child(game)
 	await _frames(45)
 	game.menus.close_all()

@@ -91,6 +91,7 @@ func _load_all(dir: String, counts: Dictionary) -> void:
 ## 실제 게임 장면을 띄우고 무기·스킬·근접·소모품·회피·메뉴를 섞어 쓰는 간단한 자동 조작.
 func _play_game() -> Dictionary:
 	var game: Node = (load("res://src/main/game.tscn") as PackedScene).instantiate()
+	game.mode = 1  # 훈련장(자동 교전에 시험 단말기의 무리 부르기를 쓴다)
 	add_child(game)
 	await _frames(6)
 	var p: Node3D = game.player

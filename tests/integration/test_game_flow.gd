@@ -9,6 +9,7 @@ var game: Game
 func before_each() -> void:
 	Settings.load_settings("user://test_game_flow.cfg")
 	game = GAME.instantiate()
+	game.mode = Game.Mode.TRAINING
 	runner.add_child(game)
 	await wait_physics_frames(6)
 

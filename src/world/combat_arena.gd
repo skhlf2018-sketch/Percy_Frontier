@@ -1,11 +1,7 @@
 class_name CombatArena
-extends Node3D
+extends GameWorld
 ## 전투 시험장(기획서 §25.1 첫 단계: 회색 상자 전장, 총기·근접·스킬 최소 세트).
 ## 야외 무리, 사격장 표적, 보급 거점, 무기 거치대, 시험 단말기로 조작·타격감·전투 규칙을 검증한다.
-
-signal rest_requested(player: Player, point: SupplyPoint)
-signal rack_requested(player: Player)
-signal terminal_requested(player: Player)
 
 const RABBIT := preload("res://src/enemies/killer_rabbit.tscn")
 const CHARGER := preload("res://src/enemies/rock_charger.tscn")
@@ -23,60 +19,15 @@ const TEST_WAVES := {
 @onready var player_start: Marker3D = $PlayerStart
 @onready var test_active: Node3D = $TestSpawns/Active
 
-var supply_points: Array[SupplyPoint] = []
-var encounters: Array[EncounterGroup] = []
-
 
 func _ready() -> void:
-	for n in find_children("*", "Interactable", true, false):
-		var it: Interactable = n
-		it.interacted.connect(_on_interacted.bind(it))
-		if it is SupplyPoint:
-			supply_points.append(it)
-	for g in find_children("*", "EncounterGroup", true, false):
-		encounters.append(g)
+	register_contents()
 	# 회색 상자 지형은 작아서 시작할 때 한 번 동기로 굽는다.
 	navigation.bake_navigation_mesh(false)
 
 
-func _on_interacted(player: Node, node: Interactable) -> void:
-	if not (player is Player):
-		return
-	if node is SupplyPoint:
-		rest_requested.emit(player, node)
-	elif node is WeaponRack:
-		rack_requested.emit(player)
-	elif node is TestTerminal:
-		terminal_requested.emit(player)
-
-
 func default_respawn() -> Transform3D:
 	return player_start.global_transform
-
-
-## 휴식: 모든 야외 무리를 다시 배치한다(기획서 §19.3).
-func reset_all_encounters() -> void:
-	for g in encounters:
-		g.reset()
-
-
-## 지금 교전 중인 야외 무리 목록
-func engaged_encounters() -> Array[EncounterGroup]:
-	var out: Array[EncounterGroup] = []
-	for g in encounters:
-		if g.is_engaged():
-			out.append(g)
-	return out
-
-
-## 사망: 교전 중이던 야외 무리만 처음 상태로 되돌린다(기획서 §19.1). 되돌린 무리 수를 돌려준다.
-## groups를 주면 그 무리들을(사망 순간에 기억해 둔 교전 무리), 비우면 지금 교전 중인 무리를 되돌린다.
-func reset_engaged_encounters(groups: Array[EncounterGroup] = []) -> int:
-	var targets := groups if not groups.is_empty() else engaged_encounters()
-	for g in targets:
-		if is_instance_valid(g):
-			g.reset()
-	return targets.size()
 
 
 func clear_test_spawns() -> void:
