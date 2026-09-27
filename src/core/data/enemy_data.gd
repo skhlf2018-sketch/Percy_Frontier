@@ -50,6 +50,10 @@ const TIER_NAMES := ["일반", "강화", "희귀", "정예", "보스", "유니�
 @export var boss_status_rules: bool = false
 
 @export_group("보상")
+## 적 레벨(지역 위험대 기준, 기획서 §5.1: 플레이어 레벨에 맞춰 바뀌지 않는다)
+@export var level: int = 1
+## 처치 경험치
+@export var xp_reward: int = 10
 @export var resonance_on_kill: float = 4.0
 @export_range(0.0, 1.0) var ammo_drop_chance: float = 0.35
 @export_range(0.0, 1.0) var heal_drop_chance: float = 0.05

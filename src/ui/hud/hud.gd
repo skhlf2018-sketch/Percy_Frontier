@@ -32,6 +32,9 @@ var _center_flash: Label
 var _notices: NoticeFeed
 var _vignette: TextureRect
 var _death_panel: Control
+var _banner: SystemBanner
+var _level_label: Label
+var _xp_bar: StatBar
 
 var _hit_sound_cooldown: float = 0.0
 var _damage_flash: float = 0.0
@@ -71,7 +74,9 @@ func _build() -> void:
 	_hit_markers = HitMarkers.new()
 	_full(_hit_markers)
 
-	# 왼쪽 아래: 상태이상, HP, 스태미나, 공명
+	# 왼쪽 아래: 레벨과 이름, 상태이상, HP, 스태미나, 공명, 경험치
+	_level_label = _label("", 22, &"HudLabel", HORIZONTAL_ALIGNMENT_LEFT)
+	_place(_level_label, Vector2(0, 1), Vector2(40, -206), Vector2(520, 32))
 	_status = StatusChips.new()
 	_place(_status, Vector2(0, 1), Vector2(40, -168), Vector2(520, 30))
 	_hp = StatBar.new()
@@ -86,6 +91,10 @@ func _build() -> void:
 	_resonance.label = "공명"
 	_resonance.fill_color = Color(0.45, 0.62, 1.0)
 	_place(_resonance, Vector2(0, 1), Vector2(40, -66), Vector2(440, 24))
+	_xp_bar = StatBar.new()
+	_xp_bar.label = "EXP"
+	_xp_bar.fill_color = Color(0.95, 0.82, 0.4)
+	_place(_xp_bar, Vector2(0, 1), Vector2(40, -36), Vector2(440, 14))
 
 	# 오른쪽 아래: 무기
 	_weapon_name = _label("", 26, &"HudLabel", HORIZONTAL_ALIGNMENT_RIGHT)
@@ -129,12 +138,16 @@ func _build() -> void:
 	_center_flash = _label("", 30, &"HudLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	_place(_center_flash, Vector2(0.5, 0.5), Vector2(-300, 40), Vector2(600, 40))
 
+	# 위 가운데: 공명 장치 알림 띠
+	_banner = SystemBanner.new()
+	_place(_banner, Vector2(0.5, 0), Vector2(-430, 120), Vector2(860, 130))
+
 	# 오른쪽 위: 알림
 	_notices = NoticeFeed.new()
 	_notices.alignment = BoxContainer.ALIGNMENT_BEGIN
 	_place(_notices, Vector2(1, 0), Vector2(-760, 30), Vector2(730, 300))
 
-	var mark := _label("Percy Frontier · 전투 시험 v%s · ESC 메뉴" % ProjectSettings.get_setting("application/config/version", "0"),
+	var mark := _label("Percy Frontier · 개발 빌드 v%s · ESC 메뉴 · Tab 공명 장치" % ProjectSettings.get_setting("application/config/version", "0"),
 		15, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_LEFT)
 	mark.add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
 	_place(mark, Vector2(0, 0), Vector2(20, 14), Vector2(700, 22))
@@ -225,6 +238,8 @@ func bind(p: Player) -> void:
 	p.skills.cast_failed.connect(func(_slot: int, reason: String) -> void:
 		_notices.push(reason, GameEvents.NoticeKind.WARNING))
 	p.skills.skill_cast.connect(func(slot: int, _skill: SkillData) -> void: _skill_slots[slot].flash())
+	GameEvents.xp_gained.connect(func(amount: int, reason: String) -> void:
+		_notices.push("경험치 +%d%s" % [amount, " · " + reason if reason != "" else ""], GameEvents.NoticeKind.INFO))
 	p.died.connect(func() -> void: _death_panel.visible = true)
 	p.respawned.connect(func() -> void: _death_panel.visible = false)
 
@@ -282,6 +297,14 @@ func _update_vitals(delta: float) -> void:
 	_stamina.label = "스태미나 · 탈진" if s.exhausted else "스태미나"
 	_stamina.set_state(s.stamina / s.max_stamina, "%d" % int(s.stamina), 0.0, s.exhausted)
 	_resonance.set_state(s.resonance / s.max_resonance, "%d / %d" % [int(s.resonance), int(s.max_resonance)])
+	var pr := GameState.progress
+	var need := PlayerProgress.xp_to_next(pr.level)
+	_xp_bar.set_state(float(pr.xp) / float(need) if pr.level < PlayerProgress.MAX_LEVEL else 1.0,
+		"%d / %d" % [pr.xp, need] if pr.level < PlayerProgress.MAX_LEVEL else "최고 레벨")
+	var level_text := "Lv %d  %s" % [pr.level, pr.character_name]
+	if pr.unspent_points > 0:
+		level_text += "   · 능력 포인트 %d (Tab)" % pr.unspent_points
+	_level_label.text = level_text
 	_damage_flash = maxf(0.0, _damage_flash - delta * 1.6)
 	var low := clampf((0.35 - s.hp / s.max_hp) / 0.35, 0.0, 1.0) if player.alive else 0.0
 	_vignette.modulate.a = clampf(low * 0.55 + _damage_flash, 0.0, 1.0)

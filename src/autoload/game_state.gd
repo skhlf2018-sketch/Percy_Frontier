@@ -1,6 +1,6 @@
 extends Node
-## 한 번의 플레이 동안 유지되는 진행 상태: 도감·분석도, 스킬 해금과 장착, 장비 선택.
-## 저장 시스템은 버티컬 슬라이스 단계(기획서 §25.1)에서 도입한다. 지금은 메모리에만 존재한다.
+## 한 번의 플레이 동안 유지되는 진행 상태: 성장(레벨·능력치), 도감·분석도, 스킬 해금과 장착, 장비 선택,
+## 발견한 지역.
 
 signal skills_changed
 signal loadout_changed
@@ -10,6 +10,9 @@ const STARTER_SKILL := &"frost_pulse"
 const SKILL_SLOT_COUNT := 4
 
 var bestiary: Bestiary
+var progress: PlayerProgress
+## 발견한 지역 id(처음 들어가면 경험치와 알림)
+var discovered_areas: Array[StringName] = []
 var unlocked_skills: Array[StringName] = []
 ## 장착 슬롯(키 4~7). 빈 슬롯은 &""
 var skill_slots: Array[StringName] = []
@@ -23,6 +26,9 @@ func _ready() -> void:
 
 
 func reset_session() -> void:
+	progress = PlayerProgress.new()
+	progress.leveled_up.connect(_on_leveled_up)
+	discovered_areas = []
 	bestiary = Bestiary.new()
 	bestiary.skill_unlocked.connect(_on_skill_unlocked)
 	bestiary.analysis_changed.connect(_on_analysis_changed)
@@ -34,6 +40,29 @@ func reset_session() -> void:
 	melee_weapon = &"sword_survey"
 	skills_changed.emit()
 	loadout_changed.emit()
+
+
+## 경험치를 준다(처치, 발견, 의뢰).
+func grant_xp(amount: int, reason: String = "") -> void:
+	if amount <= 0:
+		return
+	progress.add_xp(amount)
+	GameEvents.xp_gained.emit(amount, reason)
+
+
+## 지역에 처음 들어가면 기록하고 경험치를 준다. 처음이면 true.
+func discover_area(area_id: StringName, area_name: String, xp: int = 20) -> bool:
+	if discovered_areas.has(area_id):
+		return false
+	discovered_areas.append(area_id)
+	GameEvents.announce("지역 발견 · %s" % area_name, "퍼시 외곽권", GameEvents.AnnounceKind.DISCOVERY)
+	grant_xp(xp, "지역 발견")
+	return true
+
+
+func _on_leveled_up(new_level: int, points: int) -> void:
+	GameEvents.announce("레벨 업 · Lv %d" % new_level,
+		"최대 HP·스태미나 증가 · 능력 포인트 +%d (Tab: 상태창)" % points, GameEvents.AnnounceKind.LEVEL_UP)
 
 
 func is_skill_unlocked(skill_id: StringName) -> bool:
@@ -53,6 +82,21 @@ func unlock_skill(skill_id: StringName) -> int:
 		skill_slots[slot] = skill_id
 	skills_changed.emit()
 	return slot
+
+
+## 해금한 스킬을 슬롯에 넣는다. 다른 슬롯에 있던 스킬이면 두 슬롯을 맞바꾼다.
+func assign_skill(skill_id: StringName, slot: int) -> bool:
+	if slot < 0 or slot >= SKILL_SLOT_COUNT or not unlocked_skills.has(skill_id):
+		return false
+	var from := skill_slots.find(skill_id)
+	if from == slot:
+		return true
+	var previous := skill_slots[slot]
+	skill_slots[slot] = skill_id
+	if from >= 0:
+		skill_slots[from] = previous
+	skills_changed.emit()
+	return true
 
 
 func set_primary_weapon(id: StringName) -> void:
@@ -86,6 +130,9 @@ func _on_skill_unlocked(skill_id: StringName, enemy_id: StringName, via_core: bo
 	if slot >= 0:
 		text += " (스킬 슬롯 %d)" % (slot + 1)
 	GameEvents.notify(text, GameEvents.NoticeKind.UNLOCK)
+	GameEvents.announce("스킬 습득 · %s" % skill.display_name,
+		"%s %s%s" % [enemy.display_name, how, " · 슬롯 %d에 장착" % (slot + 1) if slot >= 0 else ""],
+		GameEvents.AnnounceKind.SKILL)
 
 
 func _on_analysis_changed(enemy_id: StringName, analysis: float, gained: float) -> void:

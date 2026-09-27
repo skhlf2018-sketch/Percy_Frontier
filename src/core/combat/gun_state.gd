@@ -14,6 +14,8 @@ var bloom: float = 0.0
 var reloading: bool = false
 var reload_left: float = 0.0
 var reload_total: float = 0.0
+## 재장전 속도 배율(기교 능력치). 재장전을 시작할 때 적용한다.
+var reload_speed: float = 1.0
 
 var _overheat_left: float = 0.0
 var _heat_delay_left: float = 0.0
@@ -63,7 +65,7 @@ func start_reload(inv: AmmoInventory) -> bool:
 	if not can_reload(inv):
 		return false
 	reloading = true
-	reload_total = data.empty_reload_time if mag <= 0 else data.reload_time
+	reload_total = (data.empty_reload_time if mag <= 0 else data.reload_time) / maxf(reload_speed, 0.1)
 	reload_left = reload_total
 	return true
 

@@ -327,7 +327,7 @@ func _fire(gun: GunState) -> void:
 			_fire_projectile(data, aim.origin, dir)
 		else:
 			_hitscan(data, aim.origin, dir, muzzle_pos)
-	var recoil_mult := lerpf(1.0, 0.75, ads_blend)
+	var recoil_mult := lerpf(1.0, 0.75, ads_blend) * GameState.progress.recoil_mult()
 	player.add_recoil(data.recoil_pitch_deg * recoil_mult,
 		randf_range(-1.0, 1.0) * data.recoil_yaw_deg * recoil_mult,
 		data.recoil_return_ratio, data.recoil_recovery)
@@ -426,7 +426,7 @@ func _on_projectile_hit(data: WeaponData, origin: Vector3, dir: Vector3, hit: Di
 func handle_hit_result(result: HitResult) -> void:
 	if result == null:
 		return
-	player.stats.add_resonance(DamageMath.resonance_for_hit(result))
+	player.stats.add_resonance(DamageMath.resonance_for_hit(result) * GameState.progress.resonance_gain_mult())
 	player.mark_combat()
 	GameEvents.hit_confirmed.emit(result)
 
@@ -435,6 +435,7 @@ func try_reload() -> bool:
 	var gun := current_gun()
 	if gun == null or not player.can_act() or not is_ready():
 		return false
+	gun.reload_speed = GameState.progress.reload_speed_mult()
 	if not gun.start_reload(player.ammo):
 		if not gun.data.uses_heat and gun.mag < gun.data.magazine_size \
 				and player.ammo.get_count(gun.data.ammo_type) <= 0:
@@ -599,7 +600,7 @@ func melee_strike(damage: float, stagger: float, bleed: float, heavy: bool, reac
 	var status_buildup := StatusEffects.buildup_from(0.0, 0.0, 0.0, bleed)
 	for entity in targets:
 		var hb: Hurtbox = targets[entity]
-		var info := DamageInfo.create(damage, DamageInfo.Kind.MELEE, player)
+		var info := DamageInfo.create(damage * GameState.progress.melee_damage_mult(), DamageInfo.Kind.MELEE, player)
 		info.stagger = stagger
 		info.armor_damage_mult = melee.armor_damage_mult
 		info.status_buildup = status_buildup
@@ -640,7 +641,8 @@ func try_block(info: DamageInfo, source_position: Vector3) -> Dictionary:
 	if info.parryable and _clock - _block_started <= melee.parry_window:
 		return {"parried": true}
 	var reduction := melee.block_reduction if info.parryable else melee.unparryable_block_reduction
-	return {"blocked": true, "reduction": reduction, "stamina_per_damage": melee.block_stamina_per_damage}
+	return {"blocked": true, "reduction": reduction,
+		"stamina_per_damage": melee.block_stamina_per_damage * GameState.progress.guard_cost_mult()}
 
 
 func guard_break() -> void:

@@ -961,13 +961,17 @@ func _reward(info: DamageInfo, zone: int) -> void:
 	var weak_kill := info != null and zone == Hurtbox.Zone.WEAK_POINT \
 		and (info.kind == DamageInfo.Kind.GUN or info.kind == DamageInfo.Kind.MELEE)
 	GameState.bestiary.record(data, Bestiary.Event.WEAK_POINT_KILL if weak_kill else Bestiary.Event.KILL)
-	GameState.bestiary.roll_core_drop(data)
+	var progress := GameState.progress
+	GameState.bestiary.roll_core_drop(data, progress.core_chance_bonus())
 	if p:
-		p.stats.add_resonance(data.resonance_on_kill)
+		p.stats.add_resonance(data.resonance_on_kill * progress.resonance_gain_mult())
+	if data.xp_reward > 0:
+		GameState.grant_xp(data.xp_reward, data.display_name)
 	var drop_origin := global_position + Vector3.UP * 0.4
-	if randf() < data.ammo_drop_chance:
+	var luck := progress.drop_chance_mult()
+	if randf() < data.ammo_drop_chance * luck:
 		Pickup.spawn_ammo(self, drop_origin)
-	if randf() < data.heal_drop_chance:
+	if randf() < data.heal_drop_chance * luck:
 		Pickup.spawn_consumable(self, drop_origin + Vector3(0.4, 0.0, 0.0), &"field_suture")
 
 

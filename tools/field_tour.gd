@@ -76,3 +76,34 @@ func _run() -> void:
 	await _view("11_old_tree", FieldLayout.OLD_TREE + Vector2(0, 26), FieldLayout.OLD_TREE, 9.5, 12.0)
 	await _view("12_camp_evening", FieldLayout.CAMP + Vector2(-10, 12), FieldLayout.CAMP, 19.5, -3.0)
 	await _view("13_pond", FieldLayout.POND_CENTER + Vector2(30, -12), FieldLayout.POND_CENTER, 10.0, -3.0)
+	await _ui_shots()
+
+
+func _ui_shots() -> void:
+	if only != "" and only != "ui":
+		return
+	only = ""
+	game.hud.visible = true
+	await _view("20_hud_start", start_point(), FieldLayout.DROP_SITE + Vector2(40, 8), 9.0, -2.0)
+	GameState.grant_xp(PlayerProgress.xp_to_next(1) + 10, "시험")
+	await _frames(20)
+	await _shot("21_hud_levelup_banner")
+	game.menus.open_status()
+	await _frames(6)
+	await _shot("22_status_window")
+	game.menus.status_window._tabs.current_tab = StatusWindow.TAB_GEAR
+	await _frames(4)
+	await _shot("23_status_gear")
+	GameState.complete_all_analysis()
+	game.menus.status_window._tabs.current_tab = StatusWindow.TAB_SKILLS
+	await _frames(4)
+	await _shot("24_status_skills")
+	game.menus.status_window._tabs.current_tab = StatusWindow.TAB_BESTIARY
+	await _frames(4)
+	await _shot("25_status_bestiary")
+	game.menus.close_all()
+
+
+func start_point() -> Vector2:
+	var t := game.field.landmarks.spots["new_game"] as Transform3D
+	return Vector2(t.origin.x, t.origin.z)

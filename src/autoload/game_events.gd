@@ -2,6 +2,8 @@ extends Node
 ## 전역 신호 버스. 전투 시스템과 HUD·효과음 사이의 직접 참조를 줄인다.
 
 enum NoticeKind { INFO, ANALYSIS, UNLOCK, PICKUP, WARNING }
+## 화면 가운데 위에 크게 뜨는 공명 장치 알림의 종류
+enum AnnounceKind { LEVEL_UP, DISCOVERY, SKILL, QUEST, UNIQUE, SYSTEM }
 
 ## 플레이어의 공격이 명중했다(히트마커, 효과음, 피해 수치).
 signal hit_confirmed(result: HitResult)
@@ -15,7 +17,15 @@ signal notice(text: String, kind: int)
 signal enemy_killed(enemy: Node)
 signal player_died
 signal player_respawned
+## 공명 장치 알림(레벨업, 지역 발견, 스킬 습득, 유니크 시나리오 등)
+signal announcement(title: String, subtitle: String, kind: int)
+## 경험치를 얻었다
+signal xp_gained(amount: int, reason: String)
 
 
 func notify(text: String, kind: int = NoticeKind.INFO) -> void:
 	notice.emit(text, kind)
+
+
+func announce(title: String, subtitle: String = "", kind: int = AnnounceKind.SYSTEM) -> void:
+	announcement.emit(title, subtitle, kind)

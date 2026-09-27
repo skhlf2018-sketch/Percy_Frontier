@@ -59,8 +59,12 @@ func _ready() -> void:
 	hud.bind(player)
 	menus = MenuLayer.new()
 	add_child(menus)
+	menus.status_window.setup(player)
 	menus.title_requested.connect(_go_to_title)
 	player.died.connect(_on_player_died)
+	if field:
+		field.area_entered.connect(func(area_id: StringName, area_name: String) -> void:
+			GameState.discover_area(area_id, area_name))
 	world.rest_requested.connect(_on_rest_requested)
 	world.rack_requested.connect(_open_weapon_rack)
 	world.terminal_requested.connect(_open_test_terminal)
@@ -79,6 +83,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"pause") and not menus.is_open():
 		get_viewport().set_input_as_handled()
 		menus.open_pause()
+		return
+	if event.is_action_pressed(&"status_window") and not menus.is_open() and player.alive:
+		get_viewport().set_input_as_handled()
+		menus.open_status()
 		return
 	# 창 밖을 눌렀다가 돌아오면 클릭으로 마우스를 다시 잡는다(이 클릭은 사격으로 쓰지 않는다).
 	if event is InputEventMouseButton and event.pressed and not menus.is_open() \

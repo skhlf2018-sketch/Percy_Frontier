@@ -9,12 +9,13 @@ var pause_menu := PauseMenu.new()
 var settings_menu := SettingsMenu.new()
 var controls_help := ControlsHelp.new()
 var choice_menu := ChoiceMenu.new()
+var status_window := StatusWindow.new()
 
 
 func _ready() -> void:
 	layer = 10
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu]:
+	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu, status_window]:
 		add_child(m)
 		m.closed.connect(_on_menu_closed.bind(m))
 	pause_menu.resume_requested.connect(close_all)
@@ -27,7 +28,7 @@ func _ready() -> void:
 
 
 func is_open() -> bool:
-	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu]:
+	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu, status_window]:
 		if m.visible:
 			return true
 	return false
@@ -43,8 +44,14 @@ func open_choice(title: String, subtitle: String, entries: Array) -> void:
 	choice_menu.show_choices(title, subtitle, entries)
 
 
+## 공명 장치 창(Tab)
+func open_status(tab: int = StatusWindow.TAB_STATUS) -> void:
+	_set_paused(true)
+	status_window.open_tab(tab)
+
+
 func close_all() -> void:
-	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu]:
+	for m: MenuPanel in [pause_menu, settings_menu, controls_help, choice_menu, status_window]:
 		m.visible = false
 	Settings.save_settings()
 	_set_paused(false)

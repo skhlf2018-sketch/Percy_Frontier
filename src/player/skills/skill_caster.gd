@@ -103,7 +103,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _skill_damage(skill: SkillData, position: Vector3, direction: Vector3) -> DamageInfo:
-	var info := DamageInfo.create(skill.damage, DamageInfo.Kind.SKILL, player)
+	var info := DamageInfo.create(skill.damage * GameState.progress.skill_power_mult(), DamageInfo.Kind.SKILL, player)
 	info.stagger = skill.stagger
 	info.status_buildup = skill.status_buildup()
 	info.hit_position = position

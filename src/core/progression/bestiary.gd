@@ -98,13 +98,14 @@ func record(data: EnemyData, event: Event) -> float:
 
 
 ## 처치 시 스킬 핵 드롭 판정. 얻었으면 true(즉시 해금).
-func roll_core_drop(data: EnemyData) -> bool:
+## 스킬 핵 드롭 판정. bonus는 행운 능력치로 더해지는 확률.
+func roll_core_drop(data: EnemyData, bonus: float = 0.0) -> bool:
 	if data == null or not data.is_analyzable():
 		return false
 	var e := _ensure(data)
 	if e.skill_unlocked:
 		return false
-	if rng.randf() < data.core_drop_chance:
+	if rng.randf() < data.core_drop_chance + bonus:
 		_unlock(data, e, true)
 		return true
 	return false

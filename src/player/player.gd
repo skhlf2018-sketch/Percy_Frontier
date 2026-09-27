@@ -88,6 +88,10 @@ var _mantle_from := Vector3.ZERO
 var _mantle_to := Vector3.ZERO
 var _mantle_t: float = 0.0
 
+## 성장(능력치)에 따른 이동 속도·회피 거리 배율
+var _speed_mult: float = 1.0
+var _dodge_mult: float = 1.0
+
 var _recoil_pool := Vector2.ZERO
 var _recoil_recovery: float = 7.0
 
@@ -121,6 +125,26 @@ func _ready() -> void:
 	skills.setup(self)
 	yaw = global_rotation.y
 	_update_head()
+	GameState.progress.stats_changed.connect(_apply_progress)
+	_apply_progress()
+
+
+## 레벨·능력치를 자원 최대치와 이동에 반영한다. 최대치가 늘면 늘어난 만큼 현재 값도 채운다.
+func _apply_progress() -> void:
+	var pr := GameState.progress
+	var hp_gain := pr.max_hp() - stats.max_hp
+	var stamina_gain := pr.max_stamina() - stats.max_stamina
+	stats.max_hp = pr.max_hp()
+	stats.max_stamina = pr.max_stamina()
+	stats.max_resonance = pr.max_resonance()
+	if alive:
+		stats.hp = clampf(stats.hp + maxf(hp_gain, 0.0), 0.0, stats.max_hp)
+		stats.stamina = clampf(stats.stamina + maxf(stamina_gain, 0.0), 0.0, stats.max_stamina)
+	stats.resonance = minf(stats.resonance, stats.max_resonance)
+	stats.stamina_regen_rate = PlayerStats.BASE_STAMINA_REGEN * pr.stamina_regen_mult()
+	_speed_mult = pr.move_speed_mult()
+	_dodge_mult = pr.dodge_distance_mult()
+	stats.changed.emit()
 
 
 # --- 입력 ---
@@ -333,7 +357,7 @@ func _target_speed() -> float:
 		speed = SPRINT_SPEED
 	elif crouching:
 		speed = CROUCH_SPEED
-	speed *= weapons.move_speed_multiplier()
+	speed *= weapons.move_speed_multiplier() * _speed_mult
 	if is_busy_with_consumable():
 		speed *= 0.6
 	return speed * status.move_multiplier()
@@ -424,7 +448,7 @@ func try_dodge() -> bool:
 	if dir.length_squared() < 0.01:
 		dir = Basis(Vector3.UP, yaw) * Vector3.BACK
 	dir = dir.normalized()
-	start_forced_motion(dir * (DODGE_DISTANCE / DODGE_TIME), DODGE_TIME, DODGE_IFRAMES)
+	start_forced_motion(dir * (DODGE_DISTANCE * _dodge_mult / DODGE_TIME), DODGE_TIME, DODGE_IFRAMES)
 	_dodge_cooldown = DODGE_COOLDOWN + DODGE_TIME
 	cancel_sprint()
 	apply_action_bleed()

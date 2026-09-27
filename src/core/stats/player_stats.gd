@@ -16,7 +16,9 @@ var resonance: float = 0.0
 var shield: float = 0.0
 var shield_time: float = 0.0
 
-var stamina_regen_rate: float = 32.0
+const BASE_STAMINA_REGEN := 32.0
+
+var stamina_regen_rate: float = BASE_STAMINA_REGEN
 var stamina_regen_delay: float = 0.9
 ## 스태미나를 모두 쓰면 일정 비율까지 회복하기 전에는 달리기·회피를 쓸 수 없다.
 var exhausted: bool = false
