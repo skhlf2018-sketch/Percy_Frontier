@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="MeleeData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/melee_data.gd" id="1_twin"]
+
+
+[resource]
+script = ExtResource("1_twin")
+id = &"twin_moon"
+display_name = "쌍월 단검"
+manufacturer = "보더라인 공창"
+description = "두 손에 하나씩 쥐는 짧은 쌍검. 좌우를 번갈아 빠르게 베고, 강공격은 몸을 돌려 주위를 모두 벤다. 막는 힘은 약하지만 회피·도약과 이어지는 기술에 잘 맞는다."
+viewmodel_style = &"twin"
+body_color = Color(0.74, 0.8, 0.88, 1)
+accent_color = Color(0.16, 0.2, 0.28, 1)
+light_damage = 12.0
+light_windup = 0.05
+light_recovery = 0.14
+light_stagger = 6.0
+light_stamina = 3.5
+combo_finisher_mult = 1.6
+heavy_charge_time = 0.32
+heavy_damage = 30.0
+heavy_windup = 0.14
+heavy_recovery = 0.4
+heavy_stagger = 26.0
+heavy_stamina = 18.0
+reach = 2.2
+hit_radius = 0.9
+armor_damage_mult = 0.9
+bleed_buildup = 12.0
+heavy_bleed_buildup = 30.0
+block_reduction = 0.45
+unparryable_block_reduction = 0.1
+block_stamina_per_damage = 1.8
+parry_window = 0.2
+block_move_mult = 0.85
+quick_damage = 14.0
+quick_stagger = 8.0
+quick_time = 0.3
+dual = true
+spin_heavy = true

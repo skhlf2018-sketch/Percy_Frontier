@@ -135,6 +135,21 @@ func _ui_shots() -> void:
 	await _frames(4)
 	await _shot("25_status_bestiary")
 	game.menus.close_all()
+	# 쌍검 1인칭: 기본 자세, 좌우 베기, 회전 베기, 방어
+	GameState.set_melee_weapon(&"twin_moon")
+	game.player.weapons.select_slot(WeaponManager.Slot.MELEE)
+	await _frames(40)
+	await _shot("26_twin_idle")
+	game.player.weapons.press_trigger()
+	await _frames(3)
+	game.player.weapons.release_trigger()
+	await _frames(4)
+	await _shot("27_twin_slash")
+	await _frames(30)
+	game.player.weapons.simulate_aim(true)
+	await _frames(20)
+	await _shot("28_twin_block")
+	game.player.weapons.simulate_aim(false)
 
 
 func start_point() -> Vector2:

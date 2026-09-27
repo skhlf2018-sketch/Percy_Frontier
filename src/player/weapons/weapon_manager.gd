@@ -11,9 +11,27 @@ signal reload_started(duration: float)
 signal reload_finished
 signal overheated
 signal guard_broken
+## 상황에 따라 나가는 근접 기술(돌진 베기·낙하 베기·질주 찌르기)과 반격
+signal technique_used(technique_name: String)
 
 enum Slot { PRIMARY, SECONDARY, MELEE }
 enum MeleePhase { NONE, CHARGING, WINDUP, RECOVERY }
+## 근접 무기를 든 채 상황에 맞춰 공격하면 나가는 기술
+enum Technique { NONE, DASH, PLUNGE, THRUST }
+
+const TECHNIQUE_NAMES := {
+	Technique.DASH: "돌진 베기",
+	Technique.PLUNGE: "낙하 베기",
+	Technique.THRUST: "질주 찌르기",
+}
+const TECHNIQUE_COSTS := {Technique.DASH: 12.0, Technique.PLUNGE: 15.0, Technique.THRUST: 10.0}
+## 회피가 끝난 뒤에도 돌진 베기로 이어 줄 수 있는 시간
+const DASH_INPUT_GRACE := 0.3
+const PLUNGE_MIN_HEIGHT := 1.6
+const PLUNGE_RADIUS := 3.3
+const COUNTER_DAMAGE_MULT := 1.5
+## 쌍검: 두 손의 기본 자세
+const TWIN_POSITION := Vector3(0.0, -0.3, -0.48)
 
 const HIP_POSITION := Vector3(0.23, -0.25, -0.55)
 const MELEE_POSITION := Vector3(0.3, -0.36, -0.52)
@@ -56,6 +74,10 @@ var _combo_timer: float = 0.0
 var _block_started: float = -1.0
 var _quick_left: float = 0.0
 var _quick_hit_done: bool = true
+var _technique: int = Technique.NONE
+var _tech_elapsed: float = 0.0
+var _tech_left: float = 0.0
+var _tech_hit_done: bool = true
 
 var _vm_root: Node3D
 var _flash: Node3D
@@ -68,6 +90,7 @@ var _anim_time: float = 0.0
 
 func setup(p: Player) -> void:
 	player = p
+	p.landed.connect(_on_player_landed)
 	_vm_root = Node3D.new()
 	_vm_root.name = "ViewmodelRoot"
 	add_child(_vm_root)
@@ -498,12 +521,16 @@ func _cancel_actions() -> void:
 	_combo = 0
 	_quick_left = 0.0
 	_quick_hit_done = true
+	_technique = Technique.NONE
 
 
 # --- 근접 ---
 
 func _update_melee(delta: float) -> void:
 	_combo_timer = maxf(0.0, _combo_timer - delta)
+	if _technique != Technique.NONE:
+		_update_technique(delta)
+		return
 	if _combo_timer <= 0.0 and _melee_phase == MeleePhase.NONE:
 		_combo = 0
 	match _melee_phase:
@@ -512,6 +539,8 @@ func _update_melee(delta: float) -> void:
 					or player.is_busy_with_consumable():
 				return
 			if _trigger_fresh and not is_blocking():
+				if _try_technique():
+					return
 				_melee_phase = MeleePhase.CHARGING
 				_melee_hold = 0.0
 		MeleePhase.CHARGING:
@@ -557,6 +586,13 @@ func _perform_melee_hit() -> void:
 		stagger *= 1.5
 		_combo = 0
 	var bleed := melee.heavy_bleed_buildup if _melee_heavy else melee.bleed_buildup
+	if _melee_heavy and melee.spin_heavy:
+		# 쌍검 강공격: 몸을 돌려 주위를 모두 벤다.
+		var center := player.global_position + Vector3.UP * 1.0
+		CombatFx.ring(self, player.global_position + Vector3.UP * 0.6, melee.reach + 0.3, Color(0.75, 0.9, 1.0), 0.3)
+		Sfx.play(&"spin_slash", -2.0)
+		melee_area(center, melee.reach + 0.3, damage, stagger, bleed, true)
+		return
 	melee_strike(damage, stagger, bleed, _melee_heavy, melee.reach, melee.hit_radius)
 
 
@@ -598,6 +634,11 @@ func melee_strike(damage: float, stagger: float, bleed: float, heavy: bool, reac
 		targets[e] = candidates[e]
 	var hits := 0
 	var status_buildup := StatusEffects.buildup_from(0.0, 0.0, 0.0, bleed)
+	if not targets.is_empty() and player.consume_counter():
+		damage *= COUNTER_DAMAGE_MULT
+		stagger *= 2.0
+		heavy = true
+		technique_used.emit("반격")
 	for entity in targets:
 		var hb: Hurtbox = targets[entity]
 		var info := DamageInfo.create(damage * GameState.progress.melee_damage_mult(), DamageInfo.Kind.MELEE, player)
@@ -622,9 +663,140 @@ func melee_strike(damage: float, stagger: float, bleed: float, heavy: bool, reac
 
 
 func _hitstop(duration: float) -> void:
-	Engine.time_scale = 0.08
-	await get_tree().create_timer(duration, true, false, true).timeout
-	Engine.time_scale = 1.0
+	TimeFx.request(get_tree(), 0.08, duration)
+
+
+## 한 점을 중심으로 둘레를 모두 치는 근접 판정(회전 베기, 낙하 베기). 맞힌 수를 돌려준다.
+func melee_area(center: Vector3, radius: float, damage: float, stagger: float, bleed: float, heavy: bool) -> int:
+	var space := get_world_3d().direct_space_state
+	var shape := SphereShape3D.new()
+	shape.radius = radius
+	var sq := PhysicsShapeQueryParameters3D.new()
+	sq.shape = shape
+	sq.transform = Transform3D(Basis(), center)
+	sq.collision_mask = CombatLayers.HURTBOX
+	sq.collide_with_areas = true
+	sq.collide_with_bodies = false
+	var targets := {}
+	for r in space.intersect_shape(sq, 48):
+		var hb := r.collider as Hurtbox
+		if hb == null or hb.entity == null:
+			continue
+		if not CombatQuery.has_line_of_sight(get_world_3d(), center, hb.global_position):
+			continue
+		var prev: Hurtbox = targets.get(hb.entity)
+		if prev == null or (prev.zone == Hurtbox.Zone.WEAK_POINT and hb.zone != Hurtbox.Zone.WEAK_POINT):
+			targets[hb.entity] = hb
+	if not targets.is_empty() and player.consume_counter():
+		damage *= COUNTER_DAMAGE_MULT
+		stagger *= 2.0
+		technique_used.emit("반격")
+	var hits := 0
+	var status_buildup := StatusEffects.buildup_from(0.0, 0.0, 0.0, bleed)
+	for entity in targets:
+		var hb: Hurtbox = targets[entity]
+		var dir := hb.global_position - center
+		dir.y = 0.0
+		var info := DamageInfo.create(damage * GameState.progress.melee_damage_mult(), DamageInfo.Kind.MELEE, player)
+		info.stagger = stagger
+		info.armor_damage_mult = melee.armor_damage_mult
+		info.status_buildup = status_buildup
+		info.heavy = heavy
+		info.hit_position = hb.global_position
+		info.direction = dir.normalized() if dir.length_squared() > 0.001 else -player.look_basis().z
+		info.knockback = 5.0 if heavy else 2.0
+		var result := hb.hit(info)
+		if result:
+			hits += 1
+			handle_hit_result(result)
+	if hits > 0:
+		Sfx.play(&"melee_hit", 0.0)
+		player.camera_rig.add_trauma(0.3)
+		Hearing.emit(get_tree(), center, 12.0, player, Hearing.Kind.IMPACT)
+		if heavy:
+			_hitstop(0.05)
+	return hits
+
+
+# --- 근접 기술 ---
+
+## 상황에 맞는 기술을 쓴다: 회피 중·직후 → 돌진 베기, 높은 곳에서 떨어지는 중 → 낙하 베기, 달리기·미끄러지기 중 → 질주 찌르기.
+func _try_technique() -> bool:
+	if current_slot != Slot.MELEE:
+		return false
+	var p := player
+	if p.time_since_dodge() <= Player.DODGE_TIME + DASH_INPUT_GRACE:
+		return _start_technique(Technique.DASH)
+	if not p.is_on_floor() and p.velocity.y < 2.0 and p.height_above_ground() > PLUNGE_MIN_HEIGHT:
+		return _start_technique(Technique.PLUNGE)
+	if p.sprinting or p.is_sliding():
+		return _start_technique(Technique.THRUST)
+	return false
+
+
+func _start_technique(t: int) -> bool:
+	if not player.stats.use_stamina(TECHNIQUE_COSTS[t]):
+		return false
+	_technique = t
+	_tech_elapsed = 0.0
+	_tech_hit_done = false
+	_anim_time = 0.0
+	var fwd := -player.look_basis().z
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length_squared() > 0.001 else Vector3.FORWARD
+	match t:
+		Technique.DASH:
+			player.start_forced_motion(fwd * 15.0, 0.2, 0.12)
+			_tech_left = 0.55
+		Technique.PLUNGE:
+			player.velocity = Vector3(player.velocity.x * 0.3, -24.0, player.velocity.z * 0.3)
+			_tech_left = 3.0
+		Technique.THRUST:
+			player.start_forced_motion(fwd * 9.5, 0.18, 0.0)
+			_tech_left = 0.5
+	player.cancel_sprint(0.4)
+	player.apply_action_bleed()
+	Sfx.play(&"technique", -3.0)
+	Sfx.play(&"melee_swing", 0.0, 0.9)
+	technique_used.emit(TECHNIQUE_NAMES[t])
+	return true
+
+
+func _update_technique(delta: float) -> void:
+	_tech_elapsed += delta
+	_tech_left -= delta
+	match _technique:
+		Technique.DASH:
+			if not _tech_hit_done and _tech_elapsed >= 0.12:
+				_tech_hit_done = true
+				melee_strike(melee.light_damage * 1.8 + melee.heavy_damage * 0.3, melee.heavy_stagger * 0.8,
+					melee.bleed_buildup, true, melee.reach + 0.9, melee.hit_radius + 0.35)
+		Technique.THRUST:
+			if not _tech_hit_done and _tech_elapsed >= 0.08:
+				_tech_hit_done = true
+				melee_strike(melee.light_damage * 1.5, melee.light_stagger * 2.0, melee.bleed_buildup * 1.5,
+					false, melee.reach + 1.4, melee.hit_radius * 0.7)
+	if _tech_left <= 0.0:
+		_technique = Technique.NONE
+		_melee_phase = MeleePhase.NONE
+		_combo_timer = COMBO_RESET
+
+
+func _on_player_landed(fall_speed: float) -> void:
+	if _technique != Technique.PLUNGE or _tech_hit_done:
+		return
+	_tech_hit_done = true
+	_tech_left = 0.35
+	var center := player.global_position + Vector3.UP * 0.6
+	CombatFx.ring(self, player.global_position + Vector3.UP * 0.05, PLUNGE_RADIUS, Color(0.95, 0.85, 0.5), 0.4)
+	Sfx.play(&"plunge_impact", 0.0)
+	player.camera_rig.add_trauma(0.45)
+	melee_area(center, PLUNGE_RADIUS, melee.heavy_damage * 1.1 + fall_speed * 1.5, melee.heavy_stagger * 1.2,
+		melee.heavy_bleed_buildup * 0.5, true)
+
+
+func is_using_technique() -> bool:
+	return _technique != Technique.NONE
 
 
 ## 적 공격을 막거나 흘린다. 결과: {} 또는 { parried } 또는 { blocked, reduction, stamina_per_damage }
@@ -791,6 +963,18 @@ func _process(delta: float) -> void:
 		var t := 1.0 - _quick_left / maxf(melee.quick_time, 0.01)
 		pos = MELEE_POSITION + Vector3(-0.1 * sin(t * PI), 0.08 * sin(t * PI), -0.1 * sin(t * PI))
 		rot = Vector3(-60.0, lerpf(30.0, -40.0, t), lerpf(-40.0, 60.0, t))
+	elif current_slot == Slot.MELEE and melee.dual:
+		pos = TWIN_POSITION
+		_animate_twin(delta)
+	elif current_slot == Slot.MELEE and _technique != Technique.NONE:
+		pos = MELEE_POSITION
+		var t := clampf(_tech_elapsed / 0.2, 0.0, 1.0)
+		match _technique:
+			Technique.PLUNGE:
+				rot = Vector3(lerpf(30.0, -95.0, 1.0 if _tech_hit_done else t * 0.4), 5.0, -10.0)
+			_:
+				rot = Vector3(lerpf(-40.0, -88.0, t), 0.0, -10.0)
+				pos += Vector3(-0.12, 0.08, -0.12 * t)
 	elif current_slot == Slot.MELEE:
 		pos = MELEE_POSITION
 		rot = Vector3(-35.0, 12.0, -18.0)
@@ -840,3 +1024,67 @@ func _process(delta: float) -> void:
 	rot.x += 4.0 * _kick * lerpf(1.0, 0.4, ads_blend)
 	var target := Transform3D(Basis.from_euler(rot * (PI / 180.0)), pos)
 	_vm_root.transform = _vm_root.transform.interpolate_with(target, 1.0 - exp(-22.0 * delta))
+
+
+## 쌍검 양손 동작: 약공격은 좌우를 번갈아, 강공격은 두 손을 크게 돌려 벤다.
+func _animate_twin(delta: float) -> void:
+	var view: Dictionary = _views.get(melee.id, {})
+	var right: Node3D = view.get("right")
+	var left: Node3D = view.get("left")
+	if right == null or left == null:
+		return
+	# 기본 자세: 칼끝이 앞쪽 위를 향하고 바깥으로 조금 벌어진다.
+	var r_rot := Vector3(-64.0, 10.0, -24.0)
+	var l_rot := Vector3(-64.0, -10.0, 24.0)
+	var r_pos := Vector3(0.2, 0.0, 0.0)
+	var l_pos := Vector3(-0.2, 0.0, 0.0)
+	if is_blocking():
+		# 방어: 두 칼을 가슴 앞에서 낮게 엇갈린다.
+		r_rot = Vector3(-24.0, 22.0, 46.0)
+		l_rot = Vector3(-24.0, -22.0, -46.0)
+		r_pos = Vector3(0.13, 0.0, -0.02)
+		l_pos = Vector3(-0.13, 0.0, -0.02)
+	var swing_right := _combo % 2 == 1
+	match _melee_phase:
+		MeleePhase.CHARGING:
+			var c := clampf(_melee_hold / maxf(melee.heavy_charge_time, 0.01), 0.0, 1.0)
+			r_rot += Vector3(28.0 * c, 20.0 * c, 0.0)
+			l_rot += Vector3(28.0 * c, -20.0 * c, 0.0)
+		MeleePhase.WINDUP:
+			var w := 1.0 - _melee_timer / maxf(melee.heavy_windup if _melee_heavy else melee.light_windup, 0.01)
+			if _melee_heavy:
+				r_rot += Vector3(-10.0, lerpf(40.0, -120.0, w), lerpf(-20.0, 70.0, w))
+				l_rot += Vector3(-10.0, lerpf(-40.0, 120.0, w), lerpf(20.0, -70.0, w))
+			elif swing_right:
+				r_rot += Vector3(0.0, lerpf(30.0, -45.0, w), lerpf(-40.0, 65.0, w))
+				r_pos += Vector3(-0.08 * w, 0.05 * w, -0.08 * w)
+			else:
+				l_rot += Vector3(0.0, lerpf(-30.0, 45.0, w), lerpf(40.0, -65.0, w))
+				l_pos += Vector3(0.08 * w, 0.05 * w, -0.08 * w)
+		MeleePhase.RECOVERY:
+			var r := _melee_timer / maxf(melee.heavy_recovery if _melee_heavy else melee.light_recovery, 0.01)
+			if _melee_heavy:
+				r_rot += Vector3(0.0, -60.0 * r, 40.0 * r)
+				l_rot += Vector3(0.0, 60.0 * r, -40.0 * r)
+			elif swing_right:
+				r_rot += Vector3(0.0, -35.0 * r, 55.0 * r)
+			else:
+				l_rot += Vector3(0.0, 35.0 * r, -55.0 * r)
+	if _technique != Technique.NONE:
+		var t := clampf(_tech_elapsed / 0.2, 0.0, 1.0)
+		match _technique:
+			Technique.PLUNGE:
+				var down := 1.0 if _tech_hit_done else t * 0.3
+				r_rot = Vector3(lerpf(35.0, -100.0, down), 10.0, -10.0)
+				l_rot = Vector3(lerpf(35.0, -100.0, down), -10.0, 10.0)
+			Technique.THRUST:
+				r_rot = Vector3(lerpf(-40.0, -88.0, t), 0.0, 0.0)
+				r_pos = Vector3(0.12, 0.05, -0.16 * t)
+			_:
+				r_rot = Vector3(lerpf(-40.0, -85.0, t), -25.0 * t, 0.0)
+				l_rot = Vector3(lerpf(-40.0, -85.0, t), 25.0 * t, 0.0)
+				r_pos = Vector3(0.16, 0.04, -0.1 * t)
+				l_pos = Vector3(-0.16, 0.04, -0.1 * t)
+	var k := 1.0 - exp(-26.0 * delta)
+	right.transform = right.transform.interpolate_with(Transform3D(Basis.from_euler(r_rot * (PI / 180.0)), r_pos), k)
+	left.transform = left.transform.interpolate_with(Transform3D(Basis.from_euler(l_rot * (PI / 180.0)), l_pos), k)

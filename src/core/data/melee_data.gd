@@ -53,3 +53,9 @@ extends Resource
 @export var quick_damage: float = 18.0
 @export var quick_stagger: float = 14.0
 @export var quick_time: float = 0.42
+
+@export_group("특수")
+## 쌍검: 두 손에 하나씩 쥐고 번갈아 벤다(1인칭 모델과 애니메이션이 달라진다).
+@export var dual: bool = false
+## 강공격이 앞쪽이 아니라 주위를 모두 베는 회전 베기다.
+@export var spin_heavy: bool = false

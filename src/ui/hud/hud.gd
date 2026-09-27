@@ -33,6 +33,9 @@ var _notices: NoticeFeed
 var _vignette: TextureRect
 var _death_panel: Control
 var _banner: SystemBanner
+## 간발의 회피 때 화면이 잠깐 푸르게 번쩍인다.
+var _tint: ColorRect
+var _tint_amount: float = 0.0
 var _save_label: Label
 var _save_time: float = 0.0
 var _level_label: Label
@@ -63,6 +66,11 @@ func _build() -> void:
 	_vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	_vignette.modulate.a = 0.0
 	_full(_vignette)
+
+	_tint = ColorRect.new()
+	_tint.color = Color(0.45, 0.95, 1.0, 0.0)
+	_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_full(_tint)
 
 	_enemy_overlay = EnemyOverlay.new()
 	_full(_enemy_overlay)
@@ -240,6 +248,14 @@ func bind(p: Player) -> void:
 	GameEvents.notice.connect(_notices.push)
 	GameEvents.parry_succeeded.connect(func(_e: Node) -> void: flash_center("패링!", Color(1.0, 0.9, 0.4)))
 	GameEvents.attack_evaded.connect(func(_e: Node) -> void: flash_center("회피", Color(0.7, 0.9, 1.0)))
+	GameEvents.perfect_evaded.connect(func(_e: Node) -> void:
+		flash_center("간발의 회피! · 반격 기회", Color(0.55, 1.0, 0.95))
+		_tint_amount = 1.0)
+	p.weapons.technique_used.connect(func(technique_name: String) -> void:
+		if technique_name == "반격":
+			flash_center("반격!", Color(1.0, 0.85, 0.4))
+		else:
+			flash_center("기술 · " + technique_name, Color(0.6, 0.92, 1.0)))
 	p.weapons.guard_broken.connect(func() -> void: flash_center("방어 붕괴", WARNING_COLOR))
 	p.weapons.overheated.connect(func() -> void: flash_center("과열", Color(1.0, 0.6, 0.25)))
 	p.skills.cast_failed.connect(func(_slot: int, reason: String) -> void:
@@ -296,6 +312,9 @@ func _on_player_damaged(amount: float, source_position: Vector3, blocked: bool) 
 
 func _process(delta: float) -> void:
 	_hit_sound_cooldown = maxf(0.0, _hit_sound_cooldown - delta)
+	if _tint_amount > 0.0:
+		_tint_amount = maxf(0.0, _tint_amount - delta * 2.5)
+		_tint.color.a = _tint_amount * 0.22
 	if _save_time > 0.0:
 		_save_time -= delta
 		_save_label.modulate.a = clampf(_save_time / 0.5, 0.0, 1.0)

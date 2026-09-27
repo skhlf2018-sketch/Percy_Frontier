@@ -8,6 +8,10 @@ signal interaction_changed(target: Interactable)
 signal consumables_changed
 signal died
 signal respawned
+## 공격이 닿기 직전에 회피했다(간발의 회피). 반격 기회가 열린다.
+signal perfect_evaded(enemy: Node)
+## 공중에서 땅에 내려섰다(낙하 속도 m/s)
+signal landed(fall_speed: float)
 
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.1
@@ -31,6 +35,28 @@ const DODGE_TIME := 0.24
 const DODGE_IFRAMES := 0.22
 const DODGE_COST := 22.0
 const DODGE_COOLDOWN := 0.35
+
+## 원작식 기동(샹그릴라 프론티어처럼 빠르게 파고드는 전투를 위한 이동 기술)
+## 공중 도약: 공중에서 한 번 더 뛴다.
+const AIR_STEPS := 1
+const AIR_STEP_VELOCITY := 6.2
+const AIR_STEP_COST := 14.0
+## 벽 차기: 공중에서 벽·나무·바위에 닿은 채 점프하면 반대쪽으로 튀어 오른다.
+const WALL_KICK_UP := 6.4
+const WALL_KICK_PUSH := 6.8
+const WALL_KICK_COST := 10.0
+const WALL_CONTACT_GRACE := 0.18
+## 미끄러지기: 달리다가 앉기
+const SLIDE_SPEED := 11.0
+const SLIDE_TIME := 0.62
+const SLIDE_COST := 10.0
+## 간발의 회피: 회피를 시작한 직후 이 시간 안에 공격이 닿으면 발동한다.
+const PERFECT_DODGE_WINDOW := 0.15
+const PERFECT_SLOW_SCALE := 0.3
+const PERFECT_SLOW_TIME := 0.45
+const PERFECT_RESONANCE := 18.0
+## 간발의 회피·패링 뒤 반격 기회(근접 피해와 경직이 커진다)
+const COUNTER_WINDOW := 1.5
 
 const MANTLE_MIN_HEIGHT := 0.45
 const MANTLE_MAX_HEIGHT := 1.4
@@ -82,6 +108,16 @@ var _knockback_immune: float = 0.0
 var _move_lock: float = 0.0
 ## 사격·조준 직후 달리기를 잠시 막는 시간
 var _sprint_lock: float = 0.0
+
+var _air_steps_left: int = AIR_STEPS
+var _wall_normal := Vector3.ZERO
+var _wall_contact: float = 0.0
+var _wall_kick_cooldown: float = 0.0
+var sliding: bool = false
+var _slide_left: float = 0.0
+var _slide_dir := Vector3.ZERO
+var _dodge_started: float = -100.0
+var _counter_until: float = -100.0
 
 var _mantling: bool = false
 var _mantle_from := Vector3.ZERO
@@ -161,7 +197,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"dodge"):
 		try_dodge()
 	elif event.is_action_pressed(&"crouch"):
-		if Settings.get_value(&"crouch_toggle"):
+		if sprinting and try_slide():
+			if Settings.get_value(&"crouch_toggle"):
+				_crouch_toggled = true
+		elif Settings.get_value(&"crouch_toggle"):
 			_crouch_toggled = not _crouch_toggled
 	elif event.is_action_pressed(&"sprint"):
 		if Settings.get_value(&"sprint_toggle"):
@@ -276,6 +315,8 @@ func _physics_process(delta: float) -> void:
 
 func _tick_timers(delta: float) -> void:
 	_jump_buffer = maxf(0.0, _jump_buffer - delta)
+	_wall_contact = maxf(0.0, _wall_contact - delta)
+	_wall_kick_cooldown = maxf(0.0, _wall_kick_cooldown - delta)
 	_iframes = maxf(0.0, _iframes - delta)
 	_dodge_cooldown = maxf(0.0, _dodge_cooldown - delta)
 	_knockback_immune = maxf(0.0, _knockback_immune - delta)
@@ -284,6 +325,7 @@ func _tick_timers(delta: float) -> void:
 	_consumable_busy = maxf(0.0, _consumable_busy - delta)
 	if is_on_floor():
 		_coyote = COYOTE_TIME
+		_air_steps_left = AIR_STEPS
 	else:
 		_coyote = maxf(0.0, _coyote - delta)
 
@@ -296,6 +338,8 @@ func _update_crouch(delta: float) -> void:
 		want = can_act() and Input.is_action_pressed(&"crouch")
 	if sprinting:
 		want = false
+	if sliding:
+		want = true
 	if want and not crouching:
 		crouching = true
 		_set_collision_height(CROUCH_HEIGHT)
@@ -364,6 +408,9 @@ func _target_speed() -> float:
 
 
 func _apply_movement(input_dir: Vector2, delta: float) -> void:
+	if sliding:
+		_process_slide(input_dir, delta)
+		return
 	if _forced_time > 0.0:
 		_forced_time -= delta
 		velocity.x = _forced_velocity.x
@@ -393,20 +440,120 @@ func _apply_jump() -> void:
 		_jump_buffer = 0.0
 		return
 	if _coyote > 0.0 and not is_busy_with_consumable():
+		# 미끄러지다 뛰면 속도를 그대로 싣는다.
+		if sliding:
+			var slide_speed := _slide_speed()
+			velocity.x = _slide_dir.x * slide_speed
+			velocity.z = _slide_dir.z * slide_speed
+			_end_slide()
 		velocity.y = JUMP_VELOCITY
 		_jump_buffer = 0.0
 		_coyote = 0.0
+		_air_steps_left = AIR_STEPS
 		if crouching and _can_stand():
 			crouching = false
 			_crouch_toggled = false
 			_set_collision_height(STAND_HEIGHT)
+		return
+	if is_on_floor() or is_busy_with_consumable() or _forced_time > 0.0:
+		return
+	if _try_wall_kick() or _try_air_step():
+		_jump_buffer = 0.0
+
+
+## 공중 도약: 공중에서 한 번 더 뛴다. 입력한 방향으로 몸을 튼다.
+func _try_air_step() -> bool:
+	if _air_steps_left <= 0 or not stats.use_stamina(AIR_STEP_COST):
+		return false
+	_air_steps_left -= 1
+	velocity.y = AIR_STEP_VELOCITY
+	var input_dir := Input.get_vector(&"move_left", &"move_right", &"move_forward", &"move_back")
+	var wish := Basis(Vector3.UP, yaw) * Vector3(input_dir.x, 0.0, input_dir.y)
+	if wish.length_squared() > 0.01:
+		var hv := Vector3(velocity.x, 0.0, velocity.z)
+		var speed := maxf(hv.length(), WALK_SPEED * 1.15 * _speed_mult)
+		hv = hv.lerp(wish.normalized() * speed, 0.75)
+		velocity.x = hv.x
+		velocity.z = hv.z
+	Sfx.play(&"air_step", -4.0)
+	CombatFx.ring(self, global_position + Vector3.UP * 0.05, 0.7, Color(0.5, 0.9, 1.0), 0.3)
+	Hearing.emit(get_tree(), global_position, 5.0, self, Hearing.Kind.FOOTSTEP)
+	return true
+
+
+## 벽 차기: 공중에서 막 닿은 벽을 박차고 튀어 오른다. 공중 도약 기회도 되돌려 받는다.
+func _try_wall_kick() -> bool:
+	if _wall_contact <= 0.0 or _wall_kick_cooldown > 0.0 or not stats.use_stamina(WALL_KICK_COST):
+		return false
+	var n := Vector3(_wall_normal.x, 0.0, _wall_normal.z).normalized()
+	if n.length_squared() < 0.01:
+		return false
+	velocity = n * WALL_KICK_PUSH + Vector3.UP * WALL_KICK_UP
+	_wall_contact = 0.0
+	_wall_kick_cooldown = 0.25
+	_air_steps_left = AIR_STEPS
+	Sfx.play(&"wall_kick", -3.0)
+	camera_rig.add_trauma(0.08)
+	return true
+
+
+# --- 미끄러지기 ---
+
+## 달리다가 앉으면 미끄러진다. 미끄러지는 중에도 쏘고 벨 수 있다.
+func try_slide() -> bool:
+	if sliding or not is_on_floor() or not can_act() or is_busy_with_consumable() or _forced_time > 0.0:
+		return false
+	if not stats.use_stamina(SLIDE_COST):
+		return false
+	var hv := Vector3(velocity.x, 0.0, velocity.z)
+	_slide_dir = hv.normalized() if hv.length() > 1.0 else -(Basis(Vector3.UP, yaw) * Vector3.BACK)
+	sliding = true
+	_slide_left = SLIDE_TIME
+	cancel_sprint(0.2)
+	crouching = true
+	_set_collision_height(CROUCH_HEIGHT)
+	Sfx.play(&"slide", -4.0)
+	Hearing.emit(get_tree(), global_position, 7.0, self, Hearing.Kind.FOOTSTEP)
+	return true
+
+
+func _slide_speed() -> float:
+	var t := 1.0 - _slide_left / SLIDE_TIME
+	return lerpf(SLIDE_SPEED * _speed_mult, CROUCH_SPEED, t * t)
+
+
+func _process_slide(input_dir: Vector2, delta: float) -> void:
+	_slide_left -= delta
+	# 입력으로 조금 틀 수 있다.
+	if input_dir.x != 0.0:
+		_slide_dir = _slide_dir.rotated(Vector3.UP, -input_dir.x * 1.4 * delta)
+	var speed := _slide_speed()
+	velocity.x = _slide_dir.x * speed
+	velocity.z = _slide_dir.z * speed
+	if not is_on_floor():
+		velocity.y -= GRAVITY * delta
+	if _slide_left <= 0.0 or is_on_wall():
+		_end_slide()
+
+
+func _end_slide() -> void:
+	sliding = false
+	_slide_left = 0.0
+
+
+func is_sliding() -> bool:
+	return sliding
 
 
 func _after_move(pre_velocity_y: float, delta: float) -> void:
 	var on_floor := is_on_floor()
+	if not on_floor and is_on_wall():
+		_wall_normal = get_wall_normal()
+		_wall_contact = WALL_CONTACT_GRACE
 	if not on_floor:
 		_fall_speed = maxf(_fall_speed, -pre_velocity_y)
 	elif not _was_on_floor:
+		landed.emit(_fall_speed)
 		if _fall_speed > 4.0:
 			camera_rig.land(_fall_speed)
 			Sfx.play(&"land", -6.0)
@@ -448,7 +595,10 @@ func try_dodge() -> bool:
 	if dir.length_squared() < 0.01:
 		dir = Basis(Vector3.UP, yaw) * Vector3.BACK
 	dir = dir.normalized()
+	if sliding:
+		_end_slide()
 	start_forced_motion(dir * (DODGE_DISTANCE * _dodge_mult / DODGE_TIME), DODGE_TIME, DODGE_IFRAMES)
+	_dodge_started = _clock
 	_dodge_cooldown = DODGE_COOLDOWN + DODGE_TIME
 	cancel_sprint()
 	apply_action_bleed()
@@ -647,7 +797,11 @@ func receive_enemy_attack(info: DamageInfo) -> Dictionary:
 	if is_invulnerable():
 		result.evaded = true
 		_record_on_attacker(attacker, Bestiary.Event.EVADE)
-		GameEvents.attack_evaded.emit(attacker)
+		if _clock - _dodge_started <= PERFECT_DODGE_WINDOW:
+			result.perfect = true
+			_on_perfect_evade(attacker)
+		else:
+			GameEvents.attack_evaded.emit(attacker)
 		return result
 	var guard := weapons.try_block(info, source_pos)
 	if guard.get("parried", false):
@@ -658,6 +812,7 @@ func receive_enemy_attack(info: DamageInfo) -> Dictionary:
 			attacker.on_parried(self)
 		Sfx.play(&"parry")
 		camera_rig.add_trauma(0.25)
+		open_counter()
 		GameEvents.parry_succeeded.emit(attacker)
 		return result
 	var amount := info.amount * float(Settings.difficulty_params().damage_taken)
@@ -793,6 +948,9 @@ func _on_died() -> void:
 ## 거점에서 부활한다. 레벨·장비·스킬·발견 기록은 유지하고, 사용한 소모품은 되돌리지 않는다.
 ## 진행 불능을 막기 위해 최소 비상 탄약과 기본 회복 수단은 보장한다.
 func respawn_at(xform: Transform3D) -> void:
+	_end_slide()
+	_counter_until = -100.0
+	_air_steps_left = AIR_STEPS
 	global_transform = Transform3D(Basis(), xform.origin)
 	yaw = xform.basis.get_euler().y
 	pitch = 0.0
@@ -852,3 +1010,48 @@ func _process(delta: float) -> void:
 func _update_head() -> void:
 	var origin := get_global_transform_interpolated().origin
 	head.global_transform = Transform3D(look_basis(), origin + Vector3.UP * _eye_height)
+
+
+# --- 간발의 회피와 반격 ---
+
+## 공격이 닿기 직전에 피했다: 잠깐 시간이 느려지고, 공명을 얻고, 반격 기회가 열린다.
+func _on_perfect_evade(attacker: Node) -> void:
+	stats.add_resonance(PERFECT_RESONANCE * GameState.progress.resonance_gain_mult())
+	open_counter()
+	Sfx.play(&"perfect_evade", -2.0)
+	TimeFx.request(get_tree(), PERFECT_SLOW_SCALE, PERFECT_SLOW_TIME)
+	perfect_evaded.emit(attacker)
+	GameEvents.perfect_evaded.emit(attacker)
+
+
+func open_counter() -> void:
+	_counter_until = _clock + COUNTER_WINDOW
+
+
+func has_counter() -> bool:
+	return _clock <= _counter_until
+
+
+## 반격 기회를 쓴다(근접 공격이 맞으면 부른다). 쓸 수 있었으면 true.
+func consume_counter() -> bool:
+	if not has_counter():
+		return false
+	_counter_until = -100.0
+	return true
+
+
+## 발밑 지면까지의 높이(낙하 베기 판정용)
+func height_above_ground(max_check: float = 30.0) -> float:
+	var q := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 0.1,
+		global_position + Vector3.DOWN * max_check, CombatLayers.WORLD, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	return global_position.y - hit.position.y if not hit.is_empty() else max_check
+
+
+func is_dodging() -> bool:
+	return _clock - _dodge_started <= DODGE_TIME + 0.05
+
+
+## 회피가 끝난 지 얼마나 됐는지(돌진 베기 입력 유예)
+func time_since_dodge() -> float:
+	return _clock - _dodge_started

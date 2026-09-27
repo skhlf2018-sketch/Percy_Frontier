@@ -18,11 +18,15 @@ func after_each() -> void:
 
 
 func test_arena_loads_with_navigation() -> void:
-	# 내비게이션 맵은 굽기 후 두 번 동기화되어야 경로를 돌려준다.
-	await wait_physics_frames(4)
+	# 내비게이션 맵은 별도 스레드에서 비동기로 갱신되므로, 경로가 나올 때까지 기다린다(최대 1초).
 	var map := arena.get_world_3d().navigation_map
 	assert_gt(arena.navigation.navigation_mesh.get_polygon_count(), 20, "내비게이션 메시가 구워진다")
-	var path := NavigationServer3D.map_get_path(map, Vector3(0, 0, 50), Vector3(40, 0, -34), true)
+	var path := PackedVector3Array()
+	for i in 60:
+		path = NavigationServer3D.map_get_path(map, Vector3(0, 0, 50), Vector3(40, 0, -34), true)
+		if path.size() > 1:
+			break
+		await wait_physics_frames(1)
 	assert_gt(path.size(), 1, "기지에서 돌격수 들판까지 길이 이어진다")
 	var ridge_path := NavigationServer3D.map_get_path(map, Vector3(0, 0, 50), Vector3(55, 3, 10), true)
 	assert_gt(ridge_path.size(), 1, "경사로로 능선에 오를 수 있다")

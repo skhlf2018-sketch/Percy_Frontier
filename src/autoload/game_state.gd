@@ -55,6 +55,9 @@ func start_new_character(config: Dictionary) -> void:
 	progress.set_origin(StringName(config.get("origin", "")))
 	appearance = HumanoidModel.default_appearance()
 	appearance.merge(config.get("appearance", {}), true)
+	# 근접 탐사자는 쌍검을 들고 시작한다(다른 무기는 퍼시 공방에서 바꾼다).
+	if progress.origin == &"blade":
+		melee_weapon = &"twin_moon"
 
 
 # --- 저장(기획서 §20.1) ---

@@ -58,7 +58,7 @@ func _ready() -> void:
 				if not name.begins_with("test_"):
 					continue
 				var full := "%s::%s" % [file.get_basename(), name]
-				if filter != "" and not full.contains(filter):
+				if filter != "" and not _matches(full, filter):
 					continue
 				var ok := await _run_one(script, name, full)
 				if ok:
@@ -73,9 +73,19 @@ func _ready() -> void:
 	get_tree().quit(1 if failed_names.size() > 0 else 0)
 
 
+## 쉼표로 여러 이름 일부를 줄 수 있다(예: test_scripts,test_arena).
+static func _matches(full: String, filter: String) -> bool:
+	for part in filter.split(",", false):
+		if full.contains(part.strip_edges()):
+			return true
+	return false
+
+
 func _run_one(script: GDScript, method: String, full_name: String) -> bool:
 	var inst: TestCase = script.new()
 	inst.runner = self
+	# 앞 테스트의 슬로 모션·타격 정지가 남지 않게 한다.
+	TimeFx.reset()
 	_catcher.take()
 	await inst.before_each()
 	await inst.call(method)

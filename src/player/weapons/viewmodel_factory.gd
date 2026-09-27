@@ -82,6 +82,28 @@ static func build_melee(data: MeleeData) -> Dictionary:
 	var grip := _mat(data.accent_color, 0.8, 0.05)
 	var guard := _mat(data.accent_color.lightened(0.25), 0.5, 0.6)
 	match data.viewmodel_style:
+		&"twin":
+			# 쌍검: 양손에 하나씩. 소매와 장갑은 캐릭터 외형의 옷·포인트 색을 따른다.
+			var look: Dictionary = GameState.appearance
+			var sleeve := _mat(HumanoidModel.OUTFIT_COLORS[clampi(int(look.get("outfit", 0)), 0, HumanoidModel.OUTFIT_COLORS.size() - 1)], 0.85, 0.0)
+			var glove := _mat(HumanoidModel.ACCENT_COLORS[clampi(int(look.get("accent", 0)), 0, HumanoidModel.ACCENT_COLORS.size() - 1)].darkened(0.45), 0.7, 0.05)
+			var steel := _mat(data.body_color, 0.35, 0.55)
+			var right := Node3D.new()
+			right.name = "Right"
+			right.position = Vector3(0.2, 0, 0)
+			root.add_child(right)
+			var left := Node3D.new()
+			left.name = "Left"
+			left.position = Vector3(-0.2, 0, 0)
+			root.add_child(left)
+			for hand: Node3D in [right, left]:
+				_box(hand, Vector3(0.075, 0.09, 0.095), Vector3(0, -0.02, 0.01), glove)
+				_box(hand, Vector3(0.07, 0.07, 0.22), Vector3(0, -0.06, 0.14), sleeve, Vector3(18, 0, 0))
+				_cyl(hand, 0.015, 0.11, Vector3(0, 0.045, 0), grip, Vector3.ZERO)
+				_box(hand, Vector3(0.08, 0.016, 0.028), Vector3(0, 0.105, 0), guard)
+				_box(hand, Vector3(0.028, 0.3, 0.006), Vector3(0, 0.26, 0), steel)
+				_box(hand, Vector3(0.02, 0.045, 0.005), Vector3(0, 0.42, 0), steel, Vector3(0, 0, 45))
+			return {"root": root, "left": left, "right": right}
 		&"karambit":
 			_box(root, Vector3(0.026, 0.11, 0.032), Vector3(0, 0, 0), grip)
 			_torus(root, 0.016, 0.026, Vector3(0, -0.075, 0), guard, Vector3(0, 0, 90))

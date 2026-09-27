@@ -13,6 +13,7 @@ const WEAPONS := [
 const MELEE := [
 	preload("res://data/melee/sword_survey.tres"),
 	preload("res://data/melee/karambit_hook.tres"),
+	preload("res://data/melee/twin_moon.tres"),
 ]
 const SKILLS := [
 	preload("res://data/skills/frost_pulse.tres"),

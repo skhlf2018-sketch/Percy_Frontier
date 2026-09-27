@@ -125,6 +125,11 @@ func is_intro_playing() -> bool:
 	return intro != null and is_instance_valid(intro)
 
 
+func _exit_tree() -> void:
+	# 슬로 모션 도중 장면을 떠나도 게임 속도가 원래대로 돌아오게 한다.
+	TimeFx.reset()
+
+
 func _capture_mouse() -> void:
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

@@ -20,7 +20,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	GameEvents.hit_confirmed.disconnect(_on_hit)
-	Engine.time_scale = 1.0
+	TimeFx.reset()
 	GameState.reset_session()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_integration_settings.cfg"))
 	Settings.load_settings(Settings.DEFAULT_PATH)
@@ -157,6 +157,8 @@ func test_energy_rifle_projectile_and_heat() -> void:
 	var dummy := world.spawn(DUMMY, Vector3(0, 0, -12), PI)
 	await wait_physics_frames(3)
 	TestWorld.aim_at(p, dummy.global_position + Vector3.UP * 1.0)
+	# 허리 사격 탄퍼짐으로 12m에서 가끔 빗나가지 않도록 정조준해서 쏜다.
+	p.weapons.simulate_aim(true)
 	await wait_seconds(0.7)
 	await _fire_once(p)
 	var gun := p.weapons.current_gun()
