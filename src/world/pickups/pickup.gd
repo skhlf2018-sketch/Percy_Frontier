@@ -24,12 +24,16 @@ var _blocked_notice_cooldown: float = 0.0
 
 
 static func spawn_ammo(ctx: Node, position: Vector3) -> Pickup:
+	if ctx == null or not ctx.is_inside_tree():
+		return null
 	var p := Pickup.new()
 	p.kind = Kind.AMMO
 	return p._place(ctx, position)
 
 
 static func spawn_consumable(ctx: Node, position: Vector3, id: StringName) -> Pickup:
+	if ctx == null or not ctx.is_inside_tree():
+		return null
 	var p := Pickup.new()
 	p.kind = Kind.CONSUMABLE
 	p.consumable_id = id
@@ -37,9 +41,6 @@ static func spawn_consumable(ctx: Node, position: Vector3, id: StringName) -> Pi
 
 
 func _place(ctx: Node, position: Vector3) -> Pickup:
-	if ctx == null or not ctx.is_inside_tree():
-		free()
-		return null
 	var tree := ctx.get_tree()
 	var root: Node = tree.current_scene if tree.current_scene else tree.root
 	root.add_child(self)

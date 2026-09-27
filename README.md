@@ -17,6 +17,14 @@ PC 1인칭 오픈월드 액션 RPG. 총기로 몬스터의 약점과 장갑을 �
 
 ## 실행
 
+### 바로 플레이하기 (Windows)
+
+GitHub의 **Actions → 테스트와 빌드 →** 가장 최근 실행의 **Artifacts**에서 `PercyFrontier-windows-x64`를 받아 압축을 풀고 `PercyFrontier.exe`를 실행합니다. 설치는 필요 없습니다. 코드 서명을 하지 않은 빌드라서 "Windows의 PC 보호" 창이 뜨면 **추가 정보 → 실행**을 누릅니다. 함께 들어 있는 `README.txt`에 조작과 확인할 점이 정리되어 있습니다.
+
+직접 빌드하려면 `tools/export.sh`를 실행합니다. 필요한 내보내기 템플릿만 받아 오고, 배포용 엔진으로 게임을 자동으로 돌려 점검한 뒤 `build/PercyFrontier-<버전>-windows-x64.zip`을 만듭니다.
+
+### 편집기에서 실행하기
+
 1. [Godot 4.7.2](https://godotengine.org/download/archive/4.7.2-stable/)(표준판, .NET 아님)을 받습니다.
 2. Godot 프로젝트 관리자에서 이 폴더의 `project.godot`을 가져옵니다.
 3. F5로 실행하면 타이틀 화면이 나오고, **전투 시험장 입장**을 누르면 시작합니다.
@@ -68,6 +76,8 @@ tools/run_tests.sh test_combat_sandbox   # 이름 일부로 골라 실행
 
 Windows에서는 `godot --headless --path . --import` 후 `godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn` 을 실행합니다. 푸시할 때마다 GitHub Actions(`.github/workflows/tests.yml`)가 같은 테스트를 돌립니다.
 
+`tools/export.sh`는 빌드를 만들기 전에 배포용 엔진(내보내기 템플릿)으로 모든 스크립트·리소스를 불러오고 게임을 25초 동안 자동으로 돌려 봅니다(`tools/export_smoke.gd`). 편집기에서는 멀쩡해도 배포용 엔진에서만 실패하는 코드를 잡기 위한 것입니다.
+
 `tools/screenshots.sh`는 게임을 가상 화면에 띄워 주요 장면(HUD, 전조, 조준경, 메뉴 등)을 PNG로 저장합니다(xvfb와 Vulkan 드라이버 필요).
 
 ## 폴더 구조
@@ -81,7 +91,7 @@ src/enemies/     적 공통 AI와 살인토끼·바위등 돌격수·포자 사�
 src/world/       전투 시험장, 회색 상자 블록, 야외 무리, 시설, 전리품
 src/ui/          HUD, 메뉴(일시정지·설정·조작 안내·선택), 테마
 tests/           헤드리스 테스트 러너와 단위·통합 테스트
-tools/           테스트·스크린샷 스크립트
+tools/           테스트·스크린샷·빌드 스크립트
 docs/            기획서, 구현 현황
 ```
 
