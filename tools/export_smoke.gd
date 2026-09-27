@@ -53,6 +53,7 @@ func _run() -> void:
 	print("자동 플레이 %d초: 처치 %d, 사망 %d" % [SIM_FRAMES / 60, stats.kills, stats.deaths])
 	if stats.kills == 0:
 		_failures.append("자동 플레이에서 적을 한 마리도 처치하지 못했습니다")
+	await _play_field()
 
 	for e in _catcher.errors:
 		_failures.append("엔진·스크립트 에러: " + e)
@@ -141,6 +142,58 @@ func _play_game() -> Dictionary:
 	game.queue_free()
 	await _frames(2)
 	return stats
+
+
+## 필드: 주민 대화·시설 메뉴·공명 장치 창·유니크 사건(밤의 포식자)을 배포용 엔진으로 한 번씩 거친다.
+func _play_field() -> void:
+	var game: Node = (load("res://src/main/game.tscn") as PackedScene).instantiate()
+	game.mode = 0  # 필드
+	add_child(game)
+	await _frames(10)
+	var field: Node = game.field
+	var p: Node3D = game.player
+	var game_state: Node = get_node("/root/GameState")
+	for id in field.npcs:
+		game.services.talk(field.npcs[id])
+		await _frames(2)
+		game.menus.close_all()
+	var merchant: Node = field.npcs[&"merchant"]
+	game.services.open_shop(merchant)
+	game.services.open_sell(merchant)
+	game.services.open_upgrade(field.npcs[&"smith"])
+	await _frames(2)
+	game.menus.close_all()
+	game.open_rest_menu(p, field.supply_point_by_name("Supply_inn"))
+	await _frames(2)
+	game.menus.close_all()
+	for tab in 7:
+		game.menus.open_status(tab)
+		await _frames(2)
+	game.menus.close_all()
+	# 유니크 사건: 밤 + 단서 둘 + 그늘 숲 깊은 곳 → 전조 → 조우 → 흥미가 차서 물러남
+	field.day_night.advance_to(23.0)
+	field.day_night.paused = true
+	game_state.add_clue(&"claw_marks")
+	game_state.add_clue(&"explorer_journal")
+	p.global_position = field.terrain.point_at(Vector2(-66, -134)) + Vector3.UP * 0.2
+	p.reset_physics_interpolation()
+	var ev: Node = field.predator_event
+	for i in 60:
+		await _frames(1)
+		if ev.state == 2:  # 전조
+			break
+	ev._timer = 0.02
+	# 잠행 단계(공격하지 않는다) 동안만 지켜본 뒤 흥미를 채운다.
+	await _frames(150)
+	if ev.predator:
+		ev.predator.interest = 100.0
+	await _frames(360)
+	if not game_state.has_mark(&"predator_mark"):
+		_failures.append("유니크 사건(밤의 포식자)을 끝까지 진행하지 못했습니다")
+	else:
+		print("필드 점검: 주민 %d명, 유니크 사건 완료" % field.npcs.size())
+	game.queue_free()
+	await _frames(2)
 
 
 func _nearest_enemy(p: Node3D) -> Node3D:
