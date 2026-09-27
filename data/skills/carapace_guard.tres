@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SkillData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/skill_data.gd" id="1_58jl4"]
+
+[resource]
+script = ExtResource("1_58jl4")
+id = &"carapace_guard"
+display_name = "갑각 방벽"
+short_name = "방벽"
+description = "바위등 돌격수의 갑각 법칙으로 피해를 흡수하는 보호막을 만든다. 보호막이 있는 동안 밀려나지 않는다."
+source_enemy = &"rock_charger"
+kind = 2
+role = 3
+cooldown = 14.0
+color = Color(1, 0.78, 0.35, 1)
+duration = 6.0

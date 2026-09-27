@@ -1,0 +1,48 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/weapon_data.gd" id="1_l85st"]
+
+[resource]
+script = ExtResource("1_l85st")
+id = &"sniper_l14"
+display_name = "L-14 관측 저격총"
+manufacturer = "보더라인 공창"
+weapon_class = 4
+description = "관측대용 볼트액션 저격총. 조준경으로만 제 성능이 나오며, 탄이 한 대상을 관통한다."
+fire_mode = 0
+rounds_per_minute = 48.0
+damage = 85.0
+falloff_start = 80.0
+falloff_end = 200.0
+falloff_min_mult = 0.8
+max_range = 300.0
+pierce = 1
+stagger = 30.0
+armor_damage_mult = 1.4
+hip_spread_deg = 7.0
+ads_spread_deg = 0.0
+bloom_per_shot_deg = 0.0
+max_bloom_deg = 0.0
+bloom_recovery_deg = 10.0
+move_spread_deg = 3.0
+air_spread_deg = 8.0
+recoil_pitch_deg = 5.0
+recoil_yaw_deg = 0.5
+recoil_recovery = 4.0
+recoil_return_ratio = 0.4
+ammo_type = &"sniper"
+magazine_size = 5
+reload_time = 2.8
+empty_reload_time = 3.2
+ads_fov_mult = 0.28
+ads_time = 0.3
+ads_move_mult = 0.45
+scope = true
+equip_time = 0.7
+noise_radius = 90.0
+shake = 0.3
+sound = &"shot_sniper"
+tracer_color = Color(1, 0.9, 0.7, 1)
+viewmodel_style = &"sniper"
+body_color = Color(0.2, 0.22, 0.2, 1)
+accent_color = Color(0.45, 0.38, 0.28, 1)

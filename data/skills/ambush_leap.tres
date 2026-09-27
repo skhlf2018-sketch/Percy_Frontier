@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="SkillData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/skill_data.gd" id="1_sby5j"]
+
+[resource]
+script = ExtResource("1_sby5j")
+id = &"ambush_leap"
+display_name = "습격 도약"
+short_name = "도약"
+description = "살인토끼의 도약을 재현해 전방으로 빠르게 뛰어든다. 지나친 적에게 출혈을 입히며, 도약 중에는 피해를 받지 않는다."
+source_enemy = &"killer_rabbit"
+kind = 1
+role = 1
+resonance_cost = 20.0
+cooldown = 3.5
+color = Color(1, 0.45, 0.5, 1)
+radius = 1.3
+distance = 9.0
+duration = 0.28
+stagger = 18.0
+knockback = 3.0
+bleed_buildup = 40.0

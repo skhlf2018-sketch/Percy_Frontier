@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/weapon_data.gd" id="1_nxaro"]
+
+[resource]
+script = ExtResource("1_nxaro")
+id = &"pistol_bf9"
+display_name = "BF-9 호위 권총"
+manufacturer = "보더라인 공창"
+weapon_class = 0
+slot = 1
+description = "탐사대 표준 보조 총기. 정확하고 재장전이 빨라 주무기가 떨어졌을 때 믿을 만하다."
+fire_mode = 0
+rounds_per_minute = 400.0
+damage = 18.0
+falloff_start = 18.0
+falloff_end = 45.0
+max_range = 120.0
+stagger = 5.0
+armor_damage_mult = 0.8
+hip_spread_deg = 1.8
+ads_spread_deg = 0.3
+bloom_per_shot_deg = 0.7
+max_bloom_deg = 3.0
+bloom_recovery_deg = 10.0
+move_spread_deg = 1.0
+air_spread_deg = 3.5
+recoil_pitch_deg = 1.6
+recoil_yaw_deg = 0.4
+recoil_recovery = 9.0
+recoil_return_ratio = 0.75
+ammo_type = &"pistol"
+magazine_size = 12
+reload_time = 1.4
+empty_reload_time = 1.7
+ads_fov_mult = 0.85
+ads_time = 0.14
+ads_move_mult = 0.8
+equip_time = 0.3
+noise_radius = 40.0
+shake = 0.1
+sound = &"shot_pistol"
+tracer_color = Color(1, 0.86, 0.6, 1)
+viewmodel_style = &"pistol"
+body_color = Color(0.22, 0.23, 0.25, 1)
+accent_color = Color(0.75, 0.55, 0.25, 1)

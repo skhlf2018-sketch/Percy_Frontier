@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/weapon_data.gd" id="1_0bsvc"]
+
+[resource]
+script = ExtResource("1_0bsvc")
+id = &"energy_re2"
+display_name = "RE-2 공명 방출기"
+manufacturer = "세렌 공학"
+weapon_class = 6
+rarity = 1
+description = "탄약 대신 열을 쌓는 에너지 무기. 탄속이 느린 투사체를 쏘며 감전을 누적시키고 장갑에 강하다. 과열되면 잠시 쏠 수 없다."
+rounds_per_minute = 360.0
+damage = 16.0
+falloff_start = 100.0
+falloff_end = 101.0
+falloff_min_mult = 1.0
+max_range = 120.0
+armor_damage_mult = 1.6
+projectile = true
+projectile_speed = 70.0
+hip_spread_deg = 1.6
+ads_spread_deg = 0.4
+bloom_per_shot_deg = 0.25
+max_bloom_deg = 2.0
+bloom_recovery_deg = 8.0
+move_spread_deg = 1.0
+air_spread_deg = 3.0
+recoil_pitch_deg = 0.4
+recoil_yaw_deg = 0.15
+recoil_recovery = 8.0
+recoil_return_ratio = 0.8
+ammo_type = &""
+magazine_size = 0
+reload_time = 0.0
+empty_reload_time = 0.0
+uses_heat = true
+heat_per_shot = 0.055
+overheat_lockout = 1.8
+ads_time = 0.2
+equip_time = 0.5
+shock_buildup = 12.0
+noise_radius = 35.0
+shake = 0.06
+sound = &"shot_energy"
+tracer_color = Color(0.45, 0.9, 1, 1)
+viewmodel_style = &"energy"
+body_color = Color(0.82, 0.84, 0.86, 1)
+accent_color = Color(0.3, 0.85, 1, 1)

@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/weapon_data.gd" id="1_rc4rl"]
+
+[resource]
+script = ExtResource("1_rc4rl")
+id = &"rifle_bfa3"
+display_name = "BF-A3 탐사 소총"
+manufacturer = "보더라인 공창"
+description = "중거리에서 안정적인 자동 소총. 짧게 끊어 쏘면 약점을 꾸준히 노릴 수 있다."
+rounds_per_minute = 620.0
+falloff_start = 30.0
+falloff_end = 70.0
+falloff_min_mult = 0.65
+max_range = 160.0
+hip_spread_deg = 2.6
+bloom_per_shot_deg = 0.35
+bloom_recovery_deg = 8.0
+move_spread_deg = 1.6
+recoil_pitch_deg = 0.9
+recoil_return_ratio = 0.55
+empty_reload_time = 2.5
+ads_fov_mult = 0.75
+ads_time = 0.2
+ads_move_mult = 0.6
+equip_time = 0.5
+noise_radius = 50.0
+tracer_color = Color(1, 0.82, 0.5, 1)
+body_color = Color(0.27, 0.3, 0.27, 1)
+accent_color = Color(0.62, 0.5, 0.32, 1)

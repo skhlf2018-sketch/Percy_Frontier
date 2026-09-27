@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_do8ay"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_08ild"]
+
+[resource]
+script = ExtResource("2_08ild")
+id = &"training_dummy"
+display_name = "훈련용 표적"
+family = "시험 장비"
+combat_role = "표적"
+description = "머리 약점과 가슴 장갑판을 갖춘 시험용 표적. 피해를 받지 않으면 스스로 복구된다."
+max_hp = 400.0
+walk_speed = 0.0
+run_speed = 0.0
+poise = 60.0
+stagger_duration = 0.5
+mass_kg = 80.0
+sight_range = 0.0
+resonance_on_kill = 0.0
+ammo_drop_chance = 0.0
+heal_drop_chance = 0.0

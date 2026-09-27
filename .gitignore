@@ -1,0 +1,18 @@
+# Godot 4
+.godot/
+/android/
+*.translation
+
+# 내보내기 결과물
+/build/
+/export/
+*.pck
+*.exe
+*.x86_64
+
+# 개발 도구 산출물
+/tools/out/
+
+# OS
+.DS_Store
+Thumbs.db

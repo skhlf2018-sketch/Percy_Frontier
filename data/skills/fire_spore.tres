@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="SkillData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/skill_data.gd" id="1_86lix"]
+
+[resource]
+script = ExtResource("1_86lix")
+id = &"fire_spore"
+display_name = "화염 포자탄"
+short_name = "포자"
+description = "포자 사수의 발화 포자를 곡선으로 던진다. 터지면 주변에 피해를 주고 화상을 크게 누적시킨다."
+source_enemy = &"spore_spitter"
+kind = 3
+cooldown = 4.5
+color = Color(1, 0.55, 0.2, 1)
+damage = 30.0
+radius = 3.5
+speed = 26.0
+stagger = 25.0
+burn_buildup = 70.0

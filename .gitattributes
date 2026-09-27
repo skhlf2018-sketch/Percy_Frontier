@@ -1,0 +1,7 @@
+# Godot 텍스트 리소스는 LF로 고정한다.
+* text=auto eol=lf
+*.woff2 binary
+*.png binary
+*.jpg binary
+*.ogg binary
+*.wav binary

@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="MeleeData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/melee_data.gd" id="1_uogn0"]
+
+[resource]
+script = ExtResource("1_uogn0")
+id = &"karambit_hook"
+display_name = "갈고리 단검"
+manufacturer = "그레인홀 무구"
+description = "카람빗형 곡도. 빠른 연속 공격으로 출혈을 쌓는다. 막는 힘은 약하지만 패링 판정이 넉넉하다."
+viewmodel_style = &"karambit"
+body_color = Color(0.6, 0.62, 0.66, 1)
+accent_color = Color(0.18, 0.18, 0.2, 1)
+light_damage = 14.0
+light_windup = 0.06
+light_recovery = 0.2
+light_stagger = 7.0
+light_stamina = 4.0
+combo_finisher_mult = 1.5
+heavy_charge_time = 0.35
+heavy_damage = 36.0
+heavy_windup = 0.12
+heavy_recovery = 0.45
+heavy_stagger = 22.0
+heavy_stamina = 16.0
+reach = 2.1
+hit_radius = 0.7
+armor_damage_mult = 1.2
+bleed_buildup = 25.0
+heavy_bleed_buildup = 55.0
+block_reduction = 0.5
+unparryable_block_reduction = 0.15
+block_stamina_per_damage = 1.6
+parry_window = 0.24
+block_move_mult = 0.8
+quick_damage = 16.0
+quick_stagger = 10.0
+quick_time = 0.34

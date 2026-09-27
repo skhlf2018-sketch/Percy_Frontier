@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ConsumableData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/consumable_data.gd" id="1_ahdj0"]
+
+[resource]
+script = ExtResource("1_ahdj0")
+id = &"field_suture"
+display_name = "응급 봉합제"
+short_name = "봉합"
+description = "1.5초에 걸쳐 HP를 45 회복한다. 화상 중에는 회복량이 절반이 된다."
+color = Color(0.95, 0.35, 0.35, 1)

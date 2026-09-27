@@ -1,0 +1,72 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_0cu1s"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_oufx5"]
+
+[sub_resource type="Resource" id="Resource_y8w6a"]
+script = ExtResource("1_0cu1s")
+id = &"headbutt"
+display_name = "들이받기"
+max_range = 3.2
+active_time = 0.2
+recovery = 0.9
+cooldown = 2.2
+damage = 16.0
+reach = 3.0
+knockback = 6.0
+
+[sub_resource type="Resource" id="Resource_kgw4c"]
+script = ExtResource("1_0cu1s")
+id = &"rock_charge"
+display_name = "돌진"
+kind = 2
+parryable = false
+min_range = 7.0
+max_range = 26.0
+windup = 1.0
+active_time = 1.6
+recovery = 1.0
+cooldown = 5.0
+damage = 26.0
+reach = 1.9
+hit_angle_deg = 120.0
+move_speed = 15.0
+knockback = 12.0
+weight = 1.3
+wall_stun = 2.5
+
+[resource]
+script = ExtResource("2_oufx5")
+id = &"rock_charger"
+display_name = "바위등 돌격수"
+family = "갑각 짐승"
+threat_tier = 3
+combat_role = "돌격·방어"
+description = "앞면을 두꺼운 바위 장갑으로 덮은 대형 짐승. 몸을 돌리는 속도가 느려 등 뒤 배기공이 드러난다. 돌진하다 벽에 부딪히면 잠시 정신을 잃는다. 전면 장갑이 깨지면 분노해 더 빨라지지만 드러난 핵이 약점이 된다."
+max_hp = 300.0
+defense = 0.15
+walk_speed = 2.8
+run_speed = 5.5
+turn_speed_deg = 120.0
+poise = 90.0
+stagger_duration = 1.6
+mass_kg = 400.0
+sight_range = 28.0
+sight_fov_deg = 110.0
+proximity_sense = 3.5
+hearing_mult = 0.9
+attacks = Array[ExtResource("1_0cu1s")]([SubResource("Resource_y8w6a"), SubResource("Resource_kgw4c")])
+burn_mult = 0.8
+chill_mult = 0.7
+shock_mult = 1.2
+bleed_mult = 0.6
+resonance_on_kill = 10.0
+ammo_drop_chance = 0.8
+heal_drop_chance = 0.2
+analysis_skill = &"carapace_guard"
+core_drop_chance = 0.08
+analysis_kill = 20.0
+analysis_weak_kill = 24.0
+analysis_part_break = 30.0
+analysis_parry = 10.0
+analysis_evade = 8.0

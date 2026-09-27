@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_k4b60"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_et1li"]
+
+[sub_resource type="Resource" id="Resource_mibgc"]
+script = ExtResource("1_k4b60")
+id = &"lunge_bite"
+display_name = "도약 물기"
+kind = 1
+min_range = 2.2
+max_range = 6.5
+windup = 0.5
+active_time = 0.35
+recovery = 0.7
+cooldown = 1.6
+damage = 9.0
+reach = 1.3
+hit_angle_deg = 70.0
+move_speed = 11.0
+knockback = 3.0
+bleed_buildup = 30.0
+
+[resource]
+script = ExtResource("2_et1li")
+id = &"killer_rabbit"
+display_name = "살인토끼"
+family = "토끼 계열"
+combat_role = "매복·돌격"
+description = "작은 몸집과 빠른 발로 풀숲에 숨어 있다가 무리로 덮친다. 한 마리가 들키면 날카로운 울음으로 무리를 부른다."
+max_hp = 45.0
+run_speed = 7.5
+turn_speed_deg = 540.0
+poise = 18.0
+stagger_duration = 0.8
+mass_kg = 6.0
+sight_range = 22.0
+sight_fov_deg = 140.0
+proximity_sense = 3.0
+hearing_mult = 1.2
+leash_radius = 30.0
+pack_alert_radius = 18.0
+attacks = Array[ExtResource("1_k4b60")]([SubResource("Resource_mibgc")])
+burn_mult = 1.2
+ammo_drop_chance = 0.3
+heal_drop_chance = 0.04
+analysis_skill = &"ambush_leap"
+analysis_parry = 9.0
+analysis_evade = 7.0

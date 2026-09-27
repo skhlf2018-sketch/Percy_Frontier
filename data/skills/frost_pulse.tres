@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SkillData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/skill_data.gd" id="1_3tnl7"]
+
+[resource]
+script = ExtResource("1_3tnl7")
+id = &"frost_pulse"
+display_name = "서리 파동"
+short_name = "서리"
+description = "주변에 냉기 파동을 퍼뜨려 적을 얼린다. 공명 장치에 기본으로 기록된 몬스터 법칙이다."
+role = 2
+resonance_cost = 35.0
+cooldown = 7.0
+color = Color(0.6, 0.88, 1, 1)
+damage = 14.0
+radius = 6.5
+knockback = 4.0
+chill_buildup = 110.0

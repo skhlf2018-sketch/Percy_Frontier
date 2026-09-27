@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="MeleeData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/melee_data.gd" id="1_v6825"]
+
+[resource]
+script = ExtResource("1_v6825")
+id = &"sword_survey"
+display_name = "탐사 도검"
+manufacturer = "보더라인 공창"
+description = "균형 잡힌 외날 검. 장갑을 깨는 데 강하고, 방어와 패링이 안정적이다."
+body_color = Color(0.78, 0.8, 0.83, 1)
+accent_color = Color(0.32, 0.22, 0.14, 1)
+light_damage = 24.0
+light_stagger = 14.0
+heavy_damage = 60.0
+heavy_stagger = 45.0
+reach = 2.7
+armor_damage_mult = 2.2

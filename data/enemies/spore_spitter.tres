@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_7885p"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_41mlj"]
+
+[sub_resource type="Resource" id="Resource_hv2r6"]
+script = ExtResource("1_7885p")
+id = &"fire_spore_shot"
+display_name = "화염 포자"
+kind = 3
+parryable = false
+min_range = 5.0
+max_range = 30.0
+windup = 0.9
+active_time = 0.1
+cooldown = 2.6
+damage = 12.0
+reach = 0.0
+token_group = 2
+projectile_speed = 16.0
+burn_buildup = 45.0
+
+[resource]
+script = ExtResource("2_41mlj")
+id = &"spore_spitter"
+display_name = "포자 사수"
+family = "포자 식생체"
+combat_role = "사격·지원"
+description = "등의 포자 주머니에 발화 포자를 모아 멀리서 던진다. 가까이 다가가면 물러난다. 전조 중 포자 주머니를 맞히면 그 자리에서 터진다."
+max_hp = 70.0
+walk_speed = 2.2
+run_speed = 4.0
+turn_speed_deg = 300.0
+poise = 25.0
+stagger_duration = 1.0
+mass_kg = 30.0
+sight_range = 32.0
+sight_fov_deg = 150.0
+leash_radius = 30.0
+attacks = Array[ExtResource("1_7885p")]([SubResource("Resource_hv2r6")])
+burn_mult = 0.5
+chill_mult = 1.5
+bleed_mult = 0.8
+resonance_on_kill = 5.0
+ammo_drop_chance = 0.4
+heal_drop_chance = 0.06
+analysis_skill = &"fire_spore"
+analysis_kill = 14.0
+analysis_weak_kill = 18.0
+analysis_part_break = 22.0
+analysis_evade = 7.0
