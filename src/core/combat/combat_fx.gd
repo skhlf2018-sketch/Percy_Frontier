@@ -87,12 +87,12 @@ static func impact(ctx: Node, position: Vector3, color: Color, size: float = 0.0
 static func ring(ctx: Node, center: Vector3, radius: float, color: Color, life: float = 0.4) -> void:
 	var mi := MeshInstance3D.new()
 	var mesh := TorusMesh.new()
-	mesh.inner_radius = 0.92
+	mesh.inner_radius = 0.95
 	mesh.outer_radius = 1.0
 	mesh.rings = 32
 	mesh.ring_segments = 6
 	mi.mesh = mesh
-	mi.material_override = glow_material(color, 2.0)
+	mi.material_override = glow_material(color, 1.1)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.scale = Vector3.ONE * maxf(radius * 0.15, 0.1)
 	if not _spawn(ctx, mi, center):

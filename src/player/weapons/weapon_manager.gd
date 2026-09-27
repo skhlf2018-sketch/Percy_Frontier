@@ -15,7 +15,7 @@ signal guard_broken
 enum Slot { PRIMARY, SECONDARY, MELEE }
 enum MeleePhase { NONE, CHARGING, WINDUP, RECOVERY }
 
-const HIP_POSITION := Vector3(0.2, -0.2, -0.42)
+const HIP_POSITION := Vector3(0.23, -0.25, -0.55)
 const MELEE_POSITION := Vector3(0.3, -0.36, -0.52)
 const MELEE_EQUIP_TIME := 0.35
 const QUICK_MELEE_HIT_TIME := 0.13
@@ -693,6 +693,8 @@ func on_consumable_used(duration: float) -> void:
 
 func on_owner_died() -> void:
 	_cancel_actions()
+	if _vm_root:
+		_vm_root.visible = false
 	_trigger_held = false
 	_aim_held = false
 	_simulated_hold = false
@@ -701,6 +703,8 @@ func on_owner_died() -> void:
 
 func on_respawn() -> void:
 	_cancel_actions()
+	if _vm_root:
+		_vm_root.visible = true
 	for state: GunState in _states.values():
 		state.heat = 0.0
 		state.overheated = false
@@ -786,8 +790,8 @@ func _process(delta: float) -> void:
 		pos = MELEE_POSITION
 		rot = Vector3(-35.0, 12.0, -18.0)
 		if is_blocking():
-			pos = Vector3(0.05, -0.2, -0.45)
-			rot = Vector3(-10.0, 10.0, 80.0)
+			pos = Vector3(0.12, -0.14, -0.5)
+			rot = Vector3(-10.0, 10.0, 75.0)
 		match _melee_phase:
 			MeleePhase.CHARGING:
 				var c := clampf(_melee_hold / maxf(melee.heavy_charge_time, 0.01), 0.0, 1.0)

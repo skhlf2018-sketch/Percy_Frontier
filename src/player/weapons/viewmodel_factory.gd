@@ -16,7 +16,7 @@ static func build_gun(data: WeaponData) -> Dictionary:
 	var accent := _mat(data.accent_color, 0.5, 0.2)
 	var dark := _mat(data.body_color.darkened(0.45), 0.7, 0.3)
 	var muzzle_pos := Vector3(0, 0.02, -0.5)
-	var ads := Vector3(0, -0.075, -0.3)
+	var ads := Vector3(0, -0.094, -0.4)
 	match data.viewmodel_style:
 		&"pistol":
 			_box(root, Vector3(0.042, 0.048, 0.2), Vector3(0, 0.02, 0), body)
@@ -25,7 +25,7 @@ static func build_gun(data: WeaponData) -> Dictionary:
 			_box(root, Vector3(0.012, 0.014, 0.012), Vector3(0, 0.05, -0.085), dark)
 			_box(root, Vector3(0.024, 0.014, 0.012), Vector3(0, 0.05, 0.085), dark)
 			muzzle_pos = Vector3(0, 0.022, -0.11)
-			ads = Vector3(0, -0.05, -0.3)
+			ads = Vector3(0, -0.07, -0.36)
 		&"shotgun":
 			_box(root, Vector3(0.07, 0.09, 0.3), Vector3(0, 0, 0), body)
 			_cyl(root, 0.021, 0.52, Vector3(0, 0.025, -0.4), dark)
@@ -33,7 +33,7 @@ static func build_gun(data: WeaponData) -> Dictionary:
 			_box(root, Vector3(0.055, 0.11, 0.26), Vector3(0, -0.03, 0.27), accent, Vector3(8, 0, 0))
 			_box(root, Vector3(0.012, 0.016, 0.012), Vector3(0, 0.05, -0.64), dark)
 			muzzle_pos = Vector3(0, 0.025, -0.67)
-			ads = Vector3(0, -0.06, -0.34)
+			ads = Vector3(0, -0.07, -0.38)
 		&"energy":
 			var glow := _mat(data.accent_color, 0.3, 0.1, data.accent_color, 3.0)
 			_box(root, Vector3(0.09, 0.12, 0.42), Vector3(0, 0, 0), body)
@@ -44,7 +44,7 @@ static func build_gun(data: WeaponData) -> Dictionary:
 			_box(root, Vector3(0.045, 0.11, 0.05), Vector3(0, -0.1, 0.1), accent, Vector3(-12, 0, 0))
 			_box(root, Vector3(0.05, 0.03, 0.09), Vector3(0, 0.075, 0.0), dark)
 			muzzle_pos = Vector3(0, 0.02, -0.52)
-			ads = Vector3(0, -0.09, -0.32)
+			ads = Vector3(0, -0.105, -0.38)
 		&"sniper":
 			_box(root, Vector3(0.06, 0.08, 0.5), Vector3(0, 0, 0), body)
 			_cyl(root, 0.015, 0.56, Vector3(0, 0.02, -0.52), dark)
@@ -54,7 +54,7 @@ static func build_gun(data: WeaponData) -> Dictionary:
 			_box(root, Vector3(0.05, 0.015, 0.015), Vector3(0.045, 0.02, 0.12), dark)
 			_box(root, Vector3(0.04, 0.12, 0.05), Vector3(0, -0.1, -0.08), dark)
 			muzzle_pos = Vector3(0, 0.02, -0.81)
-			ads = Vector3(0, -0.078, -0.25)
+			ads = Vector3(0, -0.12, -0.3)
 		_:
 			# 소총
 			_box(root, Vector3(0.07, 0.1, 0.42), Vector3(0, 0, 0), body)
@@ -63,9 +63,11 @@ static func build_gun(data: WeaponData) -> Dictionary:
 			_box(root, Vector3(0.045, 0.15, 0.062), Vector3(0, -0.11, -0.05), dark, Vector3(12, 0, 0))
 			_box(root, Vector3(0.05, 0.095, 0.21), Vector3(0, -0.02, 0.29), accent)
 			_box(root, Vector3(0.04, 0.1, 0.05), Vector3(0, -0.095, 0.1), dark, Vector3(-14, 0, 0))
-			_box(root, Vector3(0.022, 0.032, 0.06), Vector3(0, 0.067, 0.02), dark)
+			_box(root, Vector3(0.018, 0.024, 0.04), Vector3(0, 0.067, 0.02), dark)
 			_box(root, Vector3(0.01, 0.03, 0.01), Vector3(0, 0.065, -0.3), dark)
 			muzzle_pos = Vector3(0, 0.02, -0.5)
+			# 정조준 시 가늠자 윗면이 조준점 바로 아래에 오도록 둔다(표적을 가리지 않게).
+			ads = Vector3(0, -0.094, -0.4)
 	var muzzle := Marker3D.new()
 	muzzle.name = "Muzzle"
 	muzzle.position = muzzle_pos

@@ -9,6 +9,8 @@ signal hit_confirmed(result: HitResult)
 signal player_damaged(amount: float, source_position: Vector3, blocked: bool)
 ## 패링 성공
 signal parry_succeeded(enemy: Node)
+## 회피 무적으로 공격을 피했다
+signal attack_evaded(enemy: Node)
 signal notice(text: String, kind: int)
 signal enemy_killed(enemy: Node)
 signal player_died

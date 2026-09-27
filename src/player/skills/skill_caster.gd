@@ -127,7 +127,6 @@ func _cast_pulse(skill: SkillData) -> void:
 		dir.y = 0.0
 		_hit_entity(entity, _skill_damage(skill, entity.global_position, dir.normalized()))
 	CombatFx.ring(player, player.global_position + Vector3.UP * 0.1, skill.radius, skill.color, 0.45)
-	CombatFx.ring(player, player.global_position + Vector3.UP * 0.8, skill.radius * 0.7, skill.color, 0.35)
 	Sfx.play(&"skill_frost")
 	player.camera_rig.add_trauma(0.15)
 	Hearing.emit(player.get_tree(), center, 15.0, player, Hearing.Kind.IMPACT)

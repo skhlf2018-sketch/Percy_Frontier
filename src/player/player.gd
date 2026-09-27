@@ -521,6 +521,8 @@ func _update_interaction() -> void:
 		var q := PhysicsRayQueryParameters3D.create(aim.origin, aim.origin - aim.basis.z * INTERACT_RANGE,
 			CombatLayers.WORLD | CombatLayers.INTERACTABLE, [get_rid()])
 		q.collide_with_areas = true
+		# 상호작용 영역 안에 서 있어도 인식하도록
+		q.hit_from_inside = true
 		var hit := get_world_3d().direct_space_state.intersect_ray(q)
 		if not hit.is_empty() and hit.collider is Interactable:
 			target = hit.collider
@@ -617,6 +619,7 @@ func receive_enemy_attack(info: DamageInfo) -> Dictionary:
 	if is_invulnerable():
 		result.evaded = true
 		_record_on_attacker(attacker, Bestiary.Event.EVADE)
+		GameEvents.attack_evaded.emit(attacker)
 		return result
 	var guard := weapons.try_block(info, source_pos)
 	if guard.get("parried", false):
@@ -669,6 +672,7 @@ func receive_area_damage(info: DamageInfo) -> void:
 	if is_invulnerable():
 		if info.attacker:
 			_record_on_attacker(info.attacker, Bestiary.Event.EVADE)
+		GameEvents.attack_evaded.emit(info.attacker)
 		return
 	var amount := info.amount * float(Settings.difficulty_params().damage_taken)
 	var lost := stats.take_damage(amount)
@@ -806,7 +810,10 @@ func rest() -> void:
 
 # --- 렌더링 프레임 ---
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if not alive:
+		# 쓰러지면 시점이 바닥 쪽으로 내려간다.
+		_eye_height = lerpf(_eye_height, 0.45, 1.0 - exp(-4.0 * delta))
 	_update_head()
 	var target_fov := Settings.vertical_fov_from_horizontal(float(Settings.get_value(&"fov")))
 	target_fov *= weapons.fov_multiplier()

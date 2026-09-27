@@ -224,6 +224,8 @@ var _voices: int = 0
 
 
 func _ready() -> void:
+	# 메뉴가 열려 게임이 멈춰 있어도 인터페이스 소리는 나야 한다.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	for id in RECIPES:
 		_streams[id] = synthesize(RECIPES[id])
 

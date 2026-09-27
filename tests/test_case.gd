@@ -61,12 +61,19 @@ func assert_false(condition: bool, message: String = "") -> void:
 
 func assert_eq(actual: Variant, expected: Variant, message: String = "") -> void:
 	if typeof(actual) != typeof(expected) or actual != expected:
-		fail("기대값 %s, 실제값 %s. %s" % [var_to_str(expected), var_to_str(actual), message])
+		fail("기대값 %s, 실제값 %s. %s" % [_repr(expected), _repr(actual), message])
 
 
 func assert_ne(actual: Variant, unexpected: Variant, message: String = "") -> void:
 	if typeof(actual) == typeof(unexpected) and actual == unexpected:
-		fail("%s 이(가) 아니어야 함. %s" % [var_to_str(unexpected), message])
+		fail("%s 이(가) 아니어야 함. %s" % [_repr(unexpected), message])
+
+
+## 객체는 속성을 따라 직렬화하면 장면 트리를 끝없이 따라가므로 이름만 표시한다.
+static func _repr(value: Variant) -> String:
+	if typeof(value) == TYPE_OBJECT:
+		return str(value)
+	return var_to_str(value)
 
 
 func assert_near(actual: float, expected: float, epsilon: float = 0.001, message: String = "") -> void:
