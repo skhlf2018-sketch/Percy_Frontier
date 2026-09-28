@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="MeleeData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/melee_data.gd" id="1_m"]
+
+[resource]
+script = ExtResource("1_m")
+id = &"bone_spear"
+display_name = "뼈창"
+manufacturer = "고블린 손재주"
+description = "짐승 뼈를 갈아 촉으로 박은 창. 멀리서 찌를 수 있지만 막는 힘은 약하다."
+price = 110
+viewmodel_style = &"spear"
+body_color = Color(0.86, 0.82, 0.72, 1)
+accent_color = Color(0.4, 0.3, 0.2, 1)
+light_damage = 21.0
+light_windup = 0.12
+light_recovery = 0.32
+light_stagger = 12.0
+light_stamina = 6.0
+heavy_damage = 52.0
+heavy_windup = 0.18
+heavy_recovery = 0.6
+heavy_stagger = 36.0
+heavy_stamina = 20.0
+reach = 3.5
+hit_radius = 0.6
+armor_damage_mult = 1.4
+block_reduction = 0.5
+unparryable_block_reduction = 0.15
+parry_window = 0.16
+block_move_mult = 0.6
+quick_damage = 18.0
+quick_stagger = 12.0

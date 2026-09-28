@@ -1,0 +1,48 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/weapon_data.gd" id="1_w"]
+
+[resource]
+script = ExtResource("1_w")
+id = &"pipe_shotgun"
+display_name = "파이프 산탄총"
+manufacturer = "고블린 손재주"
+weapon_class = 5
+description = "고블린이 쇠파이프 두 개를 철사로 묶어 만든 산탄총. 두 발을 연달아 쏠 수 있지만 재장전이 느리고 탄이 넓게 퍼진다."
+price = 140
+fire_mode = 0
+rounds_per_minute = 150.0
+damage = 8.0
+pellets = 8
+falloff_start = 6.0
+falloff_end = 16.0
+falloff_min_mult = 0.2
+max_range = 35.0
+stagger = 3.5
+armor_damage_mult = 1.0
+hip_spread_deg = 7.0
+ads_spread_deg = 5.2
+bloom_per_shot_deg = 0.0
+max_bloom_deg = 0.0
+bloom_recovery_deg = 10.0
+move_spread_deg = 1.2
+air_spread_deg = 2.0
+recoil_pitch_deg = 5.5
+recoil_yaw_deg = 1.6
+recoil_recovery = 4.5
+recoil_return_ratio = 0.65
+ammo_type = &"shell"
+magazine_size = 2
+reload_time = 2.2
+empty_reload_time = 2.4
+ads_fov_mult = 0.9
+ads_time = 0.2
+ads_move_mult = 0.75
+equip_time = 0.5
+noise_radius = 65.0
+shake = 0.42
+sound = &"shot_shotgun"
+tracer_color = Color(1, 0.7, 0.4, 1)
+viewmodel_style = &"pipe_shotgun"
+body_color = Color(0.36, 0.26, 0.18, 1)
+accent_color = Color(0.42, 0.4, 0.36, 1)

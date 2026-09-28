@@ -166,20 +166,44 @@ func test_shop_buy_and_sell() -> void:
 func test_workshop_buys_and_upgrades_weapons() -> void:
 	GameState.add_silver(1000)
 	GameState.add_item(&"stone_scale", 5)
-	var owned := GameState.owned_weapons.size()
+	var old_primary := GameState.equipped_item(WeaponItem.Slot.PRIMARY)
 	game.services.open_buy_weapons(_npc(&"smith"))
 	assert_true(_press_choice("벌목꾼"), "산탄총을 산다")
-	assert_true(GameState.owns_weapon(&"shotgun_logger"))
-	assert_eq(GameState.owned_weapons.size(), owned + 1)
-	assert_eq(GameState.silver, 1000 - TownServices.WEAPON_PRICES[&"shotgun_logger"])
+	assert_eq(GameState.primary_weapon, &"shotgun_logger", "산 무기를 바로 든다")
+	assert_eq(GameState.warehouse.size(), 1, "들던 무기는 창고로 간다")
+	assert_true(GameState.warehouse[0] == old_primary)
+	assert_eq(GameState.silver, 1000 - GameDB.weapon(&"shotgun_logger").price)
+	# 창고에서 다시 꺼내면 맞바꾼다.
+	game.services.open_warehouse(_npc(&"smith"))
+	assert_true(_press_choice(old_primary.display_name()), "창고에서 꺼낸다")
+	assert_eq(GameState.primary_weapon, &"rifle_bfa3")
+	assert_eq(GameState.warehouse[0].base_id, &"shotgun_logger", "든 무기가 창고에 들어간다")
 	var before := GameState.silver
-	assert_true(game.services.apply_upgrade(&"rifle_bfa3"), "재료가 있으면 강화한다")
-	assert_eq(GameState.upgrade_level(&"rifle_bfa3"), 1)
+	assert_true(game.services.apply_upgrade(WeaponItem.Slot.PRIMARY), "재료가 있으면 강화한다")
+	var rifle := GameState.equipped_item(WeaponItem.Slot.PRIMARY)
+	assert_eq(rifle.upgrade, 1)
 	assert_eq(GameState.silver, before - TownServices.UPGRADE_SILVER[0])
 	assert_eq(GameState.item_count(&"stone_scale"), 3)
-	assert_near(GameState.upgrade_mult(&"rifle_bfa3"), 1.08, 0.001)
+	assert_near(rifle.damage_mult(), 1.08, 0.001)
 	GameState.remove_item(&"stone_scale", 3)
-	assert_false(game.services.apply_upgrade(&"rifle_bfa3"), "재료가 없으면 강화하지 못한다")
+	assert_false(game.services.apply_upgrade(WeaponItem.Slot.PRIMARY), "재료가 없으면 강화하지 못한다")
+	# 창고의 무기를 판다.
+	before = GameState.silver
+	var value: int = GameState.warehouse[0].sell_value()
+	game.services.open_sell_weapons(_npc(&"smith"))
+	assert_true(_press_choice("벌목꾼"))
+	assert_true(GameState.warehouse.is_empty())
+	assert_eq(GameState.silver, before + value)
+
+
+func test_workshop_refuses_purchase_when_warehouse_full() -> void:
+	GameState.add_silver(5000)
+	for i in GameState.WAREHOUSE_SIZE:
+		GameState.store_item(WeaponItem.create(&"pistol_bf9"))
+	assert_true(GameState.warehouse_full())
+	assert_false(game.services.buy_weapon(&"shotgun_logger"), "맡길 자리가 없으면 사지 못한다")
+	assert_eq(GameState.silver, 5000, "값을 치르지 않는다")
+	assert_eq(GameState.primary_weapon, &"rifle_bfa3")
 
 
 func test_travel_after_tower_fixed() -> void:

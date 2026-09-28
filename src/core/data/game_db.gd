@@ -9,11 +9,18 @@ const WEAPONS := [
 	preload("res://data/weapons/energy_re2.tres"),
 	preload("res://data/weapons/sniper_l14.tres"),
 	preload("res://data/weapons/pistol_bf9.tres"),
+	preload("res://data/weapons/pipe_shotgun.tres"),
+	preload("res://data/weapons/bolt_rifle.tres"),
+	preload("res://data/weapons/scrap_smg.tres"),
 ]
 const MELEE := [
 	preload("res://data/melee/sword_survey.tres"),
 	preload("res://data/melee/karambit_hook.tres"),
 	preload("res://data/melee/twin_moon.tres"),
+	preload("res://data/melee/goblin_cleaver.tres"),
+	preload("res://data/melee/bone_spear.tres"),
+	preload("res://data/melee/hand_axe.tres"),
+	preload("res://data/melee/chief_greatblade.tres"),
 ]
 const SKILLS := [
 	preload("res://data/skills/frost_pulse.tres"),

@@ -6,10 +6,6 @@ extends RefCounted
 const SHOP_CONSUMABLES := [[&"field_suture", 35], [&"purge_ampoule", 50]]
 ## 탄약 묶음: [종류, 양, 값]
 const SHOP_AMMO := [[&"pistol", 36, 12], [&"rifle", 60, 20], [&"shell", 12, 18], [&"sniper", 10, 25]]
-const WEAPON_PRICES := {
-	&"shotgun_logger": 220, &"energy_re2": 380, &"sniper_l14": 450,
-	&"karambit_hook": 150, &"twin_moon": 180, &"sword_survey": 120, &"rifle_bfa3": 150,
-}
 const UPGRADE_SILVER := [80, 160, 300]
 const UPGRADE_GUN_ITEMS := [{&"stone_scale": 2}, {&"stone_scale": 3, &"spore_sac": 1}, {&"stone_scale": 3, &"charger_horn": 1}]
 const UPGRADE_MELEE_ITEMS := [{&"rabbit_fang": 3}, {&"rabbit_fang": 3, &"stone_scale": 2}, {&"charger_horn": 1, &"stone_scale": 2}]
@@ -113,14 +109,17 @@ func _merchant(npc: TownNpc) -> void:
 
 
 func _smith(npc: TownNpc, progressed: Array[StringName]) -> void:
-	var text := "무기라면 나한테 맡겨. 바꾸든, 사든, 벼리든."
+	var text := "무기라면 나한테 맡겨. 맡기든, 사든, 팔든, 벼리든. 들판에서 주운 물건도 값은 쳐 주지."
 	if progressed.has(&"main_signal"):
 		text = "돌비늘 조각이군. 이 정도면 통신탑 받침을 새로 댈 수 있지. …됐다. 봐, 탑 꼭대기 불빛이 다시 들어왔어."
 		if game.field:
 			game.field.town.fix_tower()
 	var entries: Array = [
-		{"text": "무기를 바꾼다", "keep_open": true, "action": func() -> void: open_equip(npc)},
+		{"text": "창고를 연다", "detail": "맡긴 무기를 꺼내 들거나 바꿔 듭니다.", "keep_open": true,
+			"action": func() -> void: open_warehouse(npc)},
 		{"text": "무기를 산다", "keep_open": true, "action": func() -> void: open_buy_weapons(npc)},
+		{"text": "무기를 판다", "detail": "창고에 맡긴 무기를 팝니다.", "keep_open": true,
+			"action": func() -> void: open_sell_weapons(npc)},
 		{"text": "무기를 강화한다", "keep_open": true, "action": func() -> void: open_upgrade(npc)},
 	]
 	_say(npc, text, entries)
@@ -243,68 +242,133 @@ func open_sell(npc: TownNpc) -> void:
 
 
 # --- 무기 공방 ---
+# 무기는 칸마다 한 자루씩 든다(기획서 §11.5). 여분은 공방 창고에 맡기고, 창고는 모든 지역이 함께 쓴다.
 
-func open_equip(npc: TownNpc) -> void:
-	var entries: Array = [{"header": true, "text": "주무기"}]
-	for w in GameDB.weapons_for_slot(WeaponData.Slot.PRIMARY):
-		if not GameState.owns_weapon(w.id):
-			continue
-		var equipped := GameState.primary_weapon == w.id
-		var id := w.id
-		entries.append({"text": "%s  ·  %s%s%s" % [w.display_name, w.class_label(), _upgrade_tag(id), "  (장착 중)" if equipped else ""],
-			"detail": w.description, "enabled": not equipped, "keep_open": true,
+## 공방이 파는 표준품. 값은 무기 데이터의 price.
+const SHOP_WEAPONS: Array[StringName] = [&"rifle_bfa3", &"shotgun_logger", &"energy_re2", &"sniper_l14",
+	&"pistol_bf9", &"sword_survey", &"karambit_hook", &"twin_moon"]
+
+
+## 공방 진열품: 데이터에 적힌 기본 희귀도로 만들고, 특성은 무기마다 늘 같게 굴린다(볼 때마다 바뀌지 않게).
+static func shop_item(base: StringName) -> WeaponItem:
+	var gun := GameDB.weapon(base)
+	var m := GameDB.melee(base)
+	var tier: int = gun.rarity if gun else (m.rarity if m else 0)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(String(base))
+	return WeaponItem.roll(base, tier, rng)
+
+
+## 선택 메뉴 한 줄: 이름(희귀도 색) · 분류 · 희귀도
+static func item_label(it: WeaponItem) -> String:
+	return "%s  ·  %s  ·  %s" % [it.display_name(), it.class_label(), it.rarity_name()]
+
+
+## 무기 설명: 핵심 수치, 특성, 같은 칸에 든 무기와의 차이
+static func item_detail(it: WeaponItem, compare_to: WeaponItem = null) -> String:
+	var lines: Array[String] = [it.stat_line()]
+	for pl in it.perk_lines():
+		lines.append("◆ " + pl)
+	if compare_to and compare_to != it:
+		lines.append("지금 든 무기: %s [%s] — %s" % [compare_to.display_name(), compare_to.rarity_name(), compare_to.stat_line()])
+	return "\n".join(lines)
+
+
+func open_warehouse(npc: TownNpc) -> void:
+	var entries: Array = [{"header": true, "text": "들고 있는 무기"}]
+	for s in [WeaponItem.Slot.PRIMARY, WeaponItem.Slot.SECONDARY, WeaponItem.Slot.MELEE]:
+		var cur := GameState.equipped_item(s)
+		if cur:
+			entries.append({"text": "%s — %s" % [WeaponItem.SLOT_NAMES[s], item_label(cur)], "detail": item_detail(cur),
+				"color": cur.color(), "enabled": false})
+	entries.append({"header": true, "text": "창고 (%d/%d)" % [GameState.warehouse.size(), GameState.WAREHOUSE_SIZE]})
+	if GameState.warehouse.is_empty():
+		entries.append({"text": "맡긴 무기가 없습니다.", "enabled": false})
+	for i in GameState.warehouse.size():
+		var it: WeaponItem = GameState.warehouse[i]
+		var idx := i
+		entries.append({"text": "%s  ·  %s" % [item_label(it), WeaponItem.SLOT_NAMES[it.slot()]],
+			"detail": item_detail(it, GameState.equipped_item(it.slot())) + "\n누르면 꺼내 들고, 지금 든 무기를 대신 맡깁니다.",
+			"color": it.color(), "keep_open": true,
 			"action": func() -> void:
-				GameState.set_primary_weapon(id)
-				game.player.weapons.select_slot(WeaponManager.Slot.PRIMARY)
-				open_equip(npc)})
-	entries.append({"header": true, "text": "근접 무기"})
-	for m in GameDB.all_melee():
-		if not GameState.owns_weapon(m.id):
-			continue
-		var equipped := GameState.melee_weapon == m.id
-		var id := m.id
-		entries.append({"text": "%s%s%s" % [m.display_name, _upgrade_tag(id), "  (장착 중)" if equipped else ""],
-			"detail": m.description, "enabled": not equipped, "keep_open": true,
-			"action": func() -> void:
-				GameState.set_melee_weapon(id)
-				open_equip(npc)})
-	_menus().open_choice("무기 공방 · 바꾸기", "가진 무기 가운데 고릅니다. 보조 총기는 고정입니다.", entries)
+				if GameState.take_from_warehouse(idx):
+					Sfx.play_ui(&"unlock")
+					_select_slot_of(it)
+				open_warehouse(npc)})
+	_menus().open_choice("무기 공방 · 창고",
+		"무기는 주무기·보조 총기·근접 무기를 한 자루씩만 듭니다. 여분은 여기 맡기고, 창고는 모든 거점이 함께 씁니다.", entries)
 
 
-func _upgrade_tag(id: StringName) -> String:
-	var lv := GameState.upgrade_level(id)
-	return "  +%d" % lv if lv > 0 else ""
+func _select_slot_of(it: WeaponItem) -> void:
+	if game.player == null:
+		return
+	match it.slot():
+		WeaponItem.Slot.PRIMARY:
+			game.player.weapons.select_slot(WeaponManager.Slot.PRIMARY)
+		WeaponItem.Slot.SECONDARY:
+			game.player.weapons.select_slot(WeaponManager.Slot.SECONDARY)
 
 
 func open_buy_weapons(npc: TownNpc) -> void:
 	var entries: Array = []
-	for id: StringName in WEAPON_PRICES:
-		if GameState.owns_weapon(id):
+	var full := GameState.warehouse_full()
+	for base in SHOP_WEAPONS:
+		var it := shop_item(base)
+		if not it.is_valid():
 			continue
-		var price: int = WEAPON_PRICES[id]
-		var w := GameDB.weapon(id)
-		var m := GameDB.melee(id)
-		var label := w.display_name if w else m.display_name
-		var kind := w.class_label() if w else "근접 무기"
-		var desc := w.description if w else m.description
-		entries.append({"text": "%s  ·  %s  ·  은화 %d" % [label, kind, price], "detail": desc,
-			"enabled": GameState.silver >= price, "keep_open": true,
+		var price := it.price()
+		var cur := GameState.equipped_item(it.slot())
+		var detail := item_detail(it, cur)
+		if full:
+			detail += "\n창고가 가득 찼습니다. 지금 든 무기를 맡길 자리가 없습니다."
+		entries.append({"text": "%s  ·  은화 %d" % [item_label(it), price], "detail": detail, "color": it.color(),
+			"enabled": GameState.silver >= price and not full, "keep_open": true,
 			"action": func() -> void:
-				if GameState.spend_silver(price):
-					GameState.give_weapon(id)
+				if buy_weapon(base):
 					Sfx.play_ui(&"unlock")
+					_select_slot_of(it)
 				open_buy_weapons(npc)})
+	_menus().open_choice("무기 공방 · 사기",
+		"가진 은화: %d. 산 무기는 바로 들고, 들던 무기는 창고에 맡깁니다. (창고 %d/%d)" % [GameState.silver,
+			GameState.warehouse.size(), GameState.WAREHOUSE_SIZE], entries)
+
+
+## 표준품을 사서 든다. 들던 무기는 창고로 간다.
+func buy_weapon(base: StringName) -> bool:
+	var it := shop_item(base)
+	if not it.is_valid() or GameState.warehouse_full() or not GameState.spend_silver(it.price()):
+		return false
+	var old := GameState.equip_item(it)
+	if old:
+		GameState.store_item(old)
+	return true
+
+
+func open_sell_weapons(npc: TownNpc) -> void:
+	var entries: Array = []
+	for i in GameState.warehouse.size():
+		var it: WeaponItem = GameState.warehouse[i]
+		var idx := i
+		var value := it.sell_value()
+		entries.append({"text": "%s  ·  은화 %d" % [item_label(it), value], "detail": item_detail(it) + "\n누르면 팝니다.",
+			"color": it.color(), "keep_open": true,
+			"action": func() -> void:
+				var sold := GameState.remove_from_warehouse(idx)
+				if sold:
+					GameState.add_silver(value)
+					Sfx.play_ui(&"pickup")
+				open_sell_weapons(npc)})
 	if entries.is_empty():
-		_menus().open_choice("무기 공방 · 사기", "지금 팔 수 있는 무기는 모두 가지고 있습니다.", [])
+		_menus().open_choice("무기 공방 · 팔기", "창고에 맡긴 무기만 팔 수 있습니다. 들고 있는 무기는 창고에 맡긴 뒤 파세요.", [])
 		return
-	_menus().open_choice("무기 공방 · 사기", "가진 은화: %d. 산 무기는 \"무기를 바꾼다\"에서 장착합니다." % GameState.silver, entries)
+	_menus().open_choice("무기 공방 · 팔기", "가진 은화: %d. 희귀할수록, 강화할수록 값을 더 쳐 줍니다." % GameState.silver, entries)
 
 
-func upgrade_cost(id: StringName) -> Dictionary:
-	var lv := GameState.upgrade_level(id)
-	if lv >= GameState.MAX_UPGRADE:
+func upgrade_cost(it: WeaponItem) -> Dictionary:
+	if it == null or it.upgrade >= GameState.MAX_UPGRADE:
 		return {}
-	var items: Dictionary = (UPGRADE_MELEE_ITEMS if GameDB.melee(id) else UPGRADE_GUN_ITEMS)[lv]
+	var lv := it.upgrade
+	var items: Dictionary = (UPGRADE_GUN_ITEMS if it.is_gun() else UPGRADE_MELEE_ITEMS)[lv]
 	return {"silver": UPGRADE_SILVER[lv], "items": items}
 
 
@@ -317,37 +381,38 @@ func can_afford(cost: Dictionary) -> bool:
 	return true
 
 
-func apply_upgrade(id: StringName) -> bool:
-	var cost := upgrade_cost(id)
+## 칸에 든 무기를 한 단계 벼린다.
+func apply_upgrade(slot: int) -> bool:
+	var it := GameState.equipped_item(slot)
+	var cost := upgrade_cost(it)
 	if not can_afford(cost):
 		return false
 	GameState.spend_silver(int(cost.silver))
 	for item in cost.items:
 		GameState.remove_item(item, int(cost.items[item]))
-	GameState.set_upgrade(id, GameState.upgrade_level(id) + 1)
+	GameState.set_upgrade(slot, it.upgrade + 1)
 	return true
 
 
 func open_upgrade(npc: TownNpc) -> void:
 	var entries: Array = []
-	for id: StringName in [GameState.primary_weapon, GameState.secondary_weapon, GameState.melee_weapon]:
-		var w := GameDB.weapon(id)
-		var m := GameDB.melee(id)
-		var label := w.display_name if w else m.display_name
-		var lv := GameState.upgrade_level(id)
-		var cost := upgrade_cost(id)
+	for s in [WeaponItem.Slot.PRIMARY, WeaponItem.Slot.SECONDARY, WeaponItem.Slot.MELEE]:
+		var it := GameState.equipped_item(s)
+		if it == null:
+			continue
+		var cost := upgrade_cost(it)
 		if cost.is_empty():
-			entries.append({"text": "%s  +%d (최대)" % [label, lv], "enabled": false})
+			entries.append({"text": "%s (최대)" % it.display_name(), "color": it.color(), "enabled": false})
 			continue
 		var need: Array[String] = ["은화 %d" % int(cost.silver)]
 		for item in cost.items:
 			need.append("%s %d (가진 %d)" % [ItemDB.name_of(item), int(cost.items[item]), GameState.item_count(item)])
-		var wid := id
-		entries.append({"text": "%s  +%d → +%d  (피해 +8%%)" % [label, lv, lv + 1],
-			"detail": "필요: " + ", ".join(need), "enabled": can_afford(cost), "keep_open": true,
+		var slot: int = s
+		entries.append({"text": "%s  →  +%d  (피해 +8%%)" % [it.display_name(), it.upgrade + 1],
+			"detail": "필요: " + ", ".join(need), "color": it.color(), "enabled": can_afford(cost), "keep_open": true,
 			"action": func() -> void:
-				if apply_upgrade(wid):
+				if apply_upgrade(slot):
 					Sfx.play_ui(&"unlock")
-					GameEvents.notify("%s 강화 +%d" % [label, GameState.upgrade_level(wid)], GameEvents.NoticeKind.UNLOCK)
+					GameEvents.notify("%s 강화" % GameState.equipped_item(slot).display_name(), GameEvents.NoticeKind.UNLOCK)
 				open_upgrade(npc)})
-	_menus().open_choice("무기 공방 · 강화", "장착한 무기를 벼립니다. 단계마다 피해가 8%씩 오릅니다(최대 +3).", entries)
+	_menus().open_choice("무기 공방 · 강화", "들고 있는 무기를 벼립니다. 단계마다 피해가 8%씩 오릅니다(최대 +3).", entries)

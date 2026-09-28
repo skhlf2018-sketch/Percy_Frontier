@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="MeleeData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/melee_data.gd" id="1_m"]
+
+[resource]
+script = ExtResource("1_m")
+id = &"hand_axe"
+display_name = "투박한 손도끼"
+manufacturer = "고블린 손재주"
+description = "무겁고 투박한 손도끼. 느리지만 장갑과 방패를 쪼개는 데 뛰어나다."
+price = 100
+viewmodel_style = &"axe"
+body_color = Color(0.5, 0.48, 0.45, 1)
+accent_color = Color(0.38, 0.26, 0.16, 1)
+light_damage = 26.0
+light_windup = 0.13
+light_recovery = 0.36
+light_stagger = 16.0
+light_stamina = 8.0
+heavy_damage = 66.0
+heavy_windup = 0.2
+heavy_recovery = 0.66
+heavy_stagger = 52.0
+heavy_stamina = 24.0
+reach = 2.3
+hit_radius = 0.85
+armor_damage_mult = 2.8
+block_reduction = 0.6
+parry_window = 0.16
+block_move_mult = 0.55
+quick_damage = 20.0
+quick_stagger = 18.0

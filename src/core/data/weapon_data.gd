@@ -16,6 +16,8 @@ const CLASS_NAMES := ["권총", "SMG", "소총", "기관총", "저격총", "산�
 @export var slot: Slot = Slot.PRIMARY
 @export var rarity: ItemRarity.Tier = ItemRarity.Tier.STANDARD
 @export_multiline var description: String = ""
+## 퍼시 무기 공방의 기본 값(은화). 되팔 때는 희귀도에 따라 달라진다.
+@export var price: int = 150
 
 @export_group("사격")
 @export var fire_mode: FireMode = FireMode.AUTO

@@ -49,6 +49,9 @@ var _tracker_title: Label
 var _tracker_step: Label
 var _tracker_dist: Label
 var _silver_label: Label
+## 바닥의 무기를 바라볼 때 지금 무기와 비교해 보여 주는 칸(기획서 §11.5)
+var _compare: PanelContainer
+var _compare_text: RichTextLabel
 ## 유니크 조우: 이름(정체를 모르면 ???)과 흥미 게이지
 var _unique_panel: VBoxContainer
 var _unique_name: Label
@@ -223,6 +226,20 @@ func _build() -> void:
 	_unique_hint = _label("살아남아라 — 패링과 간발의 회피로 흥미를 끌면 물러난다", 16, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	_unique_hint.add_theme_color_override("font_color", MUTED)
 	_unique_panel.add_child(_unique_hint)
+
+	# 오른쪽 가운데: 무기 비교
+	_compare = PanelContainer.new()
+	_compare.add_theme_stylebox_override("panel", StatusWindow.holo_style())
+	_compare.visible = false
+	_place(_compare, Vector2(1, 0.5), Vector2(-620, -190), Vector2(580, 330))
+	_compare_text = RichTextLabel.new()
+	_compare_text.bbcode_enabled = true
+	_compare_text.fit_content = true
+	_compare_text.scroll_active = false
+	_compare_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_compare_text.add_theme_font_size_override("normal_font_size", 18)
+	_compare_text.add_theme_font_size_override("bold_font_size", 21)
+	_compare.add_child(_compare_text)
 
 	# 왼쪽 아래 레벨 줄 위: 은화
 	_silver_label = _label("", 17, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_LEFT)
@@ -427,14 +444,20 @@ func _update_weapon() -> void:
 	var w := player.weapons
 	if w.primary == null:
 		return
-	var names := [w.primary.display_name, w.secondary.display_name, w.melee.display_name]
+	var items: Array[WeaponItem] = [w.primary_item, w.secondary_item, w.melee_item]
+	var fallback := [w.primary.display_name, w.secondary.display_name, w.melee.display_name]
 	var keys := [&"weapon_1", &"weapon_2", &"weapon_3"]
 	for i in 3:
 		var current := i == w.current_slot
-		_slot_labels[i].text = "%s  %s%s" % [Settings.binding_text(keys[i]), names[i], "  ◀" if current else ""]
-		_slot_labels[i].add_theme_color_override("font_color", Color(1, 1, 1, 0.95) if current else Color(1, 1, 1, 0.45))
+		var it := items[i]
+		_slot_labels[i].text = "%s  %s%s" % [Settings.binding_text(keys[i]), it.display_name() if it else fallback[i],
+			"  ◀" if current else ""]
+		var c := it.color() if it else Color(1, 1, 1)
+		_slot_labels[i].add_theme_color_override("font_color", Color(c.lightened(0.15), 0.95) if current else Color(c, 0.5))
+	var cur_item := w.current_item()
+	_weapon_name.add_theme_color_override("font_color", cur_item.color().lightened(0.2) if cur_item else Color(1, 1, 1))
 	if w.is_melee_equipped():
-		_weapon_name.text = w.melee.display_name
+		_weapon_name.text = w.melee_item.display_name() if w.melee_item else w.melee.display_name
 		_weapon_detail.text = "근접 · 누르고 있으면 강공격 · %s 방어(시작 직후 패링)" % Settings.binding_text(&"aim")
 		_ammo.text = ""
 		_reserve.text = ""
@@ -442,9 +465,10 @@ func _update_weapon() -> void:
 		return
 	var gun := w.current_gun()
 	var data := gun.data
-	_weapon_name.text = data.display_name
+	_weapon_name.text = cur_item.display_name() if cur_item else data.display_name
 	var mode := "자동" if data.fire_mode == WeaponData.FireMode.AUTO else "단발"
-	_weapon_detail.text = "%s · %s · %s" % [data.class_label(), mode, data.manufacturer]
+	_weapon_detail.text = "%s · %s · %s" % [data.class_label(), mode,
+		cur_item.rarity_name() if cur_item else data.manufacturer]
 	if data.uses_heat:
 		_ammo.text = ""
 		_reserve.text = ""
@@ -455,7 +479,7 @@ func _update_weapon() -> void:
 	_heat.visible = false
 	var reserve := player.ammo.get_count(data.ammo_type)
 	_ammo.text = str(gun.mag)
-	var low := gun.mag <= int(data.magazine_size * 0.25)
+	var low := gun.mag <= int(gun.capacity * 0.25)
 	_ammo.add_theme_color_override("font_color", WARNING_COLOR if low else Color(1, 1, 1))
 	if gun.reloading:
 		_reserve.text = "재장전 %d%%" % int(gun.reload_progress() * 100.0)
@@ -520,6 +544,14 @@ func _update_center(delta: float) -> void:
 		_prompt.visible = true
 	else:
 		_prompt.visible = false
+	var pickup: WeaponPickup = null
+	if target and is_instance_valid(target) and target is WeaponPickup:
+		pickup = target as WeaponPickup
+	if pickup and pickup.item and player.alive:
+		_compare_text.text = compare_text(pickup.item, GameState.equipped_item(pickup.item.slot()))
+		_compare.visible = true
+	else:
+		_compare.visible = false
 	_center_flash_time = maxf(0.0, _center_flash_time - delta)
 	_center_flash.modulate.a = clampf(_center_flash_time / 0.3, 0.0, 1.0)
 
@@ -574,3 +606,54 @@ func _update_field(delta: float) -> void:
 			"살아남아라 — 패링과 간발의 회피로 흥미를 끌면 물러난다"
 	else:
 		_unique_panel.visible = false
+
+
+# --- 무기 비교 ---
+
+static func _hex(c: Color) -> String:
+	return c.to_html(false)
+
+
+static func _item_block(it: WeaponItem, title: String) -> String:
+	var out := "[color=#9fb6bf]%s[/color]\n[b][color=#%s]%s[/color][/b]  [color=#%s][%s · %s][/color]\n%s" % [
+		title, _hex(it.color().lightened(0.15)), it.display_name(), _hex(it.color()), it.rarity_name(), it.class_label(),
+		it.stat_line()]
+	for line in it.perk_lines():
+		out += "\n[color=#%s]· %s[/color]" % [_hex(it.color().lightened(0.3)), line]
+	return out
+
+
+static func _delta(label: String, new_v: float, cur_v: float, fmt: String = "%d", higher_better: bool = true) -> String:
+	var d := new_v - cur_v
+	if absf(d) < 0.001:
+		return "%s =" % label
+	var good := (d > 0.0) == higher_better
+	var arrow := "▲" if d > 0.0 else "▼"
+	var plus := "+" if d > 0.0 else ""
+	return "[color=#%s]%s %s%s%s[/color]" % ["7ee08a" if good else "ff8a70", label, arrow, plus, fmt % d]
+
+
+## 바닥의 무기(new_it)와 지금 든 무기(cur)를 비교한 글(BBCode)
+static func compare_text(new_it: WeaponItem, cur: WeaponItem) -> String:
+	var text := _item_block(new_it, "바닥의 무기")
+	if cur == null:
+		return text
+	text += "\n\n" + _item_block(cur, "지금 든 무기")
+	var parts: Array[String] = []
+	var ng := new_it.gun_data()
+	var cg := cur.gun_data()
+	if ng and cg:
+		parts.append(_delta("한 번 쏠 때 피해", ng.damage * ng.pellets * new_it.damage_mult(), cg.damage * cg.pellets * cur.damage_mult()))
+		parts.append(_delta("분당 발사", ng.rounds_per_minute, cg.rounds_per_minute))
+		if not ng.uses_heat and not cg.uses_heat:
+			parts.append(_delta("탄창", new_it.mag_capacity(), cur.mag_capacity()))
+	else:
+		var nm := new_it.melee_data()
+		var cm := cur.melee_data()
+		if nm and cm:
+			parts.append(_delta("약공격", nm.light_damage * new_it.damage_mult(), cm.light_damage * cur.damage_mult()))
+			parts.append(_delta("강공격", nm.heavy_damage * new_it.damage_mult(), cm.heavy_damage * cur.damage_mult()))
+			parts.append(_delta("사거리", nm.reach, cm.reach, "%.1fm"))
+	text += "\n\n" + " · ".join(parts)
+	text += "\n[color=#9fb6bf]주우면 지금 든 무기를 이 자리에 내려놓습니다.[/color]"
+	return text

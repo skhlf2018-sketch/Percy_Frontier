@@ -8,6 +8,7 @@ id = &"karambit_hook"
 display_name = "갈고리 단검"
 manufacturer = "그레인홀 무구"
 description = "카람빗형 곡도. 빠른 연속 공격으로 출혈을 쌓는다. 막는 힘은 약하지만 패링 판정이 넉넉하다."
+price = 150
 viewmodel_style = &"karambit"
 body_color = Color(0.6, 0.62, 0.66, 1)
 accent_color = Color(0.18, 0.18, 0.2, 1)

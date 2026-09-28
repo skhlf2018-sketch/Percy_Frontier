@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="MeleeData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/melee_data.gd" id="1_m"]
+
+[resource]
+script = ExtResource("1_m")
+id = &"chief_greatblade"
+display_name = "두목의 대도"
+manufacturer = "고블린 두목"
+description = "고블린 두목이 두 손으로 휘두르던 커다란 칼. 느리고 무겁지만 한 번 베면 무리가 흩어진다. 막는 힘도 좋다."
+price = 320
+viewmodel_style = &"greatblade"
+body_color = Color(0.46, 0.44, 0.42, 1)
+accent_color = Color(0.3, 0.2, 0.12, 1)
+light_damage = 34.0
+light_windup = 0.18
+light_recovery = 0.5
+light_stagger = 20.0
+light_stamina = 10.0
+combo_finisher_mult = 1.25
+heavy_charge_time = 0.5
+heavy_damage = 92.0
+heavy_windup = 0.26
+heavy_recovery = 0.8
+heavy_stagger = 70.0
+heavy_stamina = 30.0
+reach = 3.0
+hit_radius = 1.1
+armor_damage_mult = 2.4
+block_reduction = 0.8
+unparryable_block_reduction = 0.35
+block_stamina_per_damage = 1.0
+parry_window = 0.14
+block_move_mult = 0.45
+quick_damage = 26.0
+quick_stagger = 22.0
+quick_time = 0.5

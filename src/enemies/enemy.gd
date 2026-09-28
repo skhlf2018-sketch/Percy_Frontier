@@ -832,6 +832,8 @@ func receive_hit(info: DamageInfo, hurtbox: Hurtbox) -> HitResult:
 	var calc := DamageMath.resolve_zone(info.amount, zone, mult, armor_left, armor_pass,
 		info.armor_damage_mult * status.armor_damage_multiplier(), data.defense)
 	var damage: float = calc.damage * status.damage_taken_multiplier(info)
+	if info.bonus_vs_staggered > 0.0 and state in [State.STAGGER, State.STUNNED]:
+		damage *= 1.0 + info.bonus_vs_staggered
 	var stagger_amount := info.stagger * (1.5 if zone == Hurtbox.Zone.WEAK_POINT else 1.0)
 	if hurtbox and calc.armor_damage > 0.0:
 		result.hit_armor = true

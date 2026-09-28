@@ -7,6 +7,8 @@ extends Resource
 @export var manufacturer: String = ""
 @export var rarity: ItemRarity.Tier = ItemRarity.Tier.STANDARD
 @export_multiline var description: String = ""
+## 퍼시 무기 공방의 기본 값(은화)
+@export var price: int = 120
 ## 임시 1인칭 모델 형태(viewmodel_factory 참고)
 @export var viewmodel_style: StringName = &"sword"
 @export var body_color: Color = Color(0.7, 0.72, 0.75)

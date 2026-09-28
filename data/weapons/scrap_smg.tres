@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3]
+
+[ext_resource type="Script" path="res://src/core/data/weapon_data.gd" id="1_w"]
+
+[resource]
+script = ExtResource("1_w")
+id = &"scrap_smg"
+display_name = "고철 기관단총"
+manufacturer = "고블린 손재주"
+weapon_class = 1
+description = "고철을 두들겨 만든 기관단총. 빠르게 쏟아붓지만 거리가 멀어지면 힘이 빠지고 반동이 거칠다."
+price = 200
+rounds_per_minute = 820.0
+damage = 9.0
+falloff_start = 12.0
+falloff_end = 35.0
+falloff_min_mult = 0.5
+max_range = 90.0
+stagger = 2.5
+hip_spread_deg = 3.0
+ads_spread_deg = 1.2
+bloom_per_shot_deg = 0.4
+max_bloom_deg = 4.5
+bloom_recovery_deg = 9.0
+move_spread_deg = 1.0
+air_spread_deg = 3.0
+recoil_pitch_deg = 0.75
+recoil_yaw_deg = 0.55
+recoil_recovery = 8.0
+recoil_return_ratio = 0.6
+ammo_type = &"pistol"
+magazine_size = 32
+reload_time = 2.0
+empty_reload_time = 2.3
+ads_fov_mult = 0.86
+ads_time = 0.15
+ads_move_mult = 0.75
+equip_time = 0.4
+noise_radius = 40.0
+shake = 0.08
+sound = &"shot_pistol"
+tracer_color = Color(1, 0.82, 0.5, 1)
+viewmodel_style = &"smg"
+body_color = Color(0.32, 0.3, 0.27, 1)
+accent_color = Color(0.5, 0.38, 0.22, 1)

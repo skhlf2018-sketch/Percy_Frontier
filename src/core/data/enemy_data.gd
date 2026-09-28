@@ -14,6 +14,8 @@ const TIER_NAMES := ["일반", "강화", "희귀", "정예", "보스", "유니�
 ## 전투 역할(돌격, 사격, 지원, 매복, 방어, 소환 등)
 @export var combat_role: String = ""
 @export_multiline var description: String = ""
+## 몬스터 카탈로그(일반 250 · 희귀 50 · 보스 12 · 유니크 8)에 세는지. 훈련용 표적 같은 시험 장비는 세지 않는다.
+@export var in_catalog: bool = true
 
 @export_group("능력치")
 @export var max_hp: float = 100.0

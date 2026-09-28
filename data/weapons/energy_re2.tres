@@ -10,6 +10,7 @@ manufacturer = "세렌 공학"
 weapon_class = 6
 rarity = 1
 description = "탄약 대신 열을 쌓는 에너지 무기. 탄속이 느린 투사체를 쏘며 감전을 누적시키고 장갑에 강하다. 과열되면 잠시 쏠 수 없다."
+price = 380
 rounds_per_minute = 360.0
 damage = 16.0
 falloff_start = 100.0

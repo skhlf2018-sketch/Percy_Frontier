@@ -507,7 +507,7 @@ func _apply_loaded(game_data: Dictionary) -> void:
 	for id in mags:
 		var gs := player.weapons.gun_state_for(StringName(id))
 		if gs:
-			gs.mag = clampi(int(mags[id]), 0, gs.data.magazine_size)
+			gs.mag = clampi(int(mags[id]), 0, gs.capacity)
 	var sp := field.supply_point_by_name(String(game_data.get("checkpoint", "")))
 	if sp:
 		checkpoint_point = sp

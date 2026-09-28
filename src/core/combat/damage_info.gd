@@ -26,6 +26,8 @@ var parryable: bool = true
 var knockback: float = 0.0
 ## 부위 판정을 건너뛰는 피해(지속 피해 등)
 var ignore_zones: bool = false
+## 경직·기절한 대상에게 더하는 피해 비율(무기 특성 「무리 깨기」)
+var bonus_vs_staggered: float = 0.0
 
 
 static func create(p_amount: float, p_kind: Kind, p_attacker: Node = null) -> DamageInfo:

@@ -8,6 +8,7 @@ id = &"rifle_bfa3"
 display_name = "BF-A3 탐사 소총"
 manufacturer = "보더라인 공창"
 description = "중거리에서 안정적인 자동 소총. 짧게 끊어 쏘면 약점을 꾸준히 노릴 수 있다."
+price = 150
 rounds_per_minute = 620.0
 falloff_start = 30.0
 falloff_end = 70.0

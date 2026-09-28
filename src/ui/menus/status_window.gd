@@ -287,38 +287,54 @@ func _build_status() -> void:
 
 func _build_gear() -> void:
 	_clear(_gear_box)
-	if player == null:
-		return
-	var w := player.weapons
-	_section(_gear_box, "총기")
-	for d: WeaponData in [w.primary, w.secondary]:
-		if d == null:
+	for s in [WeaponItem.Slot.PRIMARY, WeaponItem.Slot.SECONDARY, WeaponItem.Slot.MELEE]:
+		_section(_gear_box, WeaponItem.SLOT_NAMES[s])
+		var it := GameState.equipped_item(s)
+		if it == null:
+			_text(_gear_box, "없음", 19, MUTED)
 			continue
-		var stats := "피해 %s · 분당 %d발 · %s" % [
-			("%d×%d" % [int(d.damage), d.pellets]) if d.pellets > 1 else "%d" % int(d.damage),
-			int(d.rounds_per_minute), "과열식" if d.uses_heat else "탄창 %d" % d.magazine_size]
-		_text(_gear_box, "%s%s  ·  %s  ·  %s" % [d.display_name, _upgrade_tag(d.id), d.class_label(), ItemRarity.tier_name(d.rarity)], 22)
-		_text(_gear_box, stats, 18, MUTED)
-		_text(_gear_box, d.description, 17, MUTED)
-	_section(_gear_box, "근접 무기")
-	var m := w.melee
-	if m:
-		_text(_gear_box, "%s%s  ·  %s" % [m.display_name, _upgrade_tag(m.id), ItemRarity.tier_name(m.rarity)], 22)
-		_text(_gear_box, "약공격 %d · 강공격 %d · 패링 %.2f초" % [int(m.light_damage), int(m.heavy_damage), m.parry_window], 18, MUTED)
-		_text(_gear_box, m.description, 17, MUTED)
-	var owned: Array[String] = []
-	for id in GameState.owned_weapons:
-		var gw := GameDB.weapon(id)
-		var gm := GameDB.melee(id)
-		owned.append((gw.display_name if gw else gm.display_name if gm else String(id)) + _upgrade_tag(id))
-	_section(_gear_box, "가진 무기")
-	_text(_gear_box, "  ·  ".join(owned), 19)
-	_text(_gear_box, "무기는 퍼시의 무기 공방에서 바꾸고, 사고, 강화합니다(단계마다 피해 +8%, 최대 +3).", 17, MUTED)
+		_weapon_rows(_gear_box, it, true)
+	_section(_gear_box, "퍼시 공방 창고 (%d/%d)" % [GameState.warehouse.size(), GameState.WAREHOUSE_SIZE])
+	if GameState.warehouse.is_empty():
+		_text(_gear_box, "맡긴 무기가 없습니다.", 18, MUTED)
+	for it: WeaponItem in GameState.warehouse:
+		_weapon_rows(_gear_box, it, false)
+	_section(_gear_box, "희귀도")
+	var legend := HBoxContainer.new()
+	legend.add_theme_constant_override("separation", 18)
+	_gear_box.add_child(legend)
+	for t in ItemRarity.NAMES.size():
+		var chip := ColorRect.new()
+		chip.color = ItemRarity.tier_color(t)
+		chip.custom_minimum_size = Vector2(14, 14)
+		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		legend.add_child(chip)
+		_text(legend, ItemRarity.tier_name(t), 18, ItemRarity.tier_color(t))
+	_text(_gear_box, "무기는 칸마다 한 자루만 듭니다. 들판에 떨어진 무기를 주우면 같은 칸의 무기를 그 자리에 내려놓습니다. "
+		+ "여분은 퍼시 무기 공방 창고에 맡기고, 공방에서 사고·팔고·강화합니다(단계마다 피해 +8%, 최대 +3).", 17, MUTED)
 
 
-static func _upgrade_tag(id: StringName) -> String:
-	var lv := GameState.upgrade_level(id)
-	return " +%d" % lv if lv > 0 else ""
+## 무기 한 자루: 희귀도 색 이름, 핵심 수치, 특성
+func _weapon_rows(box: Node, it: WeaponItem, full: bool) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	box.add_child(row)
+	var chip := ColorRect.new()
+	chip.color = it.color()
+	chip.custom_minimum_size = Vector2(6, 26)
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(chip)
+	_text(row, it.display_name(), 22 if full else 20, it.color())
+	_text(row, "%s · %s" % [it.rarity_name(), it.class_label()], 17, MUTED).size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_text(box, "   " + it.stat_line(), 18 if full else 17, MUTED)
+	for pl in it.perk_lines():
+		_text(box, "   ◆ " + pl, 17, Color(0.86, 0.88, 0.8))
+	if full:
+		var g := it.gun_data()
+		var m := it.melee_data()
+		var desc := g.description if g else (m.description if m else "")
+		if desc != "":
+			_text(box, "   " + desc, 16, MUTED)
 
 
 # --- 소지품 ---
@@ -408,9 +424,26 @@ func _build_skills() -> void:
 
 func _build_bestiary() -> void:
 	_clear(_bestiary_box)
+	_section(_bestiary_box, "수집 현황 (목표: 일반 250 · 희귀 50 · 보스 12 · 유니크 8)")
+	var prog := MonsterCatalog.progress()
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 20)
+	_bestiary_box.add_child(grid)
+	for c in MonsterCatalog.CATEGORIES:
+		var p: Dictionary = prog[c]
+		_text(grid, MonsterCatalog.NAMES[c], 19).custom_minimum_size = Vector2(90, 0)
+		var bar := ProgressBar.new()
+		bar.custom_minimum_size = Vector2(520, 12)
+		bar.show_percentage = false
+		bar.max_value = int(p.target)
+		bar.value = int(p.found)
+		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		grid.add_child(bar)
+		_text(grid, "%d / %d   (이 빌드에 %d종)" % [int(p.found), int(p.target), int(p.made)], 17, MUTED)
 	var hidden := 0
 	for data: EnemyData in GameDB.ENEMIES:
-		if not data.is_analyzable():
+		if not data.is_analyzable() or not data.in_catalog:
 			continue
 		if not GameState.bestiary.is_discovered(data.id):
 			hidden += 1

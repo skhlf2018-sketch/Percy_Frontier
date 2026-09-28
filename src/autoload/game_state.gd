@@ -23,9 +23,20 @@ var discovered_areas: Array[StringName] = []
 var unlocked_skills: Array[StringName] = []
 ## 장착 슬롯(키 4~7). 빈 슬롯은 &""
 var skill_slots: Array[StringName] = []
-var primary_weapon: StringName = &"rifle_bfa3"
-var secondary_weapon: StringName = &"pistol_bf9"
-var melee_weapon: StringName = &"sword_survey"
+## 든 무기(기획서 §9.1·§11.5): WeaponItem.Slot → WeaponItem. 칸마다 한 자루씩만 든다.
+var equipped: Dictionary = {}
+## 퍼시 창고(§11.5, 지역 간 공유)
+var warehouse: Array[WeaponItem] = []
+## 칸별 기본 무기 id(읽기 전용)
+var primary_weapon: StringName:
+	get:
+		return _base_of(WeaponItem.Slot.PRIMARY)
+var secondary_weapon: StringName:
+	get:
+		return _base_of(WeaponItem.Slot.SECONDARY)
+var melee_weapon: StringName:
+	get:
+		return _base_of(WeaponItem.Slot.MELEE)
 ## 캐릭터 외형(HumanoidModel 사전)
 var appearance: Dictionary = {}
 ## 누적 플레이 시간(초)
@@ -35,9 +46,6 @@ var inventory: Dictionary = {}
 var silver: int = 0
 ## 의뢰 진행
 var quests: QuestLog
-## 가진 무기(총기·근접 id)와 강화 단계(id → 0..3)
-var owned_weapons: Array[StringName] = []
-var upgrades: Dictionary = {}
 ## 지도에 드러난 칸(기획서 §13.3: 방문한 지형을 기록한다). MAP_CELLS×MAP_CELLS, 1이면 드러남.
 var map_cells := PackedByteArray()
 ## 발견한 탐사 단서 id(기획서 §13.2)
@@ -67,9 +75,12 @@ func reset_session() -> void:
 	bestiary.entry_discovered.connect(_on_entry_discovered)
 	unlocked_skills = [STARTER_SKILL]
 	skill_slots = [STARTER_SKILL, &"", &"", &""]
-	primary_weapon = &"rifle_bfa3"
-	secondary_weapon = &"pistol_bf9"
-	melee_weapon = &"sword_survey"
+	equipped = {
+		WeaponItem.Slot.PRIMARY: WeaponItem.create(&"rifle_bfa3"),
+		WeaponItem.Slot.SECONDARY: WeaponItem.create(&"pistol_bf9"),
+		WeaponItem.Slot.MELEE: WeaponItem.create(&"sword_survey"),
+	}
+	warehouse = []
 	appearance = HumanoidModel.default_appearance()
 	play_time = 0.0
 	inventory = {}
@@ -78,8 +89,6 @@ func reset_session() -> void:
 	quests.item_counter = item_count
 	quests.completed.connect(_on_quest_completed)
 	quests.changed.connect(quests_changed.emit)
-	owned_weapons = [&"rifle_bfa3", &"pistol_bf9", &"sword_survey"]
-	upgrades = {}
 	map_cells = PackedByteArray()
 	map_cells.resize(MAP_CELLS * MAP_CELLS)
 	clues = []
@@ -105,8 +114,9 @@ func start_new_character(config: Dictionary) -> void:
 	appearance.merge(config.get("appearance", {}), true)
 	# 근접 탐사자는 쌍검을 들고 시작한다(다른 무기는 퍼시 공방에서 바꾼다).
 	if progress.origin == &"blade":
-		melee_weapon = &"twin_moon"
-		owned_weapons.append(&"twin_moon")
+		var sword := equip_item(WeaponItem.create(&"twin_moon"))
+		if sword:
+			warehouse.append(sword)
 
 
 # --- 저장(기획서 §20.1) ---
@@ -127,16 +137,13 @@ func to_dict() -> Dictionary:
 		"bestiary": bestiary.to_dict(),
 		"unlocked_skills": unlocked,
 		"skill_slots": slots,
-		"primary": String(primary_weapon),
-		"secondary": String(secondary_weapon),
-		"melee": String(melee_weapon),
+		"equipped": _equipped_dict(),
+		"warehouse": warehouse.map(func(it: WeaponItem) -> Dictionary: return it.to_dict()),
 		"areas": areas,
 		"play_time": play_time,
 		"inventory": _string_keys(inventory),
 		"silver": silver,
 		"quests": quests.to_dict(),
-		"owned_weapons": owned_weapons.map(func(x: StringName) -> String: return String(x)),
-		"upgrades": _string_keys(upgrades),
 		"map": _pack_bits(map_cells),
 		"clues": clues.map(func(x: StringName) -> String: return String(x)),
 		"unique_log": _string_keys(unique_log),
@@ -185,12 +192,7 @@ func from_dict(d: Dictionary) -> void:
 	for i in SKILL_SLOT_COUNT:
 		var id := StringName(slots[i]) if i < slots.size() else &""
 		skill_slots[i] = id if (id == &"" or unlocked_skills.has(id)) else &""
-	if GameDB.weapon(StringName(d.get("primary", ""))):
-		primary_weapon = StringName(d.primary)
-	if GameDB.weapon(StringName(d.get("secondary", ""))):
-		secondary_weapon = StringName(d.secondary)
-	if GameDB.melee(StringName(d.get("melee", ""))):
-		melee_weapon = StringName(d.melee)
+	_load_weapons(d)
 	discovered_areas = []
 	for a in d.get("areas", []):
 		discovered_areas.append(StringName(a))
@@ -203,20 +205,6 @@ func from_dict(d: Dictionary) -> void:
 			inventory[id] = int(inv[k])
 	silver = maxi(int(d.get("silver", 0)), 0)
 	quests.from_dict(d.get("quests", {}))
-	var owned: Array = d.get("owned_weapons", [])
-	if not owned.is_empty():
-		owned_weapons = []
-		for w in owned:
-			var id := StringName(w)
-			if (GameDB.weapon(id) or GameDB.melee(id)) and not owned_weapons.has(id):
-				owned_weapons.append(id)
-	for must in [primary_weapon, secondary_weapon, melee_weapon]:
-		if not owned_weapons.has(must):
-			owned_weapons.append(must)
-	upgrades = {}
-	var up: Dictionary = d.get("upgrades", {})
-	for k in up:
-		upgrades[StringName(k)] = clampi(int(up[k]), 0, MAX_UPGRADE)
 	map_cells = _unpack_bits(String(d.get("map", "")), MAP_CELLS * MAP_CELLS)
 	for c in d.get("clues", []):
 		var id := StringName(c)
@@ -440,33 +428,110 @@ func spend_silver(amount: int) -> bool:
 	return true
 
 
-# --- 무기 소유와 강화(기획서 §9.5) ---
+# --- 든 무기·창고·강화(기획서 §9.5, §11.5) ---
 
 const MAX_UPGRADE := 3
+const WAREHOUSE_SIZE := 12
 
 
-func owns_weapon(id: StringName) -> bool:
-	return owned_weapons.has(id)
+func _base_of(slot: int) -> StringName:
+	var it: WeaponItem = equipped.get(slot)
+	return it.base_id if it else &""
 
 
-func give_weapon(id: StringName) -> void:
-	if not owned_weapons.has(id):
-		owned_weapons.append(id)
+func equipped_item(slot: int) -> WeaponItem:
+	return equipped.get(slot)
+
+
+## 무기를 든다. 같은 칸에 들고 있던 무기를 돌려준다(부르는 쪽이 바닥에 내려놓거나 창고에 넣는다).
+func equip_item(item: WeaponItem) -> WeaponItem:
+	if item == null or not item.is_valid():
+		return null
+	var s := item.slot()
+	var old: WeaponItem = equipped.get(s)
+	equipped[s] = item
+	loadout_changed.emit()
+	return old
+
+
+## 칸에 든 무기의 강화 단계를 바꾼다.
+func set_upgrade(slot: int, level: int) -> void:
+	var it: WeaponItem = equipped.get(slot)
+	if it:
+		it.upgrade = clampi(level, 0, MAX_UPGRADE)
 		loadout_changed.emit()
 
 
-func upgrade_level(id: StringName) -> int:
-	return int(upgrades.get(id, 0))
+func warehouse_full() -> bool:
+	return warehouse.size() >= WAREHOUSE_SIZE
 
 
-## 강화 단계당 피해 +8%
-func upgrade_mult(id: StringName) -> float:
-	return 1.0 + 0.08 * upgrade_level(id)
-
-
-func set_upgrade(id: StringName, level: int) -> void:
-	upgrades[id] = clampi(level, 0, MAX_UPGRADE)
+## 창고에 넣는다. 자리가 없으면 false.
+func store_item(item: WeaponItem) -> bool:
+	if item == null or warehouse_full():
+		return false
+	warehouse.append(item)
 	loadout_changed.emit()
+	return true
+
+
+## 창고의 무기를 꺼내 든다. 같은 칸에 들고 있던 무기는 그 자리에 들어간다.
+func take_from_warehouse(index: int) -> bool:
+	if index < 0 or index >= warehouse.size():
+		return false
+	var it := warehouse[index]
+	warehouse.remove_at(index)
+	var old := equip_item(it)
+	if old:
+		warehouse.insert(mini(index, warehouse.size()), old)
+	loadout_changed.emit()
+	return true
+
+
+func remove_from_warehouse(index: int) -> WeaponItem:
+	if index < 0 or index >= warehouse.size():
+		return null
+	var it := warehouse[index]
+	warehouse.remove_at(index)
+	loadout_changed.emit()
+	return it
+
+
+func _equipped_dict() -> Dictionary:
+	var out := {}
+	for s in equipped:
+		out[str(s)] = (equipped[s] as WeaponItem).to_dict()
+	return out
+
+
+## 저장 문서의 무기를 되살린다. 예전 형식(칸별 id·강화 사전·가진 무기 목록)도 읽는다.
+func _load_weapons(d: Dictionary) -> void:
+	var eq: Dictionary = d.get("equipped", {})
+	if not eq.is_empty():
+		for k in eq:
+			var it := WeaponItem.from_dict(eq[k])
+			if it and it.slot() == int(k):
+				equipped[it.slot()] = it
+		warehouse = []
+		for w in d.get("warehouse", []):
+			var it := WeaponItem.from_dict(w)
+			if it and warehouse.size() < WAREHOUSE_SIZE:
+				warehouse.append(it)
+		return
+	# v0.3 이전: 칸별 id와 강화 단계, 가진 무기 목록
+	var up: Dictionary = d.get("upgrades", {})
+	for key in ["primary", "secondary", "melee"]:
+		var id := StringName(d.get(key, ""))
+		var it := WeaponItem.from_dict({"base": String(id), "upgrade": int(up.get(String(id), 0))})
+		if it:
+			equipped[it.slot()] = it
+	for w in d.get("owned_weapons", []):
+		var id := StringName(w)
+		if id in [primary_weapon, secondary_weapon, melee_weapon]:
+			continue
+		var it := WeaponItem.from_dict({"base": String(id), "upgrade": int(up.get(String(id), 0))})
+		if it and warehouse.size() < WAREHOUSE_SIZE:
+			warehouse.append(it)
 
 
 # --- 의뢰 보상 ---
@@ -507,18 +572,18 @@ func assign_skill(skill_id: StringName, slot: int) -> bool:
 	return true
 
 
+## 시험장 무기 거치대·시험용: 그 칸을 표준 무기로 바꾼다(들고 있던 무기는 사라진다).
 func set_primary_weapon(id: StringName) -> void:
-	if GameDB.weapon(id) == null or primary_weapon == id:
+	var w := GameDB.weapon(id)
+	if w == null or w.slot != WeaponData.Slot.PRIMARY or primary_weapon == id:
 		return
-	primary_weapon = id
-	loadout_changed.emit()
+	equip_item(WeaponItem.create(id))
 
 
 func set_melee_weapon(id: StringName) -> void:
 	if GameDB.melee(id) == null or melee_weapon == id:
 		return
-	melee_weapon = id
-	loadout_changed.emit()
+	equip_item(WeaponItem.create(id))
 
 
 ## 시험장 전용: 모든 분석 대상의 분석을 완료한다.

@@ -47,11 +47,19 @@ var player: Player
 var primary: WeaponData
 var secondary: WeaponData
 var melee: MeleeData
+## 든 무기 한 자루씩(희귀도·특성·강화 단계를 가진다)
+var primary_item: WeaponItem
+var secondary_item: WeaponItem
+var melee_item: WeaponItem
 var current_slot: int = Slot.PRIMARY
 var ads_blend: float = 0.0
 
 var _states: Dictionary = {}
 var _views: Dictionary = {}
+## 1인칭 모델을 만들 때의 희귀도(희귀도가 바뀌면 다시 만든다)
+var _view_rarity: Dictionary = {}
+## 「연쇄 약점」: 이어서 약점을 맞힌 횟수
+var _weak_chain: int = 0
 var _equip_left: float = 0.0
 var _lowered_left: float = 0.0
 var _guard_broken_left: float = 0.0
@@ -106,28 +114,38 @@ func setup(p: Player) -> void:
 	load_loadout()
 
 
-## GameState의 장비 선택을 반영한다. 총기별 탄창 상태는 교체해도 유지된다.
+## GameState의 든 무기를 반영한다. 총기별 탄창 상태는 교체해도 유지된다.
 func load_loadout() -> void:
-	primary = GameDB.weapon(GameState.primary_weapon)
-	secondary = GameDB.weapon(GameState.secondary_weapon)
-	melee = GameDB.melee(GameState.melee_weapon)
-	for w in [primary, secondary]:
+	primary_item = GameState.equipped_item(WeaponItem.Slot.PRIMARY)
+	secondary_item = GameState.equipped_item(WeaponItem.Slot.SECONDARY)
+	melee_item = GameState.equipped_item(WeaponItem.Slot.MELEE)
+	primary = primary_item.gun_data()
+	secondary = secondary_item.gun_data()
+	melee = melee_item.melee_data()
+	for it: WeaponItem in [primary_item, secondary_item]:
+		var w := it.gun_data()
 		if not _states.has(w.id):
 			_states[w.id] = GunState.new(w)
-	var keep := [primary.id, secondary.id, melee.id]
+		var st: GunState = _states[w.id]
+		st.capacity = it.mag_capacity()
+		st.mag = mini(st.mag, st.capacity)
+	var keep := {primary.id: primary_item.rarity, secondary.id: secondary_item.rarity, melee.id: melee_item.rarity}
 	for key in _views.keys():
-		if not keep.has(key):
+		if not keep.has(key) or int(_view_rarity.get(key, -1)) != int(keep[key]):
 			_views[key].root.queue_free()
 			_views.erase(key)
-	for w in [primary, secondary]:
+	for it: WeaponItem in [primary_item, secondary_item]:
+		var w := it.gun_data()
 		if not _views.has(w.id):
-			var v := ViewmodelFactory.build_gun(w)
+			var v := ViewmodelFactory.build_gun(w, it.rarity)
 			_vm_root.add_child(v.root)
 			_views[w.id] = v
+			_view_rarity[w.id] = it.rarity
 	if not _views.has(melee.id):
-		var mv := ViewmodelFactory.build_melee(melee)
+		var mv := ViewmodelFactory.build_melee(melee, melee_item.rarity)
 		_vm_root.add_child(mv.root)
 		_views[melee.id] = mv
+		_view_rarity[melee.id] = melee_item.rarity
 	_cancel_actions()
 	_equip_left = _equip_time_for(current_slot)
 	_refresh_views()
@@ -136,6 +154,25 @@ func load_loadout() -> void:
 
 
 # --- 조회 ---
+
+## 지금 든 칸의 무기 한 자루
+func current_item() -> WeaponItem:
+	match current_slot:
+		Slot.PRIMARY:
+			return primary_item
+		Slot.SECONDARY:
+			return secondary_item
+	return melee_item
+
+
+## 총기 데이터에 해당하는 든 무기
+func item_for_gun(data: WeaponData) -> WeaponItem:
+	if primary_item and primary_item.base_id == data.id:
+		return primary_item
+	if secondary_item and secondary_item.base_id == data.id:
+		return secondary_item
+	return null
+
 
 func current_gun() -> GunState:
 	match current_slot:
@@ -350,7 +387,8 @@ func _fire(gun: GunState) -> void:
 			_fire_projectile(data, aim.origin, dir)
 		else:
 			_hitscan(data, aim.origin, dir, muzzle_pos)
-	var recoil_mult := lerpf(1.0, 0.75, ads_blend) * GameState.progress.recoil_mult()
+	var item := item_for_gun(data)
+	var recoil_mult := lerpf(1.0, 0.75, ads_blend) * GameState.progress.recoil_mult() * (item.recoil_mult() if item else 1.0)
 	player.add_recoil(data.recoil_pitch_deg * recoil_mult,
 		randf_range(-1.0, 1.0) * data.recoil_yaw_deg * recoil_mult,
 		data.recoil_return_ratio, data.recoil_recovery)
@@ -382,10 +420,23 @@ func _muzzle_position(aim: Transform3D) -> Vector3:
 
 func _gun_damage(data: WeaponData, distance: float, position: Vector3, dir: Vector3) -> DamageInfo:
 	var mult := DamageMath.falloff(distance, data.falloff_start, data.falloff_end, data.falloff_min_mult)
-	var info := DamageInfo.create(data.damage * mult * GameState.upgrade_mult(data.id), DamageInfo.Kind.GUN, player)
-	info.stagger = data.stagger
+	var item := item_for_gun(data)
+	if item:
+		mult *= item.damage_mult()
+		var st: GunState = _states.get(data.id)
+		# 「마지막 탄」: 탄창의 마지막 30%(방금 쏜 탄 포함)
+		if item.has_perk(&"last_rounds") and st and not data.uses_heat and st.mag < int(ceil(st.capacity * 0.3)):
+			mult *= 1.4
+		if item.has_perk(&"one_eye") and ads_blend > 0.9:
+			mult *= 1.3
+	var info := DamageInfo.create(data.damage * mult, DamageInfo.Kind.GUN, player)
+	info.stagger = data.stagger * (item.stagger_mult() if item else 1.0)
 	info.armor_damage_mult = data.armor_damage_mult
 	info.status_buildup = data.status_buildup()
+	if item:
+		_add_buildup(info, item.extra_buildup(), 1.0 / float(maxi(data.pellets, 1)))
+		if item.has_perk(&"pack_breaker"):
+			info.bonus_vs_staggered = 0.35
 	info.hit_position = position
 	info.direction = dir
 	info.resonance_mult = 1.0 / float(maxi(data.pellets, 1))
@@ -416,7 +467,7 @@ func _hitscan(data: WeaponData, origin: Vector3, dir: Vector3, muzzle_pos: Vecto
 			continue
 		seen[hb.entity] = true
 		var result := hb.hit(_gun_damage(data, origin.distance_to(hit.position), hit.position, dir))
-		handle_hit_result(result)
+		handle_hit_result(result, item_for_gun(data))
 		if pierce_left <= 0:
 			end_point = hit.position
 			break
@@ -439,28 +490,82 @@ func _on_projectile_hit(data: WeaponData, origin: Vector3, dir: Vector3, hit: Di
 		return
 	var hb := hit.collider as Hurtbox
 	if hb:
-		handle_hit_result(hb.hit(_gun_damage(data, origin.distance_to(hit.position), hit.position, dir)))
+		handle_hit_result(hb.hit(_gun_damage(data, origin.distance_to(hit.position), hit.position, dir)), item_for_gun(data))
 		CombatFx.impact(self, hit.position, data.tracer_color, 0.1, 0.15)
 	else:
 		CombatFx.impact(self, hit.position, data.tracer_color, 0.07, 0.15)
 
 
 ## 명중 결과를 공명·교전 상태·HUD 피드백에 반영한다. 스킬과 투사체도 이 함수를 쓴다.
-func handle_hit_result(result: HitResult) -> void:
+## source는 맞힌 무기(스킬이면 null). 무기 특성(공명 각인·연쇄 약점·알뜰한 사냥꾼·도살자)을 여기서 적용한다.
+func handle_hit_result(result: HitResult, source: WeaponItem = null) -> void:
 	if result == null:
 		return
 	player.stats.add_resonance(DamageMath.resonance_for_hit(result) * GameState.progress.resonance_gain_mult())
 	player.mark_combat()
 	GameEvents.hit_confirmed.emit(result)
+	if source:
+		_apply_perks(result, source)
+
+
+func _apply_perks(result: HitResult, item: WeaponItem) -> void:
+	var weak := result.zone == Hurtbox.Zone.WEAK_POINT
+	if weak and item.has_perk(&"resonant"):
+		player.stats.add_resonance(3.0)
+	if item.has_perk(&"chain_weak"):
+		_weak_chain = _weak_chain + 1 if weak else 0
+		if _weak_chain >= 3:
+			_weak_chain = 0
+			_resonance_burst(result.position, item)
+	if result.killed:
+		if item.has_perk(&"scavenger") and item.is_gun():
+			var g := item.gun_data()
+			player.ammo.add(g.ammo_type, maxi(1, int(ceil(item.mag_capacity() * 0.15))))
+		if item.has_perk(&"butcher"):
+			player.stats.heal(8.0)
+
+
+## 「연쇄 약점」 공명 폭발: 맞힌 자리 둘레 3m
+func _resonance_burst(center: Vector3, item: WeaponItem) -> void:
+	CombatFx.impact(self, center, Color(0.45, 0.9, 1.0), 0.8, 0.35)
+	Sfx.play_at(&"shock", center, 2.0)
+	var space := get_world_3d().direct_space_state
+	var shape := SphereShape3D.new()
+	shape.radius = 3.0
+	var sq := PhysicsShapeQueryParameters3D.new()
+	sq.shape = shape
+	sq.transform = Transform3D(Basis(), center)
+	sq.collision_mask = CombatLayers.HURTBOX
+	sq.collide_with_areas = true
+	sq.collide_with_bodies = false
+	var seen := {}
+	for r in space.intersect_shape(sq, 32):
+		var hb := r.collider as Hurtbox
+		if hb == null or hb.entity == null or seen.has(hb.entity):
+			continue
+		seen[hb.entity] = true
+		var info := DamageInfo.create(30.0 * item.damage_mult(), DamageInfo.Kind.EXPLOSION, player)
+		info.ignore_zones = true
+		info.stagger = 20.0
+		info.hit_position = hb.global_position
+		info.direction = (hb.global_position - center).normalized()
+		handle_hit_result(hb.hit(info))
+
+
+static func _add_buildup(info: DamageInfo, extra: Dictionary, scale: float) -> void:
+	for k in extra:
+		if float(extra[k]) > 0.0:
+			info.status_buildup[k] = float(info.status_buildup.get(k, 0.0)) + float(extra[k]) * scale
 
 
 func try_reload() -> bool:
 	var gun := current_gun()
 	if gun == null or not player.can_act() or not is_ready():
 		return false
-	gun.reload_speed = GameState.progress.reload_speed_mult()
+	var gi := item_for_gun(gun.data)
+	gun.reload_speed = GameState.progress.reload_speed_mult() * (gi.reload_mult() if gi else 1.0)
 	if not gun.start_reload(player.ammo):
-		if not gun.data.uses_heat and gun.mag < gun.data.magazine_size \
+		if not gun.data.uses_heat and gun.mag < gun.capacity \
 				and player.ammo.get_count(gun.data.ammo_type) <= 0:
 			GameEvents.notify("%s이(가) 없습니다." % AmmoInventory.type_name(gun.data.ammo_type),
 				GameEvents.NoticeKind.WARNING)
@@ -554,7 +659,7 @@ func _update_melee(delta: float) -> void:
 			if _melee_timer <= 0.0:
 				_perform_melee_hit()
 				_melee_phase = MeleePhase.RECOVERY
-				_melee_timer = melee.heavy_recovery if _melee_heavy else melee.light_recovery
+				_melee_timer = _recovery_time(_melee_heavy)
 		MeleePhase.RECOVERY:
 			_melee_timer -= delta
 			if _melee_timer <= 0.0:
@@ -570,7 +675,7 @@ func _start_melee_attack(heavy: bool) -> void:
 		_combo += 1
 	_melee_heavy = heavy
 	_melee_phase = MeleePhase.WINDUP
-	_melee_timer = melee.heavy_windup if heavy else melee.light_windup
+	_melee_timer = _windup_time(heavy)
 	_anim_time = 0.0
 	player.cancel_sprint()
 	player.apply_action_bleed()
@@ -635,17 +740,19 @@ func melee_strike(damage: float, stagger: float, bleed: float, heavy: bool, reac
 	var hits := 0
 	var status_buildup := StatusEffects.buildup_from(0.0, 0.0, 0.0, bleed)
 	if not targets.is_empty() and player.consume_counter():
-		damage *= COUNTER_DAMAGE_MULT
+		damage *= COUNTER_DAMAGE_MULT * (melee_item.counter_mult() if melee_item else 1.0)
 		stagger *= 2.0
 		heavy = true
 		technique_used.emit("반격")
 	for entity in targets:
 		var hb: Hurtbox = targets[entity]
-		var info := DamageInfo.create(damage * GameState.progress.melee_damage_mult() * GameState.upgrade_mult(melee.id),
+		var info := DamageInfo.create(damage * GameState.progress.melee_damage_mult() * _melee_damage_mult(),
 			DamageInfo.Kind.MELEE, player)
-		info.stagger = stagger
+		info.stagger = stagger * (melee_item.stagger_mult() if melee_item else 1.0)
 		info.armor_damage_mult = melee.armor_damage_mult
-		info.status_buildup = status_buildup
+		info.status_buildup = status_buildup.duplicate()
+		if melee_item:
+			_add_buildup(info, melee_item.extra_buildup(), 1.0)
 		info.heavy = heavy
 		info.hit_position = hb.global_position
 		info.direction = fwd
@@ -653,7 +760,7 @@ func melee_strike(damage: float, stagger: float, bleed: float, heavy: bool, reac
 		var result := hb.hit(info)
 		if result:
 			hits += 1
-			handle_hit_result(result)
+			handle_hit_result(result, melee_item)
 	if hits > 0:
 		Sfx.play(&"melee_hit", 0.0 if heavy else -2.0)
 		player.camera_rig.add_trauma(0.3 if heavy else 0.12)
@@ -661,6 +768,22 @@ func melee_strike(damage: float, stagger: float, bleed: float, heavy: bool, reac
 		if heavy:
 			_hitstop(0.06)
 	return hits
+
+
+func _melee_damage_mult() -> float:
+	return melee_item.damage_mult() if melee_item else 1.0
+
+
+func _melee_speed() -> float:
+	return melee_item.melee_speed_mult() if melee_item else 1.0
+
+
+func _windup_time(heavy: bool) -> float:
+	return (melee.heavy_windup if heavy else melee.light_windup) / _melee_speed()
+
+
+func _recovery_time(heavy: bool) -> float:
+	return (melee.heavy_recovery if heavy else melee.light_recovery) / _melee_speed()
 
 
 func _hitstop(duration: float) -> void:
@@ -689,7 +812,7 @@ func melee_area(center: Vector3, radius: float, damage: float, stagger: float, b
 		if prev == null or (prev.zone == Hurtbox.Zone.WEAK_POINT and hb.zone != Hurtbox.Zone.WEAK_POINT):
 			targets[hb.entity] = hb
 	if not targets.is_empty() and player.consume_counter():
-		damage *= COUNTER_DAMAGE_MULT
+		damage *= COUNTER_DAMAGE_MULT * (melee_item.counter_mult() if melee_item else 1.0)
 		stagger *= 2.0
 		technique_used.emit("반격")
 	var hits := 0
@@ -698,11 +821,13 @@ func melee_area(center: Vector3, radius: float, damage: float, stagger: float, b
 		var hb: Hurtbox = targets[entity]
 		var dir := hb.global_position - center
 		dir.y = 0.0
-		var info := DamageInfo.create(damage * GameState.progress.melee_damage_mult() * GameState.upgrade_mult(melee.id),
+		var info := DamageInfo.create(damage * GameState.progress.melee_damage_mult() * _melee_damage_mult(),
 			DamageInfo.Kind.MELEE, player)
-		info.stagger = stagger
+		info.stagger = stagger * (melee_item.stagger_mult() if melee_item else 1.0)
 		info.armor_damage_mult = melee.armor_damage_mult
-		info.status_buildup = status_buildup
+		info.status_buildup = status_buildup.duplicate()
+		if melee_item:
+			_add_buildup(info, melee_item.extra_buildup(), 1.0)
 		info.heavy = heavy
 		info.hit_position = hb.global_position
 		info.direction = dir.normalized() if dir.length_squared() > 0.001 else -player.look_basis().z
@@ -710,7 +835,7 @@ func melee_area(center: Vector3, radius: float, damage: float, stagger: float, b
 		var result := hb.hit(info)
 		if result:
 			hits += 1
-			handle_hit_result(result)
+			handle_hit_result(result, melee_item)
 	if hits > 0:
 		Sfx.play(&"melee_hit", 0.0)
 		player.camera_rig.add_trauma(0.3)
@@ -812,7 +937,7 @@ func try_block(info: DamageInfo, source_position: Vector3) -> Dictionary:
 	if fwd.length_squared() > 0.0001 and to_source.length_squared() > 0.0001:
 		if fwd.normalized().dot(to_source.normalized()) < cos(deg_to_rad(70.0)):
 			return {}
-	if info.parryable and _clock - _block_started <= melee.parry_window:
+	if info.parryable and _clock - _block_started <= melee.parry_window + (melee_item.parry_bonus() if melee_item else 0.0):
 		return {"parried": true}
 	var reduction := melee.block_reduction if info.parryable else melee.unparryable_block_reduction
 	return {"blocked": true, "reduction": reduction,
@@ -899,7 +1024,7 @@ func on_rest() -> void:
 		state.heat = 0.0
 		state.overheated = false
 		if not state.data.uses_heat:
-			state.mag = state.data.magazine_size
+			state.mag = state.capacity
 	ammo_changed.emit()
 
 
@@ -989,7 +1114,7 @@ func _process(delta: float) -> void:
 				rot += Vector3(25.0 * c, 0.0, -20.0 * c)
 				pos += Vector3(0.05 * c, 0.05 * c, 0.05 * c)
 			MeleePhase.WINDUP:
-				var w := 1.0 - _melee_timer / maxf(melee.heavy_windup if _melee_heavy else melee.light_windup, 0.01)
+				var w := 1.0 - _melee_timer / maxf(_windup_time(_melee_heavy), 0.01)
 				if _melee_heavy:
 					rot += Vector3(lerpf(30.0, -70.0, w), 0.0, 0.0)
 				else:
@@ -998,7 +1123,7 @@ func _process(delta: float) -> void:
 						rot.y = -rot.y
 						rot.z = -rot.z + 40.0
 			MeleePhase.RECOVERY:
-				var r := _melee_timer / maxf(melee.heavy_recovery if _melee_heavy else melee.light_recovery, 0.01)
+				var r := _melee_timer / maxf(_recovery_time(_melee_heavy), 0.01)
 				rot += Vector3(-40.0 * r if _melee_heavy else 0.0, -30.0 * r, 50.0 * r)
 	elif gun:
 		var view: Dictionary = _views.get(gun.data.id, {})
@@ -1053,7 +1178,7 @@ func _animate_twin(delta: float) -> void:
 			r_rot += Vector3(28.0 * c, 20.0 * c, 0.0)
 			l_rot += Vector3(28.0 * c, -20.0 * c, 0.0)
 		MeleePhase.WINDUP:
-			var w := 1.0 - _melee_timer / maxf(melee.heavy_windup if _melee_heavy else melee.light_windup, 0.01)
+			var w := 1.0 - _melee_timer / maxf(_windup_time(_melee_heavy), 0.01)
 			if _melee_heavy:
 				r_rot += Vector3(-10.0, lerpf(40.0, -120.0, w), lerpf(-20.0, 70.0, w))
 				l_rot += Vector3(-10.0, lerpf(-40.0, 120.0, w), lerpf(20.0, -70.0, w))
@@ -1064,7 +1189,7 @@ func _animate_twin(delta: float) -> void:
 				l_rot += Vector3(0.0, lerpf(-30.0, 45.0, w), lerpf(40.0, -65.0, w))
 				l_pos += Vector3(0.08 * w, 0.05 * w, -0.08 * w)
 		MeleePhase.RECOVERY:
-			var r := _melee_timer / maxf(melee.heavy_recovery if _melee_heavy else melee.light_recovery, 0.01)
+			var r := _melee_timer / maxf(_recovery_time(_melee_heavy), 0.01)
 			if _melee_heavy:
 				r_rot += Vector3(0.0, -60.0 * r, 40.0 * r)
 				l_rot += Vector3(0.0, 60.0 * r, -40.0 * r)

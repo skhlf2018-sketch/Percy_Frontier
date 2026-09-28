@@ -9,6 +9,7 @@ id = &"twin_moon"
 display_name = "쌍월 단검"
 manufacturer = "보더라인 공창"
 description = "두 손에 하나씩 쥐는 짧은 쌍검. 좌우를 번갈아 빠르게 베고, 강공격은 몸을 돌려 주위를 모두 벤다. 막는 힘은 약하지만 회피·도약과 이어지는 기술에 잘 맞는다."
+price = 180
 viewmodel_style = &"twin"
 body_color = Color(0.74, 0.8, 0.88, 1)
 accent_color = Color(0.16, 0.2, 0.28, 1)

@@ -5,6 +5,8 @@ extends RefCounted
 
 var data: WeaponData
 var mag: int = 0
+## 탄창 크기(무기 특성 「확장 탄창」으로 늘어날 수 있다)
+var capacity: int = 0
 ## 0..1
 var heat: float = 0.0
 var overheated: bool = false
@@ -23,7 +25,8 @@ var _heat_delay_left: float = 0.0
 
 func _init(p_data: WeaponData) -> void:
 	data = p_data
-	mag = data.magazine_size
+	capacity = data.magazine_size
+	mag = capacity
 
 
 func can_fire() -> bool:
@@ -56,7 +59,7 @@ func fire() -> bool:
 
 
 func can_reload(inv: AmmoInventory) -> bool:
-	if data.uses_heat or reloading or mag >= data.magazine_size:
+	if data.uses_heat or reloading or mag >= capacity:
 		return false
 	return inv.get_count(data.ammo_type) > 0
 
@@ -92,7 +95,7 @@ func tick(delta: float, inv: AmmoInventory) -> bool:
 		if reload_left <= 0.0:
 			reloading = false
 			reload_left = 0.0
-			var need := data.magazine_size - mag
+			var need := capacity - mag
 			mag += inv.take(data.ammo_type, need)
 			return true
 	return false
