@@ -119,6 +119,9 @@ func _build_graphics() -> void:
 	_choice(t, &"max_fps", "프레임 제한", fps_names, Settings.MAX_FPS_OPTIONS)
 	_slider(t, &"render_scale", "3D 렌더 배율", 0.5, 1.0, 0.05, _percent)
 	_note(t, "렌더 배율이 100% 미만이면 FSR 1.0 업스케일링을 씁니다(Forward+ 렌더러). 호환 렌더러에서는 단순 확대를 씁니다.")
+	_choice(t, &"graphics_quality", "그래픽 품질", Settings.GRAPHICS_QUALITY_NAMES, [0, 1, 2, 3])
+	_note(t, "낮음: 단순한 그림자와 안개. 보통: 화면 공간 차폐·반사광. 높음: 전역 조명(SDFGI), 볼륨 안개, 짐승 털 표현. "
+		+ "최고: 더 멀고 선명한 그림자와 반사. 새로 나타나는 몬스터부터 털 표현이 바뀝니다.")
 
 
 func _build_keys() -> void:

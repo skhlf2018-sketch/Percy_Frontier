@@ -1,0 +1,78 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"overhead_cleave"
+display_name = "대도 내려찍기"
+kind = 0
+parryable = false
+max_range = 3.2
+windup = 1.1
+active_time = 0.22
+recovery = 1.1
+cooldown = 3.2
+damage = 30
+reach = 3.0
+hit_angle_deg = 60
+knockback = 8
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"sweep"
+display_name = "휩쓸기"
+kind = 0
+max_range = 3.0
+windup = 0.7
+active_time = 0.2
+recovery = 0.9
+cooldown = 2.2
+damage = 20
+reach = 2.9
+hit_angle_deg = 150
+knockback = 5
+
+[sub_resource type="Resource" id="Atk_2"]
+script = ExtResource("1_atk")
+id = &"war_cry"
+display_name = "함성"
+kind = 5
+min_range = 0.0
+max_range = 30.0
+windup = 1.0
+active_time = 0.6
+recovery = 0.4
+cooldown = 20.0
+weight = 0.5
+token_group = 0
+
+[resource]
+script = ExtResource("2_data")
+id = &"goblin_chief"
+display_name = "고블린 두목"
+family = "고블린"
+threat_tier = 3
+combat_role = "근접·지휘"
+description = "고블린 무리를 거느리는 덩치 큰 고블린. 양손 대도를 머리 위로 치켜드는 내려찍기는 막을 수 없지만, 옆으로 휘두르는 베기는 흘려 낼 수 있다. 크게 다치면 함성을 질러 무리를 몰아세운다. 쓰러뜨리면 쓰던 대도를 반드시 떨어뜨린다."
+model_id = &"goblin_chief"
+max_hp = 520
+defense = 0.12
+walk_speed = 2.4
+run_speed = 5.0
+turn_speed_deg = 260
+poise = 110
+stagger_duration = 1.4
+mass_kg = 110
+sight_range = 30
+sight_fov_deg = 130
+proximity_sense = 4.0
+leash_radius = 45
+pack_alert_radius = 35
+level = 7
+xp_reward = 180
+resonance_on_kill = 16
+ammo_drop_chance = 0.9
+heal_drop_chance = 0.4
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1"), SubResource("Atk_2")])

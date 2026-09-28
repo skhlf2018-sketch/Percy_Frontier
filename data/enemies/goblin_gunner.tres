@@ -1,0 +1,63 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"crude_shot"
+display_name = "조잡한 사격"
+kind = 4
+parryable = false
+min_range = 3.5
+max_range = 32.0
+windup = 1.0
+active_time = 0.1
+recovery = 0.8
+cooldown = 2.8
+damage = 14
+knockback = 2
+token_group = 2
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"butt_strike"
+display_name = "개머리 치기"
+kind = 0
+max_range = 1.8
+windup = 0.45
+active_time = 0.15
+recovery = 0.6
+cooldown = 1.6
+damage = 8
+reach = 1.6
+hit_angle_deg = 80
+knockback = 4
+
+[resource]
+script = ExtResource("2_data")
+id = &"goblin_gunner"
+display_name = "고블린 사수"
+family = "고블린"
+threat_tier = 0
+combat_role = "사격"
+description = "조잡한 총을 든 고블린. 조준하는 동안 총구에서 붉은 빛줄기가 뻗어 나온다. 빛줄기가 멈추는 순간 방아쇠를 당기니, 그때 옆으로 비켜라. 쓰던 총을 떨어뜨리기도 한다."
+model_id = &"goblin_gunner"
+max_hp = 65
+walk_speed = 2.3
+run_speed = 4.8
+turn_speed_deg = 360
+poise = 25
+stagger_duration = 1.0
+mass_kg = 32
+sight_range = 40
+sight_fov_deg = 130
+proximity_sense = 3.0
+leash_radius = 50
+pack_alert_radius = 25
+level = 4
+xp_reward = 26
+resonance_on_kill = 5
+ammo_drop_chance = 0.7
+heal_drop_chance = 0.08
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1")])

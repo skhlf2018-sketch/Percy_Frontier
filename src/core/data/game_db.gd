@@ -34,6 +34,18 @@ const ENEMIES := [
 	preload("res://data/enemies/spore_spitter.tres"),
 	preload("res://data/enemies/training_dummy.tres"),
 	preload("res://data/enemies/night_predator.tres"),
+	preload("res://data/enemies/horn_rabbit.tres"),
+	preload("res://data/enemies/serial_rabbit.tres"),
+	preload("res://data/enemies/ash_wolf.tres"),
+	preload("res://data/enemies/wolf_alpha.tres"),
+	preload("res://data/enemies/silvermane.tres"),
+	preload("res://data/enemies/goblin_scout.tres"),
+	preload("res://data/enemies/goblin_brute.tres"),
+	preload("res://data/enemies/goblin_gunner.tres"),
+	preload("res://data/enemies/goblin_thrower.tres"),
+	preload("res://data/enemies/goblin_shaman.tres"),
+	preload("res://data/enemies/goblin_chief.tres"),
+	preload("res://data/enemies/oneeye_sniper.tres"),
 ]
 const CONSUMABLES := [
 	preload("res://data/consumables/field_suture.tres"),

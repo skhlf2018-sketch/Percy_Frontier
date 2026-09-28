@@ -17,8 +17,6 @@ var hidden: bool = false
 var _rustle_timer: float = 0.0
 var _circle_sign: float = 1.0
 var _fled: bool = false
-var _hop_phase: float = 0.0
-
 
 
 func _on_ready() -> void:
@@ -96,21 +94,8 @@ func _nearby_pack_count() -> int:
 	return count
 
 
-func _process(delta: float) -> void:
-	if _visual == null or state == State.DEAD:
-		return
-	var speed := Vector2(velocity.x, velocity.z).length()
-	if speed > 0.5 and is_on_floor():
-		_hop_phase += delta * (4.0 + speed * 1.6)
-	var hop := absf(sin(_hop_phase)) * 0.14 * clampf(speed / 3.0, 0.0, 1.0)
-	var target_scale := Vector3.ONE
-	var y_offset := hop
-	if hidden:
-		target_scale = Vector3(1.0, 0.55, 1.0)
-		y_offset = -0.12
-	elif _attack_phase == AttackPhase.WINDUP:
-		target_scale = Vector3(1.1, 0.78, 1.15)
-	elif _attack_phase == AttackPhase.ACTIVE:
-		target_scale = Vector3(0.9, 0.9, 1.35)
-	_visual.position.y = y_offset
-	_visual.scale = _visual.scale.lerp(target_scale, 1.0 - exp(-14.0 * delta))
+## 숨어 있을 때는 몸을 낮추고 귀를 눕힌다.
+func _anim_action() -> StringName:
+	if hidden and state == State.IDLE:
+		return &"hide"
+	return super._anim_action()

@@ -87,6 +87,15 @@ var _last_hit_zone: int = Hurtbox.Zone.NORMAL
 var _sees_target: bool = false
 ## 각인 때문에 달아나는 중(공격받으면 맞서 싸운다)
 var _mark_fleeing: bool = false
+## 절차적 모델과 동작(EnemyBody가 갖춘다). 예전 장면 모델이면 null.
+var _rig: CreatureRig = null
+var _anim: CreatureAnimator = null
+var _fur: MeshInstance3D = null
+var _prev_yaw: float = 0.0
+## 총격 전조: 조준점과 붉은 조준선
+var _aim_point := Vector3.ZERO
+var _aim_locked: bool = false
+var _laser: MeshInstance3D = null
 
 static var _overlay_cache: Dictionary = {}
 
@@ -101,7 +110,10 @@ func _ready() -> void:
 	status.boss_rules = data.boss_status_rules
 	home_position = global_position
 	home_yaw = global_rotation.y
+	_prev_yaw = global_rotation.y
 	_perception_timer = randf() * PERCEPTION_INTERVAL
+	if data.model_id != &"" and _rig == null:
+		EnemyBody.build(self)
 	_visual = get_node_or_null(^"Visual")
 	if _visual:
 		_collect_geometry(_visual)
@@ -118,9 +130,26 @@ func _ready() -> void:
 
 func _collect_geometry(node: Node) -> void:
 	for child in node.get_children():
-		if child is GeometryInstance3D:
+		if _rig and child == _rig.fur:
+			# 털 껍질은 덧칠 재질 대신 개체별 셰이더 값으로 물든다.
+			_fur = child
+		elif child is GeometryInstance3D:
 			_geometry.append(child)
 		_collect_geometry(child)
+
+
+## EnemyBody가 모델과 동작기를 넘겨준다.
+func set_body(rig: CreatureRig, anim: CreatureAnimator) -> void:
+	_rig = rig
+	_anim = anim
+
+
+func rig() -> CreatureRig:
+	return _rig
+
+
+func animator() -> CreatureAnimator:
+	return _anim
 
 
 ## 하위 클래스 초기화 지점
@@ -219,12 +248,102 @@ func _physics_process(delta: float) -> void:
 		velocity += _knockback
 		_knockback = _knockback.lerp(Vector3.ZERO, 1.0 - exp(-8.0 * delta))
 	move_and_slide()
+	_check_charge_crash()
 	_after_move(delta)
 	_update_overlay()
+	_update_laser()
 
 
 func _after_move(_delta: float) -> void:
 	pass
+
+
+## 돌진(벽 충돌 기절이 있는 공격) 중 벽에 부딪히면 스스로 기절한다.
+func _check_charge_crash() -> void:
+	if state != State.ATTACK or _attack == null or _attack.kind != EnemyAttackData.Kind.CHARGE:
+		return
+	if _attack_phase != AttackPhase.ACTIVE or _attack.wall_stun <= 0.0:
+		return
+	for i in get_slide_collision_count():
+		var col := get_slide_collision(i)
+		var other := col.get_collider()
+		if other is Enemy or other is Player:
+			continue
+		if col.get_normal().dot(_attack_dir) < -0.6 and _attack.move_speed >= 6.0:
+			_crash(_attack.wall_stun)
+			return
+
+
+func _crash(stun_time: float) -> void:
+	Sfx.play_at(&"wall_crash", global_position + Vector3.UP * eye_height)
+	CombatFx.impact(self, global_position - global_basis.z * 0.6 + Vector3.UP * eye_height * 0.7, Color(0.85, 0.8, 0.7), 0.4, 0.3)
+	var p := _find_player()
+	if p and p.global_position.distance_to(global_position) < 12.0:
+		p.camera_rig.add_trauma(clampf(data.mass_kg / 1000.0, 0.08, 0.35))
+	Hearing.emit(get_tree(), global_position, 16.0, self, Hearing.Kind.IMPACT)
+	_end_attack(true)
+	if stun_time > 0.0:
+		_state_timer = stun_time
+		_set_state(State.STUNNED)
+
+
+func _process(delta: float) -> void:
+	if _anim and state != State.DEAD:
+		_animate(delta)
+
+
+## 절차적 동작: 이동 속도, 대상을 향한 고개, 행동 자세를 넘긴다.
+func _animate(delta: float) -> void:
+	var hv := Vector2(velocity.x, velocity.z)
+	_anim.speed = hv.length() * (1.0 if not status.is_frozen() else 0.0)
+	var yaw := global_rotation.y
+	_anim.turn_rate = angle_difference(_prev_yaw, yaw) / maxf(delta, 0.001)
+	_prev_yaw = yaw
+	var look_yaw := 0.0
+	var look_pitch := 0.0
+	if target and is_instance_valid(target) and state != State.RETURN:
+		var local := to_local(target.get_eye_position())
+		look_yaw = clampf(atan2(-local.x, -local.z), -1.1, 1.1)
+		look_pitch = clampf(atan2(local.y - eye_height, Vector2(local.x, local.z).length()), -0.6, 0.6)
+	_anim.look_yaw = lerp_angle(_anim.look_yaw, look_yaw, 1.0 - exp(-6.0 * delta))
+	_anim.look_pitch = lerpf(_anim.look_pitch, look_pitch, 1.0 - exp(-6.0 * delta))
+	_anim.action = _anim_action()
+	_anim.action_weight = 1.0
+	_anim.update(delta)
+
+
+## 지금 상태에 맞는 동작 자세. 종별 스크립트가 덮어쓴다.
+func _anim_action() -> StringName:
+	match state:
+		State.STAGGER:
+			return &"stagger"
+		State.STUNNED:
+			return &"stun"
+		State.ATTACK:
+			if _attack == null:
+				return &""
+			match _attack_phase:
+				AttackPhase.WINDUP:
+					match _attack.kind:
+						EnemyAttackData.Kind.PROJECTILE:
+							return &"throw_windup"
+						EnemyAttackData.Kind.SHOT:
+							return &"aim"
+						EnemyAttackData.Kind.SPECIAL:
+							return &"cast"
+					return &"windup"
+				AttackPhase.ACTIVE, AttackPhase.RECOVERY:
+					match _attack.kind:
+						EnemyAttackData.Kind.LUNGE, EnemyAttackData.Kind.CHARGE:
+							return &"lunge"
+						EnemyAttackData.Kind.PROJECTILE:
+							return &"throw"
+						EnemyAttackData.Kind.SHOT:
+							return &"aim"
+						EnemyAttackData.Kind.SPECIAL:
+							return &"cast"
+					return &"strike"
+	return &""
 
 
 func _set_state(new_state: int) -> void:
@@ -408,7 +527,7 @@ func _beyond_leash(p: Player) -> bool:
 
 ## 플레이어가 이 적을 충분히 보았으면 도감에 관찰로 기록한다.
 func _check_observed(p: Player) -> void:
-	if _observed or not data.is_analyzable():
+	if _observed or not data.in_catalog:
 		return
 	var eye := p.get_eye_position()
 	var center := global_position + Vector3.UP * eye_height * 0.6
@@ -621,6 +740,8 @@ func _start_attack(a: EnemyAttackData) -> void:
 	_attack_timer = a.windup * _telegraph_mult()
 	_attack_hit_done = false
 	_attack_dir = _flat_dir_to(target.global_position)
+	_aim_locked = false
+	_aim_point = target.get_chest_position()
 	_set_state(State.ATTACK)
 	var sound := &"tele_parry" if a.parryable else &"tele_heavy"
 	Sfx.play_at(sound, global_position + Vector3.UP * eye_height, 2.0)
@@ -653,20 +774,31 @@ func _process_attack(delta: float) -> void:
 			_stop(delta)
 			if target:
 				# 돌진·뛰어들기 방향은 전조가 끝나는 순간 고정된다.
-				_attack_dir = _flat_dir_to(target.global_position)
+				if not _aim_locked:
+					_attack_dir = _flat_dir_to(target.global_position)
 				_face_direction(_attack_dir, delta)
+				# 총격: 발사 직전까지 조준을 따라가다 고정한다(고정된 선에서 비키면 피한다).
+				if _attack.kind == EnemyAttackData.Kind.SHOT and not _aim_locked:
+					_aim_point = target.get_chest_position()
+					if _attack_timer <= _attack.aim_lock * _telegraph_mult():
+						_aim_locked = true
+						_on_aim_locked(_attack)
 			_attack_timer -= delta
 			if _attack_timer <= 0.0:
 				_attack_phase = AttackPhase.ACTIVE
 				_attack_timer = _attack.active_time
-				_attack_dir = -global_basis.z if _attack.kind != EnemyAttackData.Kind.PROJECTILE else _attack_dir
+				if _attack.kind != EnemyAttackData.Kind.PROJECTILE and _attack.kind != EnemyAttackData.Kind.SHOT:
+					_attack_dir = -global_basis.z
 				_attack_dir.y = 0.0
 				_attack_dir = _attack_dir.normalized()
 				_on_attack_active(_attack)
-				if _attack.kind == EnemyAttackData.Kind.STRIKE:
-					_try_hit_target(_attack)
-				elif _attack.kind == EnemyAttackData.Kind.PROJECTILE:
-					_fire_projectile(_attack)
+				match _attack.kind:
+					EnemyAttackData.Kind.STRIKE:
+						_try_hit_target(_attack)
+					EnemyAttackData.Kind.PROJECTILE:
+						_fire_projectile(_attack)
+					EnemyAttackData.Kind.SHOT:
+						_fire_shot(_attack)
 		AttackPhase.ACTIVE:
 			match _attack.kind:
 				EnemyAttackData.Kind.LUNGE, EnemyAttackData.Kind.CHARGE:
@@ -698,6 +830,7 @@ func _end_attack(completed: bool) -> void:
 		_cooldowns[_attack.id] = _attack.cooldown * 0.5
 	_attack = null
 	_attack_phase = AttackPhase.NONE
+	_aim_locked = false
 	_release_token()
 	if state == State.ATTACK:
 		_set_state(State.CHASE if target else State.RETURN)
@@ -780,6 +913,86 @@ static func projectile_blast(ctx: Node3D, a: EnemyAttackData, position: Vector3,
 	info.direction = (p.global_position - position).normalized()
 	info.hit_position = position
 	p.receive_area_damage(info)
+
+
+## 총구 위치(총격·조준선의 시작점). 무기를 든 종은 손의 무기 끝을 쓴다.
+func muzzle_position() -> Vector3:
+	return global_position + Vector3.UP * eye_height - global_basis.z * 0.35
+
+
+func _on_aim_locked(_a: EnemyAttackData) -> void:
+	Sfx.play_at(&"tele_heavy", muzzle_position(), -4.0, 1.6)
+
+
+## 총격: 고정된 조준선을 따라 즉시 맞힌다. 선이 플레이어 몸에서 0.5m 안을 지나면 명중.
+func _fire_shot(a: EnemyAttackData) -> void:
+	var from := muzzle_position()
+	var dir := (_aim_point - from)
+	dir = dir.normalized() if dir.length_squared() > 0.0001 else -global_basis.z
+	var to := from + dir * a.max_range * 1.15
+	var q := PhysicsRayQueryParameters3D.create(from, to, CombatLayers.WORLD)
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	var end: Vector3 = to if hit.is_empty() else hit.position
+	CombatFx.tracer(self, from, end, Color(1.0, 0.72, 0.4), 0.025, 0.09)
+	CombatFx.impact(self, from, Color(1.0, 0.8, 0.5), 0.12, 0.05)
+	Sfx.play_at(_shot_sound(), from)
+	Hearing.emit(get_tree(), from, 60.0, self, Hearing.Kind.GUNSHOT)
+	if target == null or not target.alive:
+		return
+	var chest := target.get_chest_position()
+	var closest := Geometry3D.get_closest_point_to_segment(chest, from, end)
+	if closest.distance_to(chest) > 0.5:
+		return
+	var info := DamageInfo.create(a.damage, DamageInfo.Kind.ENEMY_PROJECTILE, self)
+	info.parryable = false
+	info.knockback = a.knockback
+	info.direction = dir
+	info.hit_position = closest
+	info.status_buildup = a.status_buildup()
+	target.receive_enemy_attack(info)
+
+
+func _shot_sound() -> StringName:
+	return &"shot_rifle"
+
+
+## 총격 전조의 붉은 조준선(전조 중에만 보인다)
+func _update_laser() -> void:
+	var show := state == State.ATTACK and _attack != null and _attack.kind == EnemyAttackData.Kind.SHOT \
+		and _attack_phase == AttackPhase.WINDUP
+	if not show:
+		if _laser:
+			_laser.visible = false
+		return
+	if _laser == null:
+		_laser = MeshInstance3D.new()
+		_laser.name = "AimLaser"
+		_laser.top_level = true
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.018, 0.018, 1.0)
+		_laser.mesh = bm
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.albedo_color = Color(1.0, 0.12, 0.08, 0.85)
+		_laser.material_override = m
+		_laser.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(_laser)
+	var from := muzzle_position()
+	var dir := _aim_point - from
+	if dir.length_squared() < 0.0001:
+		_laser.visible = false
+		return
+	var length := minf(dir.length() + 1.5, _attack.max_range * 1.15)
+	var q := PhysicsRayQueryParameters3D.create(from, from + dir.normalized() * length, CombatLayers.WORLD)
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if not hit.is_empty():
+		length = from.distance_to(hit.position)
+	_laser.visible = true
+	var mid := from + dir.normalized() * length * 0.5
+	_laser.global_transform = Transform3D(Basis.looking_at(dir.normalized(), Vector3.UP if absf(dir.normalized().y) < 0.98 else Vector3.BACK), mid)
+	_laser.scale = Vector3(1.0 if not _aim_locked else 1.8, 1.0 if not _aim_locked else 1.8, length)
 
 
 ## 목표 지점에 닿는 발사 속도(낮은 궤도). 사거리를 넘으면 45도로 던진다.
@@ -1065,6 +1278,8 @@ func _update_overlay() -> void:
 	for g in _geometry:
 		if is_instance_valid(g):
 			g.material_overlay = mat
+	if _fur and is_instance_valid(_fur):
+		_fur.set_instance_shader_parameter(&"overlay_tint", color if color.a > 0.01 else Color(0, 0, 0, 0))
 
 
 static func _overlay_material(color: Color) -> StandardMaterial3D:

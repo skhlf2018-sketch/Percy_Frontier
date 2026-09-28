@@ -1,0 +1,65 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"aimed_shot"
+display_name = "조준 사격"
+kind = 4
+parryable = false
+min_range = 6.0
+max_range = 65.0
+windup = 1.8
+active_time = 0.1
+recovery = 1.0
+cooldown = 3.5
+damage = 28
+knockback = 4
+token_group = 2
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"stock_bash"
+display_name = "개머리 치기"
+kind = 0
+max_range = 1.8
+windup = 0.45
+active_time = 0.15
+recovery = 0.6
+cooldown = 1.6
+damage = 10
+reach = 1.6
+hit_angle_deg = 80
+knockback = 4
+
+[resource]
+script = ExtResource("2_data")
+id = &"oneeye_sniper"
+display_name = "외눈 고블린 저격수"
+family = "고블린"
+threat_tier = 2
+combat_role = "저격"
+description = "한쪽 눈을 가린 고블린 저격수. 먼 곳에서 조준경을 번뜩이며 노리고, 한 발 쏠 때마다 자리를 옮긴다. 번뜩임이 멎는 순간 방아쇠를 당긴다. 쓰러뜨리면 희귀 이상의 저격 무기를 반드시 떨어뜨린다."
+model_id = &"oneeye_sniper"
+max_hp = 200
+defense = 0.05
+walk_speed = 2.6
+run_speed = 5.6
+turn_speed_deg = 360
+poise = 40
+stagger_duration = 1.1
+mass_kg = 35
+sight_range = 70
+sight_fov_deg = 140
+proximity_sense = 4.0
+hearing_mult = 1.4
+leash_radius = 70
+pack_alert_radius = 40
+level = 8
+xp_reward = 220
+resonance_on_kill = 18
+ammo_drop_chance = 1.0
+heal_drop_chance = 0.4
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1")])

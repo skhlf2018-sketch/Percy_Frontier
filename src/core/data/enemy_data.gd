@@ -16,6 +16,10 @@ const TIER_NAMES := ["일반", "강화", "희귀", "정예", "보스", "유니�
 @export_multiline var description: String = ""
 ## 몬스터 카탈로그(일반 250 · 희귀 50 · 보스 12 · 유니크 8)에 세는지. 훈련용 표적 같은 시험 장비는 세지 않는다.
 @export var in_catalog: bool = true
+## 절차적 생물 모델 id(SpeciesModels). 비어 있으면 장면에 든 모델을 쓴다.
+@export var model_id: StringName
+## 나타나는 때: "" 언제나, "night" 밤에만, "day" 낮에만
+@export var appears: String = ""
 
 @export_group("능력치")
 @export var max_hp: float = 100.0

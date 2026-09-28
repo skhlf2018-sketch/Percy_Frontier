@@ -8,50 +8,6 @@
 radius = 0.3
 height = 0.8
 
-[sub_resource type="StandardMaterial3D" id="Mat_fur"]
-albedo_color = Color(0.82, 0.8, 0.76, 1)
-roughness = 0.95
-
-[sub_resource type="StandardMaterial3D" id="Mat_inner"]
-albedo_color = Color(0.62, 0.48, 0.48, 1)
-roughness = 0.9
-
-[sub_resource type="StandardMaterial3D" id="Mat_dark"]
-albedo_color = Color(0.35, 0.32, 0.3, 1)
-roughness = 0.9
-
-[sub_resource type="StandardMaterial3D" id="Mat_eye"]
-albedo_color = Color(0.9, 0.1, 0.1, 1)
-emission_enabled = true
-emission = Color(1, 0.12, 0.05, 1)
-emission_energy_multiplier = 2.5
-
-[sub_resource type="SphereMesh" id="Mesh_body"]
-radius = 0.28
-height = 0.56
-
-[sub_resource type="SphereMesh" id="Mesh_head"]
-radius = 0.17
-height = 0.34
-
-[sub_resource type="CapsuleMesh" id="Mesh_ear"]
-radius = 0.045
-height = 0.36
-
-[sub_resource type="SphereMesh" id="Mesh_eye"]
-radius = 0.035
-height = 0.07
-
-[sub_resource type="SphereMesh" id="Mesh_tail"]
-radius = 0.08
-height = 0.16
-
-[sub_resource type="BoxMesh" id="Mesh_hind"]
-size = Vector3(0.1, 0.14, 0.28)
-
-[sub_resource type="BoxMesh" id="Mesh_fore"]
-size = Vector3(0.07, 0.16, 0.08)
-
 [sub_resource type="SphereShape3D" id="Shape_head"]
 radius = 0.19
 
@@ -63,71 +19,11 @@ collision_layer = 4
 collision_mask = 5
 script = ExtResource("1_script")
 data = ExtResource("2_data")
-eye_height = 0.55
+eye_height = 0.45
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 position = Vector3(0, 0.4, 0)
 shape = SubResource("Shape_body")
-
-[node name="Visual" type="Node3D" parent="."]
-
-[node name="Body" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0, 0.32, 0.02)
-scale = Vector3(1, 0.85, 1.25)
-mesh = SubResource("Mesh_body")
-surface_material_override/0 = SubResource("Mat_fur")
-
-[node name="Head" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0, 0.55, -0.25)
-mesh = SubResource("Mesh_head")
-surface_material_override/0 = SubResource("Mat_fur")
-
-[node name="EarL" type="MeshInstance3D" parent="Visual"]
-position = Vector3(-0.07, 0.8, -0.2)
-rotation_degrees = Vector3(-15, 0, 10)
-mesh = SubResource("Mesh_ear")
-surface_material_override/0 = SubResource("Mat_inner")
-
-[node name="EarR" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0.07, 0.8, -0.2)
-rotation_degrees = Vector3(-15, 0, -10)
-mesh = SubResource("Mesh_ear")
-surface_material_override/0 = SubResource("Mat_inner")
-
-[node name="EyeL" type="MeshInstance3D" parent="Visual"]
-position = Vector3(-0.08, 0.59, -0.39)
-mesh = SubResource("Mesh_eye")
-surface_material_override/0 = SubResource("Mat_eye")
-
-[node name="EyeR" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0.08, 0.59, -0.39)
-mesh = SubResource("Mesh_eye")
-surface_material_override/0 = SubResource("Mat_eye")
-
-[node name="Tail" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0, 0.36, 0.37)
-mesh = SubResource("Mesh_tail")
-surface_material_override/0 = SubResource("Mat_fur")
-
-[node name="HindL" type="MeshInstance3D" parent="Visual"]
-position = Vector3(-0.15, 0.08, 0.12)
-mesh = SubResource("Mesh_hind")
-surface_material_override/0 = SubResource("Mat_dark")
-
-[node name="HindR" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0.15, 0.08, 0.12)
-mesh = SubResource("Mesh_hind")
-surface_material_override/0 = SubResource("Mat_dark")
-
-[node name="ForeL" type="MeshInstance3D" parent="Visual"]
-position = Vector3(-0.08, 0.08, -0.2)
-mesh = SubResource("Mesh_fore")
-surface_material_override/0 = SubResource("Mat_dark")
-
-[node name="ForeR" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0.08, 0.08, -0.2)
-mesh = SubResource("Mesh_fore")
-surface_material_override/0 = SubResource("Mat_dark")
 
 [node name="HeadHurtbox" type="Area3D" parent="."]
 position = Vector3(0, 0.56, -0.26)

@@ -376,7 +376,7 @@ func test_kill_records_bestiary_and_resonance() -> void:
 	var p := world.spawn_player(Vector3(0, 0, 0))
 	var rabbit := world.spawn(RABBIT, Vector3(0, 0, -6), 0.0)
 	await wait_physics_frames(3)
-	var head: Hurtbox = rabbit.get_node("HeadHurtbox")
+	var head: Hurtbox = rabbit.find_children("HeadHurtbox", "Hurtbox", true, false)[0]
 	var info := DamageInfo.create(200.0, DamageInfo.Kind.GUN, p)
 	var result := head.hit(info)
 	assert_true(result.killed)

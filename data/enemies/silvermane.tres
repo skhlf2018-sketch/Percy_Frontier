@@ -1,0 +1,68 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"frost_bite"
+display_name = "서리 물기"
+kind = 1
+min_range = 2.5
+max_range = 7.0
+windup = 0.6
+active_time = 0.43
+recovery = 0.6
+cooldown = 2.4
+damage = 16
+reach = 1.5
+hit_angle_deg = 70
+move_speed = 12
+knockback = 3
+chill_buildup = 45
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"mist_step"
+display_name = "안개 걸음"
+kind = 5
+min_range = 4.0
+max_range = 20.0
+windup = 0.4
+active_time = 0.6
+recovery = 0.2
+cooldown = 9.0
+weight = 0.5
+token_group = 0
+
+[resource]
+script = ExtResource("2_data")
+id = &"silvermane"
+display_name = "은갈기 늑대"
+family = "늑대 계열"
+threat_tier = 2
+combat_role = "기습"
+description = "안개 낀 밤에만 모습을 드러내는 은빛 갈기의 늑대. 물린 자리가 얼어붙는다. 안개 속으로 몸을 감췄다가 전혀 다른 쪽에서 덮친다. 발밑의 서리 자국이 다음 자리를 알려 준다."
+model_id = &"silvermane"
+appears = "night"
+max_hp = 420
+defense = 0.1
+walk_speed = 3.0
+run_speed = 9.0
+turn_speed_deg = 420
+poise = 70
+stagger_duration = 1.0
+mass_kg = 60
+sight_range = 36
+sight_fov_deg = 160
+proximity_sense = 4.0
+hearing_mult = 1.3
+leash_radius = 55
+burn_mult = 1.3
+chill_mult = 0.3
+level = 7
+xp_reward = 180
+resonance_on_kill = 16
+ammo_drop_chance = 0.8
+heal_drop_chance = 0.3
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1")])

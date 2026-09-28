@@ -1,0 +1,64 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"axe_chop"
+display_name = "도끼 내려찍기"
+kind = 0
+max_range = 2.2
+windup = 0.65
+active_time = 0.18
+recovery = 0.8
+cooldown = 1.8
+damage = 15
+reach = 2.0
+hit_angle_deg = 90
+knockback = 3
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"shield_bash"
+display_name = "방패 밀치기"
+kind = 0
+parryable = false
+max_range = 1.8
+windup = 0.8
+active_time = 0.15
+recovery = 0.7
+cooldown = 3.5
+damage = 8
+reach = 1.6
+hit_angle_deg = 70
+knockback = 7
+
+[resource]
+script = ExtResource("2_data")
+id = &"goblin_brute"
+display_name = "고블린 도끼잡이"
+family = "고블린"
+threat_tier = 0
+combat_role = "방어·근접"
+description = "나무 방패를 앞세우고 다가오는 고블린. 정면에서 쏜 탄은 방패에 박힌다. 방패는 부술 수 있고, 도끼를 크게 치켜드는 순간 다리와 옆구리가 빈다. 쓰던 손도끼를 떨어뜨리기도 한다."
+model_id = &"goblin_brute"
+max_hp = 120
+defense = 0.05
+walk_speed = 2.2
+run_speed = 4.6
+turn_speed_deg = 300
+poise = 45
+stagger_duration = 1.0
+mass_kg = 45
+sight_range = 26
+sight_fov_deg = 120
+proximity_sense = 3.0
+leash_radius = 45
+pack_alert_radius = 25
+level = 3
+xp_reward = 28
+resonance_on_kill = 5
+ammo_drop_chance = 0.45
+heal_drop_chance = 0.1
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1")])

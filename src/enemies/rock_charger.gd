@@ -7,7 +7,6 @@ extends Enemy
 
 const ENRAGE_SPEED_MULT := 1.25
 const ENRAGE_WINDUP_MULT := 0.75
-const CRASH_MIN_SPEED := 6.0
 
 var enraged: bool = false
 var _step_phase: float = 0.0
@@ -43,33 +42,11 @@ func _process_chase(delta: float) -> void:
 		_move_toward(last_known_position, speed, delta)
 
 
-## 돌진 중 벽에 부딪히면 기절한다.
-func _after_move(_delta: float) -> void:
-	if state != State.ATTACK or _attack == null or _attack.kind != EnemyAttackData.Kind.CHARGE:
-		return
-	if _attack_phase != AttackPhase.ACTIVE:
-		return
-	for i in get_slide_collision_count():
-		var col := get_slide_collision(i)
-		var other := col.get_collider()
-		if other is Enemy or other is Player:
-			continue
-		if col.get_normal().dot(_attack_dir) < -0.6 and _attack.move_speed >= CRASH_MIN_SPEED:
-			_crash(_attack.wall_stun)
-			return
-
-
 func _crash(stun_time: float) -> void:
-	Sfx.play_at(&"wall_crash", global_position + Vector3.UP)
-	CombatFx.impact(self, global_position - global_basis.z * 1.6 + Vector3.UP, Color(0.85, 0.8, 0.7), 0.5, 0.35)
+	super._crash(stun_time)
 	var p := _find_player()
 	if p and p.global_position.distance_to(global_position) < 15.0:
-		p.camera_rig.add_trauma(0.35)
-	Hearing.emit(get_tree(), global_position, 20.0, self, Hearing.Kind.IMPACT)
-	_end_attack(true)
-	if stun_time > 0.0:
-		_state_timer = stun_time
-		_set_state(State.STUNNED)
+		p.camera_rig.add_trauma(0.2)
 
 
 func _on_armor_broken(_hb: Hurtbox) -> void:

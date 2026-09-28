@@ -50,6 +50,9 @@ const DIFFICULTY_PARAMS := [
 ]
 
 const WINDOW_MODE_NAMES := ["창 모드", "전체 화면", "독점 전체 화면"]
+## 그래픽 품질(기획서 §24): 조명·그림자·안개·털 표현의 정밀도
+enum Quality { LOW, MEDIUM, HIGH, ULTRA }
+const GRAPHICS_QUALITY_NAMES := ["낮음", "보통", "높음", "최고"]
 const MAX_FPS_OPTIONS := [0, 60, 120, 144, 240]
 
 const DEFAULTS := {
@@ -78,6 +81,7 @@ const DEFAULTS := {
 	&"vsync": true,
 	&"max_fps": 0,
 	&"render_scale": 1.0,
+	&"graphics_quality": Quality.HIGH,
 }
 
 ## 마우스 1픽셀당 회전(라디안), 감도 1.0 기준
@@ -254,6 +258,14 @@ func _apply_render_scale() -> void:
 
 
 # --- 게임 코드에서 쓰는 도우미 ---
+
+func graphics_quality() -> int:
+	return int(get_value(&"graphics_quality"))
+
+
+## 짐승 털 껍질(여러 겹 털 가닥)을 그릴지. 높음 이상.
+func creature_fur_enabled() -> bool:
+	return graphics_quality() >= Quality.HIGH
 
 ## 마우스 1픽셀당 회전량(라디안). 정조준 중이면 ADS 감도를 곱한다.
 func look_rad_per_pixel(aiming: bool) -> float:

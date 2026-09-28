@@ -1,0 +1,82 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"howl"
+display_name = "울부짖기"
+kind = 5
+min_range = 0.0
+max_range = 30.0
+windup = 0.9
+active_time = 0.8
+recovery = 0.4
+cooldown = 16.0
+weight = 0.6
+token_group = 0
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"crushing_pounce"
+display_name = "짓누르는 덮치기"
+kind = 1
+parryable = false
+min_range = 3.0
+max_range = 9.0
+windup = 0.95
+active_time = 0.54
+recovery = 1.0
+cooldown = 4.5
+damage = 24
+reach = 1.7
+hit_angle_deg = 70
+move_speed = 13
+knockback = 7
+
+[sub_resource type="Resource" id="Atk_2"]
+script = ExtResource("1_atk")
+id = &"savage_bite"
+display_name = "사나운 물기"
+kind = 0
+max_range = 2.3
+windup = 0.5
+active_time = 0.18
+recovery = 0.7
+cooldown = 1.8
+damage = 16
+reach = 1.9
+hit_angle_deg = 90
+knockback = 3
+bleed_buildup = 25
+
+[resource]
+script = ExtResource("2_data")
+id = &"wolf_alpha"
+display_name = "늑대 우두머리"
+family = "늑대 계열"
+threat_tier = 3
+combat_role = "지휘·돌격"
+description = "무리를 이끄는 검은 늑대. 긴 울음으로 무리를 몰아세우면 늑대들이 더 빠르고 사나워진다. 크게 몸을 낮춘 뒤의 덮치기는 막을 수 없다. 울기 시작할 때 경직시키면 울음이 끊긴다."
+model_id = &"wolf_alpha"
+max_hp = 360
+defense = 0.08
+walk_speed = 2.8
+run_speed = 8.6
+turn_speed_deg = 380
+poise = 80
+stagger_duration = 1.2
+mass_kg = 70
+sight_range = 34
+sight_fov_deg = 150
+proximity_sense = 4.0
+hearing_mult = 1.2
+leash_radius = 50
+pack_alert_radius = 30
+level = 6
+xp_reward = 140
+resonance_on_kill = 12
+ammo_drop_chance = 0.8
+heal_drop_chance = 0.25
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1"), SubResource("Atk_2")])

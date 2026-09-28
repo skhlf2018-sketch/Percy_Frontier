@@ -1,0 +1,65 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"heal_chant"
+display_name = "치유 주문"
+kind = 5
+min_range = 0.0
+max_range = 30.0
+windup = 1.6
+active_time = 0.5
+recovery = 0.6
+cooldown = 7.0
+weight = 2.0
+token_group = 0
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"hex_bolt"
+display_name = "저주 구슬"
+kind = 3
+parryable = false
+min_range = 4.0
+max_range = 28.0
+windup = 0.9
+active_time = 0.1
+recovery = 0.7
+cooldown = 3.0
+damage = 12
+token_group = 2
+projectile_speed = 14
+projectile_gravity = 2
+projectile_blast_radius = 1.6
+shock_buildup = 30
+
+[resource]
+script = ExtResource("2_data")
+id = &"goblin_shaman"
+display_name = "고블린 주술사"
+family = "고블린"
+threat_tier = 1
+combat_role = "지원"
+description = "짐승 두개골 가면을 쓴 고블린. 동료가 다치면 주문을 외워 상처를 아물게 한다. 주문을 외는 동안 경직시키면 끊긴다. 가장 먼저 쓰러뜨려야 할 상대."
+model_id = &"goblin_shaman"
+max_hp = 90
+walk_speed = 2.1
+run_speed = 4.4
+turn_speed_deg = 360
+poise = 30
+stagger_duration = 1.1
+mass_kg = 30
+sight_range = 34
+sight_fov_deg = 150
+proximity_sense = 3.0
+leash_radius = 45
+pack_alert_radius = 25
+level = 5
+xp_reward = 45
+resonance_on_kill = 9
+ammo_drop_chance = 0.5
+heal_drop_chance = 0.25
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1")])

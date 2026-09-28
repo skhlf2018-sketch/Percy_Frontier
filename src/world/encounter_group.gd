@@ -7,6 +7,10 @@ extends Node3D
 signal engaged
 
 @export var enemy_scene: PackedScene
+## 종 id로 만들 때(EnemyBody). 비어 있으면 enemy_scene을 쓴다.
+@export var species: StringName
+## 섞어 넣을 종: [[종 id, 수], ...]. 지정하면 count·species 대신 이 목록대로 만든다.
+@export var mix: Array = []
 @export var count: int = 1
 ## 여러 마리일 때 원형 배치 반경
 @export var spread: float = 2.5
@@ -21,18 +25,41 @@ func _ready() -> void:
 	spawn_all.call_deferred()
 
 
+## 이번에 만들 종 목록(무리 구성)
+func roster() -> Array[StringName]:
+	var out: Array[StringName] = []
+	if not mix.is_empty():
+		for m: Array in mix:
+			for i in int(m[1]):
+				out.append(StringName(m[0]))
+		return out
+	for i in count:
+		out.append(species)
+	return out
+
+
+func _make(id: StringName) -> Enemy:
+	if id != &"":
+		return EnemyBody.create(id)
+	return enemy_scene.instantiate() if enemy_scene else null
+
+
 func spawn_all() -> void:
 	despawn_all()
-	if enemy_scene == null:
+	if enemy_scene == null and species == &"" and mix.is_empty():
 		return
 	var parent: Node3D = get_node_or_null(spawn_parent) if not spawn_parent.is_empty() else get_parent()
-	for i in count:
+	var list := roster()
+	var n := list.size()
+	for i in n:
 		var offset := Vector3.ZERO
-		if count > 1:
-			var angle := TAU * float(i) / float(count)
+		if n > 1:
+			var angle := TAU * float(i) / float(n)
 			offset = Vector3(cos(angle), 0.0, sin(angle)) * spread
 		var point := _ground(global_position + offset)
-		var e: Enemy = enemy_scene.instantiate()
+		var e: Enemy = _make(list[i])
+		if e == null:
+			continue
 		e.position = parent.to_local(point)
 		e.rotation.y = global_rotation.y + randf_range(-0.4, 0.4)
 		e.ambush = ambush

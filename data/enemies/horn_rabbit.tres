@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"horn_charge"
+display_name = "뿔 들이받기"
+kind = 2
+parryable = false
+min_range = 3.5
+max_range = 11.0
+windup = 0.85
+active_time = 0.8
+recovery = 0.9
+cooldown = 3.2
+damage = 15
+reach = 1.1
+hit_angle_deg = 60
+move_speed = 12
+knockback = 6
+wall_stun = 1.4
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"horn_jab"
+display_name = "뿔 찌르기"
+kind = 0
+max_range = 1.9
+windup = 0.45
+active_time = 0.15
+recovery = 0.6
+cooldown = 1.6
+damage = 10
+reach = 1.5
+hit_angle_deg = 80
+knockback = 3
+weight = 1.2
+bleed_buildup = 20
+
+[resource]
+script = ExtResource("2_data")
+id = &"horn_rabbit"
+display_name = "뿔토끼"
+family = "토끼 계열"
+threat_tier = 1
+combat_role = "돌격"
+description = "이마에 짧은 뿔이 난 토끼. 숨지 않고 둘씩 다니며, 뒷발을 구르다 곧게 들이받는다. 들이받기는 막을 수 없지만 옆으로 비키면 나무나 바위에 부딪혀 잠시 정신을 잃는다."
+model_id = &"horn_rabbit"
+max_hp = 65
+walk_speed = 2.5
+run_speed = 7.2
+turn_speed_deg = 480
+poise = 24
+stagger_duration = 0.8
+mass_kg = 8
+sight_range = 24
+sight_fov_deg = 130
+proximity_sense = 3.0
+hearing_mult = 1.1
+leash_radius = 32
+pack_alert_radius = 14
+burn_mult = 1.2
+level = 3
+xp_reward = 24
+resonance_on_kill = 5
+ammo_drop_chance = 0.35
+heal_drop_chance = 0.05
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1")])

@@ -24,6 +24,7 @@ bleed_buildup = 30.0
 [resource]
 script = ExtResource("2_et1li")
 id = &"killer_rabbit"
+model_id = &"killer_rabbit"
 display_name = "살인토끼"
 family = "토끼 계열"
 combat_role = "매복·돌격"

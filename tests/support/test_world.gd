@@ -59,6 +59,14 @@ func spawn(scene: PackedScene, position: Vector3, yaw: float = 0.0) -> Enemy:
 	return e
 
 
+func spawn_species(species: StringName, position: Vector3, yaw: float = 0.0) -> Enemy:
+	var e := EnemyBody.create(species)
+	e.position = position
+	e.rotation.y = yaw
+	root.add_child(e)
+	return e
+
+
 ## 플레이어가 point를 바라보게 한다.
 static func aim_at(p: Player, point: Vector3) -> void:
 	var dir := point - p.get_eye_position()

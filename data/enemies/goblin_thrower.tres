@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"spear_throw"
+display_name = "뼈창 던지기"
+kind = 3
+parryable = false
+min_range = 5.0
+max_range = 26.0
+windup = 0.8
+active_time = 0.1
+recovery = 0.8
+cooldown = 2.6
+damage = 13
+token_group = 2
+projectile_speed = 22
+projectile_gravity = 9
+projectile_blast_radius = 1.2
+bleed_buildup = 20
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"smoke_bomb"
+display_name = "연기 폭탄"
+kind = 3
+parryable = false
+min_range = 3.0
+max_range = 16.0
+windup = 0.8
+active_time = 0.1
+recovery = 0.6
+cooldown = 12.0
+damage = 2
+weight = 0.5
+token_group = 2
+projectile_speed = 14
+projectile_gravity = 9
+projectile_blast_radius = 4.0
+
+[resource]
+script = ExtResource("2_data")
+id = &"goblin_thrower"
+display_name = "고블린 투척병"
+family = "고블린"
+threat_tier = 0
+combat_role = "사격"
+description = "등에 뼈창 묶음을 멘 고블린. 멀리서 창을 던지고, 가까이 오면 연기 폭탄으로 시야를 가린 채 물러난다. 뼈창을 떨어뜨리기도 한다."
+model_id = &"goblin_thrower"
+max_hp = 60
+walk_speed = 2.3
+run_speed = 5.0
+turn_speed_deg = 380
+poise = 22
+stagger_duration = 1.0
+mass_kg = 30
+sight_range = 34
+sight_fov_deg = 140
+proximity_sense = 3.0
+leash_radius = 50
+pack_alert_radius = 25
+level = 4
+xp_reward = 24
+resonance_on_kill = 5
+ammo_drop_chance = 0.45
+heal_drop_chance = 0.08
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1")])

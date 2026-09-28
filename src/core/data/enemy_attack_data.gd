@@ -14,6 +14,10 @@ enum Kind {
 	CHARGE,
 	## 투사체
 	PROJECTILE,
+	## 총격(즉발). 전조 동안 붉은 조준선을 보이고, 끝나기 직전에 조준을 고정한다. 고정된 선에서 비키면 피할 수 있다.
+	SHOT,
+	## 피해 없는 행동(울부짖기, 치유 주문, 함성, 안개 걸음 등). 종별 스크립트가 효과를 낸다.
+	SPECIAL,
 }
 
 @export var id: StringName
@@ -39,6 +43,9 @@ enum Kind {
 @export var token_group: TokenGroup = TokenGroup.MELEE
 ## 돌진이 벽에 부딪혔을 때 스스로 기절하는 시간(0이면 기절하지 않음)
 @export var wall_stun: float = 0.0
+
+## 총격: 발사 직전 조준을 고정하는 시간(초). 이때부터 조준선이 멈춘다.
+@export var aim_lock: float = 0.25
 
 @export_group("투사체")
 @export var projectile_speed: float = 18.0

@@ -1,0 +1,68 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"lunge_bite"
+display_name = "뛰어들어 물기"
+kind = 1
+min_range = 2.5
+max_range = 6.5
+windup = 0.55
+active_time = 0.44
+recovery = 0.7
+cooldown = 2.2
+damage = 13
+reach = 1.4
+hit_angle_deg = 70
+move_speed = 11
+knockback = 3.5
+bleed_buildup = 22
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"snap"
+display_name = "물어뜯기"
+kind = 0
+max_range = 2.0
+windup = 0.4
+active_time = 0.15
+recovery = 0.55
+cooldown = 1.5
+damage = 9
+reach = 1.6
+hit_angle_deg = 80
+knockback = 2
+
+[resource]
+script = ExtResource("2_data")
+id = &"ash_wolf"
+display_name = "잿빛 늑대"
+family = "늑대 계열"
+threat_tier = 0
+combat_role = "포위"
+description = "잿빛 털의 늑대. 서너 마리가 함께 사냥하며, 한 마리가 앞에서 시선을 끄는 동안 나머지가 옆과 뒤로 돌아 문다. 무리 한가운데로 뛰어들기보다 벽을 등지면 한쪽으로만 싸울 수 있다."
+model_id = &"ash_wolf"
+max_hp = 95
+walk_speed = 2.6
+run_speed = 8.2
+turn_speed_deg = 420
+poise = 30
+stagger_duration = 0.9
+mass_kg = 45
+sight_range = 30
+sight_fov_deg = 150
+proximity_sense = 3.5
+hearing_mult = 1.2
+leash_radius = 45
+pack_alert_radius = 25
+burn_mult = 1.1
+chill_mult = 0.9
+level = 4
+xp_reward = 34
+resonance_on_kill = 6
+ammo_drop_chance = 0.35
+heal_drop_chance = 0.06
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1")])
