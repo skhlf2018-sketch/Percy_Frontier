@@ -1,7 +1,7 @@
 shader_type spatial;
 // 필드 지형(기획서 §23.1 사실적 재질): 풀밭·흙길·낙엽 바닥·자갈·진흙 결을 높이로 섞고, 가파른 곳은 바위를 삼면 투영으로 덮는다.
-// 결 텍스처(TerrainTextures)는 RGB에 법선, A에 높이를 담는다. 정점 색은 풀밭의 바탕색(지역마다 다르다),
-// CUSTOM0은 지표 종류 비율(r 흙길, g 젖은 진흙, b 낙엽 바닥, a 자갈·모래)이다.
+// 결 텍스처(TerrainTextures)는 RGB에 법선, A에 높이를 담는다. 정점 색은 풀밭의 바탕색(지역마다 다르다, sRGB로 적은 색이라
+// 선형으로 바꿔 쓴다: 그대로 쓰면 풀밭이 허옇게 바래 보인다), CUSTOM0은 지표 종류 비율(r 흙길, g 젖은 진흙, b 낙엽 바닥, a 자갈·모래)이다.
 render_mode diffuse_burley;
 
 uniform sampler2D tex_grass : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -19,10 +19,16 @@ uniform vec3 sand_color : source_color = vec3(0.55, 0.5, 0.41);
 uniform float rock_start = 0.34;
 uniform float rock_end = 0.52;
 uniform float normal_strength = 1.1;
+// 풀밭 바탕색의 밝기
+uniform float grass_gain = 1.3;
 
 varying vec3 world_pos;
 varying vec3 world_normal;
 varying vec4 ground;
+
+vec3 srgb_to_linear(vec3 c) {
+	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -69,7 +75,13 @@ void fragment() {
 	vec4 s = top(tex_sand, xz, 0.9);
 
 	// 풀밭: 지역 바탕색에 결의 명암과 마른 풀 끝
-	vec3 col = COLOR.rgb * (0.66 + 0.55 * g.w) * (0.88 + 0.24 * macro);
+	vec3 base = srgb_to_linear(COLOR.rgb);
+	// 들풀은 잔디처럼 새파랗지 않다: 채도를 조금 누른다.
+	base = mix(vec3(dot(base, vec3(0.2126, 0.7152, 0.0722))), base, 0.86);
+	vec3 col = base * grass_gain * (0.66 + 0.55 * g.w) * (0.88 + 0.24 * macro);
+	// 볕에 마른 풀 얼룩: 넓게 누렇게 바랜 곳이 섞여야 잔디밭처럼 고르게 보이지 않는다.
+	float dry = smoothstep(0.42, 0.8, vnoise(xz * 0.021 + vec2(17.3, 5.1)) * 0.7 + vnoise(xz * 0.09) * 0.3);
+	col = mix(col, col * vec3(1.25, 1.02, 0.58), dry * 0.7);
 	col = mix(col, col * vec3(1.1, 1.04, 0.78), smoothstep(0.55, 0.92, g.w) * 0.45);
 	vec3 n = g.xyz;
 	float h = g.w;

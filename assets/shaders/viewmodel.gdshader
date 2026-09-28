@@ -20,8 +20,12 @@ uniform float detail_strength = 0.0;
 // 결의 높이로 거칠기·밝기를 흔든다(얼룩, 닳은 자국)
 uniform float detail_rough = 0.15;
 uniform float detail_albedo = 0.1;
-// 손·소매처럼 정점 색을 쓰는 모델
+// 손·소매처럼 정점 색을 쓰는 모델(정점 색은 sRGB로 적은 색이라 선형으로 바꿔 쓴다)
 uniform bool use_vertex_color = false;
+
+vec3 srgb_to_linear(vec3 c) {
+	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
 
 varying vec3 obj_pos;
 varying vec3 obj_n;
@@ -42,7 +46,7 @@ void vertex() {
 void fragment() {
 	vec3 base = albedo.rgb;
 	if (use_vertex_color) {
-		base *= COLOR.rgb;
+		base *= srgb_to_linear(COLOR.rgb);
 	}
 	float rough = roughness;
 	if (detail_strength > 0.0) {

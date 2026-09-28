@@ -23,11 +23,14 @@ PC 1인칭 오픈월드 액션 RPG. Godot 4.7.2 / GDScript(정적 타입) / Forw
 - `--script`로 실행한 스크립트는 자동 로드(GameState 등)를 못 쓴다. 도구·벤치는 `tools/out/`(git 제외)에 장면으로 만들어 실행한다.
 - `pkill -f` 패턴이 자기 셸 명령과 겹치면 셸이 죽는다(`pgrep -fa "[f]ield_tour"`처럼 쓴다).
 - 플레이어 몸체는 돌지 않는다. 바라보는 방향은 `player.yaw` / `player.look_basis()`로 구한다.
+- 코드에 적는 색은 sRGB다. 정점 색(COLOR)을 읽는 직접 만든 셰이더는 `srgb_to_linear(COLOR.rgb)`로 바꿔 쓰고,
+  StandardMaterial3D는 `vertex_color_is_srgb = true`를 켠다(그대로 쓰면 허옇게 바래 보인다).
 
 ## 명령
 
 - 테스트: `tools/run_tests.sh [이름일부,이름일부]` (헤드리스, `--fixed-fps 60`)
 - 빌드: `tools/export.sh` → 배포용 엔진 점검(훈련장 자동 교전 + 필드 진행) 뒤 `build/PercyFrontier-<버전>-windows-x64.zip`
 - 전달: 파일 전송 한도가 30MB라 `7z a -t7z -m0=lzma2 -mx=9 -mfb=273 -md=64m -ms=on`으로 압축한다. 넘으면 나눠 보낸다.
-- 스크린샷: `xvfb-run -a godot --path . --resolution 1600x900 res://tools/field_tour.tscn -- --out=<폴더> [--only=town|unique|menus|ui]`
+- 스크린샷: `xvfb-run -a godot --path . --resolution 1600x900 res://tools/field_tour.tscn -- --out=<폴더> [--only=town|town:40_,41_|unique|boss|menus|ui|01_,07_] [--quality=0~3]`
+  (`--quality`를 주면 `user://field_tour_settings.cfg`에 남으니 비교할 때는 늘 적는다)
 - 네트워크: Poly Haven·ambientCG 같은 에셋 사이트는 이 환경의 네트워크 정책에서 막혀 있다(GitHub는 됨).

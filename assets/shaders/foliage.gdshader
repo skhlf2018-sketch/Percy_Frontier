@@ -1,11 +1,16 @@
 shader_type spatial;
-// 나무·덤불: 정점 색이 곧 색이고, 정점 색의 알파가 바람에 흔들리는 정도다(줄기 밑동 0 → 잎 1).
+// 꽃·갈대: 정점 색이 곧 색이고(sRGB, 선형으로 바꿔 쓴다), 정점 색의 알파가 바람에 흔들리는 정도다(줄기 밑동 0 → 잎 1).
 render_mode diffuse_burley;
 
 uniform float wind_strength = 0.16;
 uniform float wind_speed = 1.1;
 uniform vec2 wind_dir = vec2(1.0, 0.35);
 uniform float night_dim = 0.0;
+uniform float gain = 1.3;
+
+vec3 srgb_to_linear(vec3 c) {
+	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
 
 void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
@@ -19,9 +24,10 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = COLOR.rgb;
+	vec3 base = srgb_to_linear(COLOR.rgb) * gain;
+	ALBEDO = base;
 	ROUGHNESS = 0.88;
 	SPECULAR = 0.2;
 	// 잎이 빛을 조금 통과시키는 느낌
-	BACKLIGHT = COLOR.rgb * 0.25 * COLOR.a;
+	BACKLIGHT = base * 0.25 * COLOR.a;
 }

@@ -107,7 +107,7 @@ func _run() -> void:
 	await _frames(10)
 	game.menus.close_all()
 	game.hud.visible = false
-	if only == "town":
+	if only == "town" or only.begins_with("town:"):
 		await _town_shots()
 		return
 	if only == "unique":
@@ -181,6 +181,10 @@ func start_point() -> Vector2:
 
 
 func _menu_shot(shot_name: String, frames: int = 6) -> void:
+	if only != "" and not _matches(shot_name):
+		game.menus.close_all()
+		await _frames(2)
+		return
 	await _frames(frames)
 	await _shot(shot_name)
 	game.menus.close_all()
@@ -188,8 +192,9 @@ func _menu_shot(shot_name: String, frames: int = 6) -> void:
 
 
 ## 퍼시 주민·시설·의뢰·지도 화면
+## --only=town:40_,41_ 처럼 마을 장면 가운데 몇 장만 고를 수 있다.
 func _town_shots() -> void:
-	only = ""
+	only = only.substr(5) if only.begins_with("town:") else ""
 	var tc := FieldLayout.TOWN_CENTER
 	await _view("40_town_npcs_day", tc + Vector2(-8, 12), tc + Vector2(-16, 4), 10.5, -4.0)
 	await _view("41_hunter_corner", tc + Vector2(-28, 2), tc + Vector2(-36, -8), 16.0, -6.0)
