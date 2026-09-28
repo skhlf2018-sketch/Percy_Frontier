@@ -47,6 +47,8 @@ var _strafe_sign: float = 1.0
 var _strafe_timer: float = 0.0
 var _retreat_left: float = 0.0
 var _relocate_to := Vector3.INF
+## 높은 자리(감시탑 위)를 지키는 저격수: 탑 가운데에서 이 반경의 가장자리(난간 뒤)를 따라 자리를 옮기고 물러나지 않는다.
+var perch_radius: float = 0.0
 var _heal_target: Enemy = null
 var _enraged: bool = false
 var _dropped: bool = false
@@ -394,16 +396,33 @@ func _support_chase(delta: float) -> void:
 		_strafe(delta)
 
 
+func set_perch(r: float) -> void:
+	perch_radius = r
+
+
+## 탑 위 가장자리에서 대상 쪽을 내려다보는 자리(angle_offset만큼 옆으로)
+func _perch_point(angle_offset: float = 0.0) -> Vector3:
+	var to := target.global_position - home_position if target else -global_basis.z
+	to.y = 0.0
+	var ang := atan2(to.z, to.x) + angle_offset
+	return home_position + Vector3(cos(ang), 0.0, sin(ang)) * perch_radius
+
+
 ## 저격수: 멀리서 쏘고, 쏠 때마다 옆으로 자리를 옮긴다.
 func _sniper_chase(delta: float) -> void:
 	var dist := global_position.distance_to(target.global_position)
 	if _relocate_to != Vector3.INF:
-		if global_position.distance_to(_relocate_to) < 1.2 or _state_time > 7.0:
+		var arrive := 0.45 if perch_radius > 0.0 else 1.2
+		if global_position.distance_to(_relocate_to) < arrive or _state_time > 7.0:
 			_relocate_to = Vector3.INF
 		else:
 			_move_toward(_relocate_to, _speed(), delta)
 			return
-	if dist < 12.0 and _retreat_left <= 0.0:
+	if perch_radius > 0.0 and _off_perch_edge():
+		_relocate_to = _perch_point()
+		_state_time = 0.0
+		return
+	if dist < 12.0 and _retreat_left <= 0.0 and perch_radius <= 0.0:
 		_retreat_left = 2.5
 	if _retreat_left > 0.0:
 		_retreat_left -= delta
@@ -489,8 +508,25 @@ func _end_attack(completed: bool) -> void:
 			_pick_relocation()
 
 
+## 탑 위 저격수가 가장자리에서 벗어났거나(가운데), 대상과 반대쪽 난간에 있는지
+func _off_perch_edge() -> bool:
+	var off := global_position - home_position
+	off.y = 0.0
+	if off.length() < perch_radius * 0.7:
+		return true
+	var to := target.global_position - home_position
+	to.y = 0.0
+	return to.length_squared() > 0.01 and rad_to_deg(off.angle_to(to)) > 55.0
+
+
 func _pick_relocation() -> void:
 	if target == null:
+		return
+	if perch_radius > 0.0:
+		# 난간을 따라 옆 칸으로 옮긴다(대상을 내려다보는 방향은 유지한다).
+		var side := 1.0 if randf() < 0.5 else -1.0
+		_relocate_to = _perch_point(side * randf_range(0.5, 0.85))
+		_state_time = 0.0
 		return
 	var to := global_position - target.global_position
 	to.y = 0.0

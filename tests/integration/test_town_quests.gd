@@ -249,3 +249,42 @@ func test_hud_tracks_main_quest() -> void:
 	var bearing: float = quest_marks[0].bearing
 	var to_town := CompassBar.bearing_deg(game.player.global_position, FieldLayout.TOWN_GATE)
 	assert_lt(absf(wrapf(bearing - to_town, -180.0, 180.0)), 3.0, "퍼시 정문 쪽을 가리킨다")
+
+
+func test_trophy_crafting_makes_named_weapon() -> void:
+	GameState.add_silver(150)
+	GameState.add_item(&"serial_fang", 1)
+	GameState.add_item(&"rabbit_fang", 4)
+	var old_melee := GameState.equipped_item(WeaponItem.Slot.MELEE)
+	game.services.open_trophy_craft(_npc(&"smith"))
+	assert_false(_press_choice("황금뿔 벌목꾼"), "전리품이 없으면 벼릴 수 없다")
+	assert_true(_press_choice("연쇄의 앞니"), "전리품으로 벼린다")
+	var it := GameState.equipped_item(WeaponItem.Slot.MELEE)
+	assert_eq(it.base_id, &"karambit_hook", "만든 무기를 바로 든다")
+	assert_eq(it.rarity, ItemRarity.Tier.EPIC)
+	assert_eq(it.display_name(), "연쇄의 앞니")
+	assert_true(it.has_perk(&"chain_weak") and it.has_perk(&"serrated"), "정해진 특성")
+	assert_eq(GameState.item_count(&"serial_fang"), 0, "전리품을 쓴다")
+	assert_eq(GameState.item_count(&"rabbit_fang"), 0)
+	assert_eq(GameState.silver, 0)
+	assert_true(GameState.warehouse.has(old_melee), "들던 무기는 창고로 간다")
+
+
+func test_main_quest_continues_to_swamp_boss() -> void:
+	var q := GameState.quests
+	q.quests[&"main_signal"] = {"state": QuestLog.State.ACTIVE, "step": 3, "count": 0}
+	GameState.add_item(&"stone_scale", 3)
+	game.services.talk(_npc(&"smith"))
+	assert_true(q.is_done(&"main_signal"))
+	assert_true(q.is_active(&"mire_maw_hunt"), "통신탑을 고치면 다음 메인 의뢰가 이어진다")
+	game.menus.close_all()
+	game.services.talk(_npc(&"hunter"))
+	assert_eq(q.step_of(&"mire_maw_hunt"), 1, "사냥꾼이 늪턱 구렁과 공략법을 알려 준다")
+	game.menus.close_all()
+	assert_not_null(game.field.supply_point_by_name("Supply_maw"), "보스전 직전 거점")
+	assert_false(TownServices.shop_weapons().has(&"bolt_rifle"), "보스를 쓰러뜨리기 전에는 늪길 물건이 없다")
+	GameState.record_boss(&"mire_maw", "defeated")
+	assert_eq(q.step_of(&"mire_maw_hunt"), 2)
+	assert_true(TownServices.shop_weapons().has(&"bolt_rifle"), "늪길이 열려 새 무기가 들어온다")
+	game.services.talk(_npc(&"clerk"))
+	assert_true(q.is_done(&"mire_maw_hunt"))

@@ -103,3 +103,33 @@ func test_killed_enemy_drops_silver_and_materials() -> void:
 			break
 		await wait_physics_frames(1)
 	assert_gt(GameState.silver, 0, "은화를 줍는다")
+
+
+func test_oneeye_sniper_waits_on_watchtower_top() -> void:
+	var sniper: Goblin = null
+	for g in game.field.encounters_node.groups:
+		for e in g.members:
+			if is_instance_valid(e) and e.data.id == &"oneeye_sniper":
+				sniper = e
+	assert_not_null(sniper, "외눈 저격수가 배치된다")
+	if sniper == null:
+		return
+	await wait_physics_frames(20)
+	var ground := game.field.terrain.height_at(sniper.global_position.x, sniper.global_position.z)
+	assert_gt(sniper.global_position.y - ground, 3.0, "무너진 감시탑 위층에 서 있다")
+	assert_gt(sniper.perch_radius, 0.0, "탑 위 자리를 지킨다")
+	# 탑 아래 남쪽 30m에서 발견되면 가장자리로 가서 쏜다(탑을 내려오지 않는다).
+	var p := game.player
+	var below := game.field.terrain.point_at(FieldLayout.WATCHTOWER + Vector2(6, 30))
+	p.global_position = below + Vector3.UP * 0.1
+	p.reset_physics_interpolation()
+	sniper.alert(p)
+	var shot := false
+	for i in 600:
+		await wait_physics_frames(1)
+		p.stats.hp = p.stats.max_hp
+		if sniper.state == Enemy.State.ATTACK and sniper._attack and sniper._attack.id == &"aimed_shot":
+			shot = true
+	var ground2 := game.field.terrain.height_at(sniper.global_position.x, sniper.global_position.z)
+	assert_true(shot, "탑 위에서 저격한다")
+	assert_gt(sniper.global_position.y - ground2, 3.0, "싸우는 동안에도 탑 위에 남는다")

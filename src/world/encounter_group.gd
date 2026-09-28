@@ -19,6 +19,10 @@ var is_night: Callable = Callable()
 ## 여러 마리일 때 원형 배치 반경
 @export var spread: float = 2.5
 @export var ambush: bool = false
+## 바닥을 찾는 광선을 이만큼 위에서 쏜다(탑 위처럼 높은 자리에 세울 때 크게).
+@export var drop_height: float = 4.0
+## 높은 자리(탑 위)의 반경. 0보다 크면 구성원이 그 자리를 지킨다(set_perch가 있는 종).
+@export var perch: float = 0.0
 ## 적을 붙일 노드(비우면 부모)
 @export var spawn_parent: NodePath
 
@@ -95,6 +99,8 @@ func spawn_all() -> void:
 		e.rotation.y = global_rotation.y + randf_range(-0.4, 0.4)
 		e.ambush = ambush
 		e.encounter = self
+		if perch > 0.0 and e.has_method("set_perch"):
+			e.set_perch(perch)
 		parent.add_child(e)
 		e.reset_physics_interpolation()
 		members.append(e)
@@ -133,6 +139,6 @@ func alive_count() -> int:
 
 func _ground(point: Vector3) -> Vector3:
 	var space := get_world_3d().direct_space_state
-	var q := PhysicsRayQueryParameters3D.create(point + Vector3.UP * 4.0, point + Vector3.DOWN * 10.0, CombatLayers.WORLD)
+	var q := PhysicsRayQueryParameters3D.create(point + Vector3.UP * drop_height, point + Vector3.DOWN * 10.0, CombatLayers.WORLD)
 	var hit := space.intersect_ray(q)
 	return hit.position if not hit.is_empty() else point

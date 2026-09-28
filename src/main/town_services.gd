@@ -126,6 +126,8 @@ func _smith(npc: TownNpc, progressed: Array[StringName]) -> void:
 		{"text": "무기를 판다", "detail": "창고에 맡긴 무기를 팝니다.", "keep_open": true,
 			"action": func() -> void: open_sell_weapons(npc)},
 		{"text": "무기를 강화한다", "keep_open": true, "action": func() -> void: open_upgrade(npc)},
+		{"text": "전리품으로 무기를 벼린다", "detail": "희귀 몬스터의 전리품이나 보스의 핵으로 이름 있는 무기를 만듭니다.",
+			"keep_open": true, "action": func() -> void: open_trophy_craft(npc)},
 	]
 	_say(npc, text, entries)
 
@@ -263,6 +265,25 @@ const SHOP_WEAPONS: Array[StringName] = [&"rifle_bfa3", &"shotgun_logger", &"ene
 	&"pistol_bf9", &"sword_survey", &"karambit_hook", &"twin_moon"]
 ## 늪턱 구렁을 쓰러뜨린 뒤 늪길로 들어오는 무기
 const SHOP_WEAPONS_MIRE: Array[StringName] = [&"bolt_rifle", &"chief_greatblade"]
+## 전리품 제작(기획서 §11.3 "퍼시: 특수 장비 제작", §14 희귀 몬스터·보스 전용 보상):
+## 희귀 몬스터의 전리품이나 보스 핵으로 정해진 특성과 이름을 가진 무기를 벼린다. 특성은 굴리지 않는다.
+const TROPHY_RECIPES: Array[Dictionary] = [
+	{"base": &"karambit_hook", "tier": ItemRarity.Tier.EPIC, "name": "연쇄의 앞니",
+		"perks": [&"keen", &"serrated", &"chain_weak"], "cost": {&"serial_fang": 1, &"rabbit_fang": 4}, "silver": 150,
+		"source": "밤에 경계 숲의 토끼 무리 속에 섞이는 연쇄살인범토끼"},
+	{"base": &"twin_moon", "tier": ItemRarity.Tier.EPIC, "name": "은갈기 쌍월",
+		"perks": [&"quick_hands", &"resonant", &"counter_edge"], "cost": {&"silver_mane": 1, &"wolf_fang": 3}, "silver": 180,
+		"source": "밤의 그늘 숲에 나타나는 은갈기 늑대"},
+	{"base": &"shotgun_logger", "tier": ItemRarity.Tier.LEGENDARY, "name": "황금뿔 벌목꾼",
+		"perks": [&"pack_breaker", &"keen", &"heavy_blow"], "cost": {&"gold_horn": 1, &"stone_scale": 4, &"charger_horn": 1},
+		"silver": 250, "source": "낮에 북동 초원 깊은 곳을 누비는 황금뿔 돌격수"},
+	{"base": &"sniper_l14", "tier": ItemRarity.Tier.LEGENDARY, "name": "외눈의 L-14",
+		"perks": [&"one_eye", &"steady", &"resonant"], "cost": {&"oneeye_lens": 1, &"scrap_parts": 4}, "silver": 250,
+		"source": "무너진 감시탑 위의 외눈 고블린 저격수"},
+	{"base": &"pistol_bf9", "tier": ItemRarity.Tier.UNIQUE, "name": "늪턱의 송곳",
+		"perks": [&"keen", &"serrated", &"last_rounds"], "cost": {&"maw_core": 1, &"maw_scale": 2}, "silver": 300,
+		"source": "남서 늪 끝 구렁의 보스, 늪턱 구렁"},
+]
 
 
 ## 공방 진열품: 데이터에 적힌 기본 희귀도로 만들고, 특성은 무기마다 늘 같게 굴린다(볼 때마다 바뀌지 않게).
@@ -396,7 +417,7 @@ func upgrade_cost(it: WeaponItem) -> Dictionary:
 	return {"silver": UPGRADE_SILVER[lv], "items": items}
 
 
-func can_afford(cost: Dictionary) -> bool:
+static func can_afford(cost: Dictionary) -> bool:
 	if cost.is_empty() or GameState.silver < int(cost.silver):
 		return false
 	for item in cost.items:
@@ -416,6 +437,68 @@ func apply_upgrade(slot: int) -> bool:
 		GameState.remove_item(item, int(cost.items[item]))
 	GameState.set_upgrade(slot, it.upgrade + 1)
 	return true
+
+
+## 전리품 제작 결과물(정해진 희귀도·특성·이름)
+static func trophy_item(recipe: Dictionary) -> WeaponItem:
+	var perks: Array[StringName] = []
+	perks.assign(recipe.perks)
+	return WeaponItem.create(recipe.base, int(recipe.tier), perks, String(recipe.name))
+
+
+static func can_craft_trophy(recipe: Dictionary) -> bool:
+	return can_afford({"silver": int(recipe.silver), "items": recipe.cost})
+
+
+## 전리품으로 무기를 벼려 바로 든다. 들던 무기는 창고로 간다(창고가 가득 차면 벼리지 않는다).
+func craft_trophy(index: int) -> bool:
+	if index < 0 or index >= TROPHY_RECIPES.size():
+		return false
+	var recipe: Dictionary = TROPHY_RECIPES[index]
+	if not can_craft_trophy(recipe) or GameState.warehouse_full():
+		return false
+	if not GameState.spend_silver(int(recipe.silver)):
+		return false
+	for item: StringName in recipe.cost:
+		GameState.remove_item(item, int(recipe.cost[item]))
+	var it := trophy_item(recipe)
+	var old := GameState.equip_item(it)
+	if old:
+		GameState.store_item(old)
+	_select_slot_of(it)
+	GameEvents.announce("무기 제작 · %s" % it.display_name(), "%s · %s" % [it.rarity_name(), it.class_label()],
+		GameEvents.AnnounceKind.DISCOVERY)
+	return true
+
+
+func open_trophy_craft(npc: TownNpc) -> void:
+	var entries: Array = []
+	var full := GameState.warehouse_full()
+	for i in TROPHY_RECIPES.size():
+		var recipe: Dictionary = TROPHY_RECIPES[i]
+		var it := trophy_item(recipe)
+		var need: Array[String] = ["은화 %d" % int(recipe.silver)]
+		var has_trophy := false
+		for item: StringName in recipe.cost:
+			need.append("%s %d (가진 %d)" % [ItemDB.name_of(item), int(recipe.cost[item]), GameState.item_count(item)])
+			if (ItemDB.is_trophy(item) or ItemDB.is_core(item)) and GameState.item_count(item) > 0:
+				has_trophy = true
+		var detail := item_detail(it, GameState.equipped_item(it.slot())) + "\n필요: " + ", ".join(need)
+		if not has_trophy:
+			detail += "\n전리품을 얻는 곳: " + String(recipe.source)
+		if full:
+			detail += "\n창고가 가득 찼습니다. 지금 든 무기를 맡길 자리가 없습니다."
+		var idx := i
+		entries.append({"text": "%s  ·  %s  ·  %s" % [it.display_name(), it.class_label(), it.rarity_name()], "detail": detail,
+			"color": it.color(), "enabled": can_craft_trophy(recipe) and not full, "keep_open": true,
+			"action": func() -> void:
+				if craft_trophy(idx):
+					Sfx.play_ui(&"unlock")
+					Sfx.play_ui(&"anvil_strike")
+				open_trophy_craft(npc)})
+	_menus().open_choice("무기 공방 · 전리품 제작",
+		"희귀 몬스터의 전리품과 보스의 핵은 공방에서만 다룰 수 있지. 만든 무기는 바로 들고, 들던 무기는 창고에 맡긴다. (은화 %d)"
+			% GameState.silver, entries)
 
 
 func open_upgrade(npc: TownNpc) -> void:

@@ -46,7 +46,8 @@ const RIVER: Array[Vector2] = [
 	Vector2(-24, 52), Vector2(-40, 120), Vector2(-14, 190), Vector2(-28, 262),
 ]
 ## 야외 무리: [x, z, 구성, 설정]. 구성은 [[종 id, 수], [종 id, 수, "night"|"day"], ...].
-## 설정: ambush(매복), spread(배치 반경), cond(무리 전체가 "night"/"day"에만).
+## 설정: ambush(매복), spread(배치 반경), cond(무리 전체가 "night"/"day"에만),
+## drop(바닥을 찾는 높이: 탑 위에 세울 때), perch(높은 자리 반경: 저격수가 탑 위 가장자리를 지킨다).
 ## 시작 지점에서 멀어질수록 위험해진다(기획서 §4.3, §5.1). 지역마다 어울리는 종이 산다(§12, §14.5).
 const ENCOUNTERS := [
 	# 경계 숲(강하 지점 둘레, Lv 2~3): 살인토끼 매복, 뿔토끼, 밤에는 연쇄살인범토끼와 늑대
@@ -67,7 +68,7 @@ const ENCOUNTERS := [
 	[102, 18, [[&"ash_wolf", 3]], {}],
 	[-32, 118, [[&"bog_toad", 1], [&"killer_rabbit", 2]], {"ambush": true}],
 	# 무너진 감시탑의 고블린 초소(Lv 5~8): 탑 위의 외눈 저격수
-	[80, -52, [[&"oneeye_sniper", 1]], {"spread": 0.0}],
+	[78, -58, [[&"oneeye_sniper", 1]], {"spread": 0.0, "drop": 12.0, "perch": 2.55}],
 	[92, -44, [[&"goblin_gunner", 2], [&"goblin_brute", 1], [&"goblin_shaman", 1]], {"spread": 3.5}],
 	[60, -80, [[&"goblin_scout", 1], [&"goblin_thrower", 1]], {"spread": 3.0}],
 	# 남쪽 고블린 야영지(Lv 5~7): 두목과 무리

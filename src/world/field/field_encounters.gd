@@ -52,6 +52,8 @@ func build(field: FieldWorld) -> void:
 		for m: Array in mix:
 			total += int(m[1])
 		g.spread = float(opts.get("spread", 3.0 if total > 1 else 0.0))
+		g.drop_height = float(opts.get("drop", 4.0))
+		g.perch = float(opts.get("perch", 0.0))
 		g.position = field.terrain.point_at(Vector2(float(spec[0]), float(spec[1])))
 		g.rotation.y = randf() * TAU
 		add_child(g)
