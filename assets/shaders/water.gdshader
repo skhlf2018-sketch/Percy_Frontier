@@ -46,10 +46,11 @@ void fragment() {
 	float foam = smoothstep(foam_range, 0.0, water_depth) * (0.6 + 0.4 * ripple) * (1.0 - murk * 0.6);
 	col = mix(col, vec3(0.85, 0.9, 0.9), foam * 0.7);
 	// 늪에 뜬 조류(개구리밥): 잘게 끊긴 녹색 얼룩, 바람에 천천히 흐른다
-	vec2 ap = world_pos.xz * 1.3 + vec2(TIME * 0.05, TIME * 0.03);
-	float patch = smoothstep(0.35, 0.7, vnoise(world_pos.xz * 0.12));
-	float algae = smoothstep(0.6, 0.7, vnoise(ap) * 0.6 + vnoise(ap * 3.7) * 0.4) * murk * patch;
-	ALBEDO = mix(col, vec3(0.28, 0.38, 0.12), algae * 0.85);
+	vec2 ap = world_pos.xz * 2.6 + vec2(TIME * 0.05, TIME * 0.03);
+	// 물가(얕은 곳)와 군데군데에만 잘게 모인다.
+	float patch = smoothstep(0.45, 0.75, vnoise(world_pos.xz * 0.3)) * (1.0 - smoothstep(0.25, 0.7, t) * 0.7);
+	float algae = smoothstep(0.62, 0.72, vnoise(ap) * 0.55 + vnoise(ap * 3.7) * 0.45) * murk * patch;
+	ALBEDO = mix(col, vec3(0.3, 0.4, 0.13), algae * 0.8);
 	ALPHA = mix(mix(0.55, 0.92, t), mix(0.8, 0.97, t), murk);
 	ALPHA = max(ALPHA, algae);
 	ROUGHNESS = mix(0.08, 0.16, murk) + algae * 0.6;

@@ -3,7 +3,10 @@ extends Node3D
 ## 나무·바위·덤불·들꽃 배치. 종류별 모델을 구역 단위 MultiMesh로 묶어 그리고,
 ## 나무 밑동과 큰 바위에는 충돌체를 둔다. 같은 시드로 항상 같은 숲이 만들어진다.
 
-const TREE_CHUNK := 128.0
+const TREE_CHUNK := 48.0
+## 나무·덤불은 가까운 모델과 먼 모델을 거리로 바꾼다(구역 가운데까지의 거리).
+const TREE_NEAR_END := 78.0
+const TREE_FAR_BEGIN := 66.0
 const SMALL_CHUNK := 64.0
 const FLOWER_CHUNK := 32.0
 
@@ -17,6 +20,7 @@ var tree_positions: Array[Vector3] = []
 var bush_positions: Array[Vector3] = []
 
 var _meshes: Dictionary = {}          # Kind -> Array[Mesh]
+var _far_meshes: Dictionary = {}      # Kind -> Array[Mesh](먼 모델이 있는 종류만)
 var _buckets: Dictionary = {}         # "kind:variant:cx:cz" -> Array[Transform3D]
 var _body: StaticBody3D
 
@@ -42,20 +46,27 @@ func build(field_terrain: FieldTerrain, field_layout: FieldLayout) -> void:
 
 func _make_meshes() -> void:
 	var broadleaf: Array[Mesh] = []
+	var broadleaf_far: Array[Mesh] = []
 	for i in 4:
-		broadleaf.append(MeshKit.broadleaf_tree(11 + i))
+		broadleaf.append(TreeKit.broadleaf(11 + i))
+		broadleaf_far.append(TreeKit.broadleaf(11 + i, 0))
 	var pine: Array[Mesh] = []
+	var pine_far: Array[Mesh] = []
 	for i in 3:
-		pine.append(MeshKit.pine_tree(31 + i))
+		pine.append(TreeKit.pine(31 + i))
+		pine_far.append(TreeKit.pine(31 + i, 0))
 	var dead: Array[Mesh] = []
 	for i in 2:
-		dead.append(MeshKit.dead_tree(51 + i))
+		dead.append(TreeKit.dead(51 + i))
 	var bushes: Array[Mesh] = []
+	var bushes_far: Array[Mesh] = []
 	for i in 3:
-		bushes.append(MeshKit.bush(71 + i))
+		bushes.append(TreeKit.bush(71 + i))
+		bushes_far.append(TreeKit.bush(71 + i, 0))
 	var rocks: Array[Mesh] = []
 	for i in 4:
-		rocks.append(MeshKit.rock(91 + i))
+		rocks.append(RockKit.boulder(91 + i, 0.5 + 0.15 * float(i)))
+	_far_meshes = {Kind.BROADLEAF: broadleaf_far, Kind.PINE: pine_far, Kind.BUSH: bushes_far}
 	var flowers: Array[Mesh] = [
 		MeshKit.flower_tuft(111, Color(0.95, 0.93, 0.85)),
 		MeshKit.flower_tuft(112, Color(0.98, 0.82, 0.25)),
@@ -222,27 +233,41 @@ func _emit_multimeshes() -> void:
 		var kind := int(parts[0])
 		var variant := int(parts[1])
 		var xforms: Array = _buckets[key]
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = (_meshes[kind] as Array)[variant]
-		mm.instance_count = xforms.size()
-		for i in xforms.size():
-			mm.set_instance_transform(i, xforms[i])
-		var mmi := MultiMeshInstance3D.new()
-		mmi.name = "MM_%s" % key.replace(":", "_")
-		mmi.multimesh = mm
+		var mmi := _multimesh((_meshes[kind] as Array)[variant], xforms, "MM_%s" % key.replace(":", "_"))
 		match kind:
 			Kind.ROCK:
-				mmi.material_override = MeshKit.solid_material()
 				mmi.visibility_range_end = 300.0
-			Kind.BUSH:
-				mmi.material_override = MeshKit.foliage_material()
-				mmi.visibility_range_end = 190.0
 			Kind.FLOWER:
 				mmi.material_override = MeshKit.foliage_material()
 				mmi.visibility_range_end = 70.0
 				mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			_:
-				mmi.material_override = MeshKit.foliage_material()
+				mmi.material_override = TreeKit.material()
+		# 나무·덤불: 가까이는 잎이 빽빽한 모델, 멀리는 카드가 적고 큰 모델로 바꾼다(겹치는 구간은 흐리게 섞는다).
+		if _far_meshes.has(kind):
+			var far_end := 190.0 if kind == Kind.BUSH else 0.0
+			mmi.visibility_range_end = TREE_NEAR_END
+			mmi.visibility_range_end_margin = 10.0
+			mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+			var far := _multimesh((_far_meshes[kind] as Array)[variant], xforms, "MMFar_%s" % key.replace(":", "_"))
+			far.material_override = TreeKit.material()
+			far.visibility_range_begin = TREE_FAR_BEGIN
+			far.visibility_range_begin_margin = 10.0
+			far.visibility_range_end = far_end
+			far.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+			add_child(far)
 		add_child(mmi)
 	_buckets.clear()
+
+
+func _multimesh(mesh: Mesh, xforms: Array, node_name: String) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = xforms.size()
+	for i in xforms.size():
+		mm.set_instance_transform(i, xforms[i])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = node_name
+	mmi.multimesh = mm
+	return mmi

@@ -212,30 +212,11 @@ func _build_camp() -> void:
 
 func _build_old_tree() -> void:
 	var c := _ground(FieldLayout.OLD_TREE) - Vector3.UP * 0.3
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 1
-	var bark := Color(0.33, 0.26, 0.2)
-	var b := MeshKit.Builder.new()
-	b.frustum(c, c + Vector3(0.6, 8.0, 0.3), 2.3, 1.6, 9, bark, 0.0, 0.02, false, 0.12, rng)
-	b.frustum(c + Vector3(0.6, 8.0, 0.3), c + Vector3(-0.4, 15.0, 0.8), 1.6, 0.9, 9, bark, 0.02, 0.05, true, 0.12, rng)
-	for i in 6:
-		var a := TAU * float(i) / 6.0 + 0.3
-		b.frustum(c + Vector3(cos(a), 0.9, sin(a)) * 1.4, c + Vector3(cos(a) * 4.2, -0.2, sin(a) * 4.2), 0.8, 0.25, 6, bark * 0.9, 0.0, 0.0, true, 0.1, rng)
-	for i in 4:
-		var a := TAU * float(i) / 4.0 + 0.8
-		var from := c + Vector3(0, 11.0 + i, 0)
-		b.frustum(from, from + Vector3(cos(a) * 6.0, 3.0, sin(a) * 6.0), 0.6, 0.25, 6, bark, 0.05, 0.2, true)
-	var leaf := Color(0.3, 0.46, 0.2)
-	for i in 8:
-		var a := TAU * float(i) / 8.0
-		var dist := 5.5 if i > 0 else 0.0
-		b.blob(c + Vector3(cos(a) * dist, 16.5 + rng.randf_range(-1.5, 1.5), sin(a) * dist), rng.randf_range(4.2, 5.6),
-			Color(leaf * rng.randf_range(0.85, 1.1), 1.0), 0.35, rng, 0.2, Vector3(1.0, 0.7, 1.0))
-	b.blob(c + Vector3(0, 19.5, 0), 5.0, Color(leaf * 1.1, 1.0), 0.35, rng, 0.2, Vector3(1.0, 0.7, 1.0))
 	var mi := MeshInstance3D.new()
 	mi.name = "OldTree"
-	mi.mesh = b.commit()
-	mi.material_override = MeshKit.foliage_material()
+	mi.mesh = TreeKit.ancient(1)
+	mi.material_override = TreeKit.material()
+	mi.position = c
 	add_child(mi)
 	var cyl := CylinderShape3D.new()
 	cyl.radius = 2.2

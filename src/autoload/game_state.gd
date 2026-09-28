@@ -70,6 +70,13 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	# 정적 캐시에 든 생물 메시·재질은 렌더링 서버가 내려가기 전에 놓아야 종료가 멈추지 않는다.
 	SpeciesModels.clear_cache()
+	TerrainTextures.clear_cache()
+	FoliageTextures.clear_cache()
+	TreeKit.clear_cache()
+	MeshKit.clear_cache()
+	GearTextures.clear_cache()
+	HandModel.clear_cache()
+	ViewmodelFactory.clear_cache()
 
 
 func reset_session() -> void:

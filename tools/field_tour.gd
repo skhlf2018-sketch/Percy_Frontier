@@ -6,6 +6,8 @@ const GAME := preload("res://src/main/game.tscn")
 
 var out_dir := "user://field_tour"
 var only := ""
+## 그래픽 품질(-1이면 설정 파일 그대로)
+var quality := -1
 var game: Game
 
 
@@ -15,10 +17,14 @@ func _ready() -> void:
 			out_dir = arg.substr(6)
 		elif arg.begins_with("--only="):
 			only = arg.substr(7)
+		elif arg.begins_with("--quality="):
+			quality = int(arg.substr(10))
 	DirAccess.make_dir_recursive_absolute(out_dir if out_dir.is_absolute_path() else ProjectSettings.globalize_path(out_dir))
 	# 화면 확인 중의 자동 저장이 실제 저장 칸을 덮지 않게 한다.
 	SaveSystem.directory = "user://tool_saves"
 	Settings.load_settings("user://field_tour_settings.cfg")
+	if quality >= 0:
+		Settings.set_value(&"graphics_quality", quality, false)
 	await _run()
 	get_tree().quit()
 
@@ -38,7 +44,7 @@ func _shot(shot_name: String) -> void:
 
 ## 장소 p(x, z)에 서서 target(x, z)을 바라본다. 높이는 지면 기준.
 func _view(shot_name: String, p: Vector2, target: Vector2, hour: float, pitch_deg: float = 0.0, lift: float = 0.0) -> void:
-	if only != "" and not shot_name.contains(only):
+	if only != "" and not _matches(shot_name):
 		return
 	var f := game.field
 	f.day_night.advance_to(hour)
@@ -53,6 +59,14 @@ func _view(shot_name: String, p: Vector2, target: Vector2, hour: float, pitch_de
 	f.grass.fill_now()
 	await _frames(12)
 	await _shot(shot_name)
+
+
+## --only=01,07,13 처럼 쉼표로 여러 장을 고를 수 있다.
+func _matches(shot_name: String) -> bool:
+	for part in only.split(","):
+		if part != "" and shot_name.contains(part):
+			return true
+	return false
 
 
 func _menu_shots() -> void:

@@ -179,7 +179,7 @@ func _build_pillars() -> void:
 		var height := 6.5 + float(i % 2) * 1.6
 		var mi := MeshInstance3D.new()
 		mi.name = "Pillar%d" % i
-		mi.mesh = pillar_mesh(700 + i * 13, height)
+		mi.mesh = RockKit.pillar(700 + i * 13, height, PILLAR_RADIUS)
 		mi.position = base
 		mi.rotation.y = float(i) * 1.7
 		add_child(mi)
@@ -193,41 +193,6 @@ func _build_pillars() -> void:
 		pillars.append(base)
 
 
-## 돌기둥: 물에 깎여 울퉁불퉁한 바위 기둥. 물 높이 아래는 젖어 짙고, 윗면에는 이끼가 앉았다.
-static func pillar_mesh(seed_value: int, height: float) -> Mesh:
-	var b := RigBuilder.new()
-	b.bone(&"root", &"", Vector3.ZERO)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	var rock := Color(0.4, 0.38, 0.33)
-	var pts: Array[RigBuilder.P] = []
-	var steps := 8
-	var lean := Vector3(rng.randf_range(-0.35, 0.35), 0.0, rng.randf_range(-0.35, 0.35))
-	for i in steps:
-		var t := float(i) / float(steps - 1)
-		var y := lerpf(-1.4, height, t)
-		var r := lerpf(PILLAR_RADIUS * 1.12, PILLAR_RADIUS * 0.72, t) * rng.randf_range(0.9, 1.1)
-		pts.append(RigBuilder.pt(Vector3(0, y, 0) + lean * t * t, r, r * rng.randf_range(0.85, 1.1), &"root"))
-	var seed_off := Vector3(float(seed_value) * 0.37, 0.0, float(seed_value) * 0.11)
-	b.section = func(th: float, c: Vector3) -> float:
-		var q := Vector3(cos(th) * 1.6, c.y * 0.45, sin(th) * 1.6) + seed_off
-		return 1.0 + 0.2 * SpeciesModels.noise3(q) + 0.07 * SpeciesModels.noise3(q * 3.1)
-	var paint := func(v: Vector3, n: Vector3, c: Color) -> Color:
-		var col := c
-		# 결을 따라 층진 바위
-		col = col.darkened(0.12 * (0.5 + 0.5 * sin(v.y * 5.0 + SpeciesModels.noise3(v * 0.8) * 2.0)))
-		# 물에 잠겼던 아랫부분은 짙고 미끈하다
-		col = col.lerp(Color(0.16, 0.15, 0.11), smoothstep(0.9, 0.1, v.y) * 0.8)
-		# 윗면과 틈의 이끼
-		var moss := smoothstep(0.35, 0.85, n.y) + smoothstep(0.2, 0.6, SpeciesModels.noise3(v * 1.3 + seed_off)) * 0.35
-		col = col.lerp(Color(0.24, 0.32, 0.13), clampf(moss, 0.0, 1.0) * 0.75)
-		return Color(col, c.a)
-	b.loft(pts, CreatureMaterials.Kind.STONE, rock, rock.darkened(0.25), 20, 3, Vector3.BACK, true, true, paint)
-	b.section = Callable()
-	BeastModels.rock_lumps(b, &"root", Vector3(0, -0.1, 0), 5, 0.55, rng, 0.8, rock.darkened(0.1))
-	return b.build().mesh
-
-
 func _build_decor() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5150
@@ -236,7 +201,7 @@ func _build_decor() -> void:
 	dead.name = "DeadTrees"
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = MeshKit.dead_tree(5151)
+	mm.mesh = TreeKit.dead(5151)
 	var spots: Array[Transform3D] = []
 	for i in 14:
 		var a := rng.randf() * TAU
@@ -250,7 +215,7 @@ func _build_decor() -> void:
 	for i in spots.size():
 		mm.set_instance_transform(i, spots[i])
 	dead.multimesh = mm
-	dead.material_override = MeshKit.foliage_material()
+	dead.material_override = TreeKit.material()
 	add_child(dead)
 	# 물속의 부러진 통나무와 먹잇감의 뼈(보스의 둥지임을 알린다)
 	add_child(_bones_node(rng))

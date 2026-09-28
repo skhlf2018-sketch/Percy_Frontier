@@ -14,6 +14,8 @@ const CHUNK_CELLS := 32
 var layout: FieldLayout
 var heights := PackedFloat32Array()
 var colors := PackedColorArray()
+## 지표 종류 비율(흙길, 진흙, 낙엽, 자갈). 지형 셰이더가 결을 섞는 데 쓴다.
+var weights := PackedColorArray()
 
 
 func build(field_layout: FieldLayout) -> void:
@@ -27,6 +29,7 @@ func build(field_layout: FieldLayout) -> void:
 func _compute() -> void:
 	heights.resize(SIDE * SIDE)
 	colors.resize(SIDE * SIDE)
+	weights.resize(SIDE * SIDE)
 	var half := FieldLayout.HALF_SIZE
 	for zi in SIDE:
 		var z := -half + zi * CELL
@@ -35,6 +38,7 @@ func _compute() -> void:
 			var h := layout.height(x, z)
 			heights[zi * SIDE + xi] = h
 			colors[zi * SIDE + xi] = layout.ground_color(Vector2(x, z), h)
+			weights[zi * SIDE + xi] = layout.ground_weights(Vector2(x, z), h)
 
 
 # --- 조회 ---
@@ -82,9 +86,17 @@ func _vertex_normal(xi: int, zi: int) -> Vector3:
 	return Vector3(l - r, 2.0 * CELL, d - u).normalized()
 
 
-func _build_meshes() -> void:
+## 지형 재질: 지표 결 텍스처를 넣는다.
+static func make_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = TERRAIN_SHADER
+	for kind in TerrainTextures.KINDS:
+		mat.set_shader_parameter(StringName("tex_%s" % kind), TerrainTextures.get_texture(kind))
+	return mat
+
+
+func _build_meshes() -> void:
+	var mat := make_material()
 	var chunks := CELLS / CHUNK_CELLS
 	var half := FieldLayout.HALF_SIZE
 	for cz in chunks:
@@ -92,6 +104,7 @@ func _build_meshes() -> void:
 			var verts := PackedVector3Array()
 			var normals := PackedVector3Array()
 			var cols := PackedColorArray()
+			var custom := PackedByteArray()
 			var indices := PackedInt32Array()
 			var n := CHUNK_CELLS + 1
 			for j in n:
@@ -101,6 +114,8 @@ func _build_meshes() -> void:
 					verts.append(Vector3(-half + xi * CELL, heights[zi * SIDE + xi], -half + zi * CELL))
 					normals.append(_vertex_normal(xi, zi))
 					cols.append(colors[zi * SIDE + xi])
+					var wgt := weights[zi * SIDE + xi]
+					custom.append_array([int(wgt.r * 255.0), int(wgt.g * 255.0), int(wgt.b * 255.0), int(wgt.a * 255.0)])
 			for j in CHUNK_CELLS:
 				for i in CHUNK_CELLS:
 					var a := j * n + i
@@ -114,9 +129,11 @@ func _build_meshes() -> void:
 			arrays[Mesh.ARRAY_VERTEX] = verts
 			arrays[Mesh.ARRAY_NORMAL] = normals
 			arrays[Mesh.ARRAY_COLOR] = cols
+			arrays[Mesh.ARRAY_CUSTOM0] = custom
 			arrays[Mesh.ARRAY_INDEX] = indices
 			var mesh := ArrayMesh.new()
-			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {},
+				Mesh.ARRAY_CUSTOM_RGBA8_UNORM << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
 			var mi := MeshInstance3D.new()
 			mi.name = "Chunk_%d_%d" % [cx, cz]
 			mi.mesh = mesh

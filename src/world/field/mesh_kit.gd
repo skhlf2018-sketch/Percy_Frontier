@@ -1,7 +1,7 @@
 class_name MeshKit
 extends RefCounted
-## 절차적 저다각형 모델 도구: 나무, 바위, 덤불, 풀, 꽃, 건물 부품.
-## 정식 에셋이 들어오기 전까지 쓰는 임시 모델이며, 면마다 법선을 따로 둬 각진 저다각형 느낌을 낸다.
+## 절차적 모델 도구: 풀, 들꽃, 건물·랜드마크 부품(면마다 법선을 따로 둔 각진 면).
+## 나무·덤불은 TreeKit, 바위는 RockKit이 만든다.
 ## 정점 색의 알파는 바람에 흔들리는 정도(0 = 고정, 1 = 잎 끝)다.
 
 const FOLIAGE_SHADER := preload("res://assets/shaders/foliage.gdshader")
@@ -10,6 +10,14 @@ const GRASS_SHADER := preload("res://assets/shaders/grass.gdshader")
 static var _foliage_material: ShaderMaterial
 static var _grass_material: ShaderMaterial
 static var _solid_material: StandardMaterial3D
+
+
+## 정적 캐시를 비운다(종료할 때 렌더링 서버가 내려가기 전에 자원을 놓는다).
+static func clear_cache() -> void:
+	_foliage_material = null
+	_grass_material = null
+	_solid_material = null
+	_grime = null
 
 
 static func foliage_material() -> ShaderMaterial:
@@ -26,13 +34,49 @@ static func grass_material() -> ShaderMaterial:
 	return _grass_material
 
 
-## 흔들리지 않는 물체(바위, 건물)용 정점 색 재질
+## 흔들리지 않는 물체(건물, 다리, 잔해)용 정점 색 재질. 세계 좌표 삼면 투영으로 풍화된 결(법선)과
+## 얼룩(곱하는 세부 색)을 입혀 평평한 면도 낡고 거친 표면으로 보이게 한다.
 static func solid_material() -> StandardMaterial3D:
 	if _solid_material == null:
 		_solid_material = StandardMaterial3D.new()
 		_solid_material.vertex_color_use_as_albedo = true
-		_solid_material.roughness = 0.9
+		_solid_material.vertex_color_is_srgb = true
+		_solid_material.roughness = 0.86
+		_solid_material.normal_enabled = true
+		_solid_material.normal_texture = CreatureMaterials.normal_texture(&"rust")
+		_solid_material.normal_scale = 0.7
+		_solid_material.uv1_triplanar = true
+		_solid_material.uv1_world_triplanar = true
+		_solid_material.uv1_scale = Vector3(0.7, 0.7, 0.7)
+		_solid_material.detail_enabled = true
+		_solid_material.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+		_solid_material.detail_uv_layer = BaseMaterial3D.DETAIL_UV_1
+		_solid_material.detail_albedo = _grime_texture()
+		_solid_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	return _solid_material
+
+
+static var _grime: ImageTexture
+
+
+## 얼룩: 0.7~1.0 사이의 옅은 명암 잡음(곱해서 때와 물때를 낸다)
+static func _grime_texture() -> ImageTexture:
+	if _grime:
+		return _grime
+	var n := FastNoiseLite.new()
+	n.seed = 881
+	n.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	n.frequency = 0.02
+	n.fractal_octaves = 5
+	var img := n.get_seamless_image(256, 256, false, false, 0.1, true)
+	img.convert(Image.FORMAT_RGB8)
+	var data := img.get_data()
+	for i in data.size():
+		data[i] = int(lerpf(0.68, 1.0, float(data[i]) / 255.0) * 255.0)
+	img = Image.create_from_data(256, 256, false, Image.FORMAT_RGB8, data)
+	img.generate_mipmaps()
+	_grime = ImageTexture.create_from_image(img)
+	return _grime
 
 
 # --- 기본 도형 조립 ---
@@ -198,115 +242,7 @@ static func icosphere() -> Icosphere:
 	return ico
 
 
-# --- 식생 ---
-
-const BARK := Color(0.36, 0.27, 0.19)
-const LEAF_COLORS: Array[Color] = [
-	Color(0.27, 0.43, 0.18), Color(0.33, 0.47, 0.19), Color(0.24, 0.38, 0.17), Color(0.38, 0.5, 0.2),
-]
-const PINE_COLOR := Color(0.15, 0.29, 0.17)
-
-
-## 활엽수. 반환 메시의 원점은 밑동.
-static func broadleaf_tree(seed_value: int) -> ArrayMesh:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	var b := Builder.new()
-	var height := rng.randf_range(4.8, 7.0)
-	var lean := Vector3(rng.randf_range(-0.35, 0.35), 0.0, rng.randf_range(-0.35, 0.35))
-	var r0 := rng.randf_range(0.26, 0.36)
-	var mid := Vector3(0, height * 0.5, 0) + lean * 0.4
-	var top := Vector3(0, height, 0) + lean
-	b.frustum(Vector3.ZERO, mid, r0, r0 * 0.75, 6, BARK, 0.0, 0.1, false, 0.1, rng)
-	b.frustum(mid, top, r0 * 0.75, r0 * 0.45, 6, BARK, 0.1, 0.3, true, 0.1, rng)
-	# 굵은 가지 두어 개
-	for i in rng.randi_range(1, 2):
-		var a := rng.randf() * TAU
-		var from := mid + Vector3(0, rng.randf_range(0.3, 1.2), 0)
-		var to := from + Vector3(cos(a) * 1.4, 1.2, sin(a) * 1.4)
-		b.frustum(from, to, r0 * 0.35, r0 * 0.18, 5, BARK, 0.15, 0.45, true)
-	var leaf := LEAF_COLORS[rng.randi() % LEAF_COLORS.size()]
-	var blobs := rng.randi_range(3, 5)
-	for i in blobs:
-		var a := TAU * float(i) / float(blobs) + rng.randf_range(-0.4, 0.4)
-		var dist := rng.randf_range(0.7, 1.6) if i > 0 else 0.0
-		var c := top + Vector3(cos(a) * dist, rng.randf_range(-0.6, 0.9), sin(a) * dist)
-		var tint := leaf * rng.randf_range(0.9, 1.1)
-		b.blob(c, rng.randf_range(1.5, 2.3), Color(tint, 1.0), rng.randf_range(0.75, 1.0), rng, 0.2, Vector3(1.0, 0.82, 1.0))
-	return b.commit()
-
-
-## 침엽수(원뿔을 겹쳐 쌓는다)
-static func pine_tree(seed_value: int) -> ArrayMesh:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	var b := Builder.new()
-	var height := rng.randf_range(7.5, 11.0)
-	b.frustum(Vector3.ZERO, Vector3(0, height * 0.45, 0), 0.3, 0.2, 6, BARK * 0.9, 0.0, 0.15, false)
-	var tiers := 4
-	var col := PINE_COLOR * rng.randf_range(0.9, 1.12)
-	for i in tiers:
-		var t := float(i) / float(tiers)
-		var y0 := height * (0.25 + t * 0.62)
-		var r := lerpf(2.5, 0.9, t) * rng.randf_range(0.9, 1.1)
-		var tip := Vector3(rng.randf_range(-0.1, 0.1), y0 + lerpf(3.2, 2.2, t), rng.randf_range(-0.1, 0.1))
-		var shade := lerpf(0.8, 1.1, t)
-		b.frustum(Vector3(0, y0, 0), tip, r, 0.0, 8, Color(col.r * shade, col.g * shade, col.b * shade),
-			lerpf(0.4, 0.7, t), lerpf(0.8, 1.0, t), false, 0.12, rng)
-		# 원뿔 아랫면(아래에서 올려다볼 때 속이 비어 보이지 않게)
-		b.disc(Vector3(0, y0 + 0.02, 0), r * 0.97, 8, Color(col.r * 0.55, col.g * 0.55, col.b * 0.55, lerpf(0.4, 0.7, t)), Vector3.DOWN)
-	return b.commit()
-
-
-## 죽은 나무(그늘 숲)
-static func dead_tree(seed_value: int) -> ArrayMesh:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	var b := Builder.new()
-	var height := rng.randf_range(5.0, 8.0)
-	var bark := Color(0.28, 0.25, 0.22)
-	var top := Vector3(rng.randf_range(-0.5, 0.5), height, rng.randf_range(-0.5, 0.5))
-	b.frustum(Vector3.ZERO, top, 0.32, 0.1, 6, bark, 0.0, 0.2, true, 0.12, rng)
-	for i in rng.randi_range(3, 5):
-		var from := top * rng.randf_range(0.4, 0.9)
-		var a := rng.randf() * TAU
-		var to := from + Vector3(cos(a) * rng.randf_range(1.2, 2.4), rng.randf_range(0.4, 1.6), sin(a) * rng.randf_range(1.2, 2.4))
-		b.frustum(from, to, 0.12, 0.03, 4, bark, 0.1, 0.3, true)
-	return b.commit()
-
-
-static func bush(seed_value: int) -> ArrayMesh:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	var b := Builder.new()
-	var col := LEAF_COLORS[rng.randi() % LEAF_COLORS.size()] * 0.92
-	for i in rng.randi_range(2, 4):
-		var c := Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(0.35, 0.6), rng.randf_range(-0.6, 0.6))
-		b.blob(c, rng.randf_range(0.65, 1.05), Color(col * rng.randf_range(0.9, 1.1), 1.0), 0.45, rng, 0.25,
-			Vector3(1.1, 0.75, 1.1), -0.55)
-	# 산딸기처럼 보이는 작은 점
-	if rng.randf() < 0.5:
-		var berry := Color(0.75, 0.16, 0.2) if rng.randf() < 0.6 else Color(0.35, 0.3, 0.75)
-		for i in 6:
-			var a := rng.randf() * TAU
-			var c := Vector3(cos(a) * 0.9, rng.randf_range(0.4, 0.9), sin(a) * 0.9)
-			b.blob(c, 0.07, Color(berry, 0.5), 0.5, rng, 0.0, Vector3.ONE, -2.0, 0.0, 0.0)
-	return b.commit()
-
-
-static func rock(seed_value: int) -> ArrayMesh:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	var b := Builder.new()
-	var grey := rng.randf_range(0.27, 0.36)
-	var col := Color(grey, grey * 0.98, grey * 0.93)
-	b.blob(Vector3(0, 0.4, 0), 1.0, Color(col, 0.0), 0.0, rng, 0.38,
-		Vector3(rng.randf_range(0.9, 1.25), rng.randf_range(0.7, 0.95), rng.randf_range(0.85, 1.15)), -0.5, 0.14, 0.35)
-	# 이끼 낀 윗면
-	if rng.randf() < 0.6:
-		b.blob(Vector3(rng.randf_range(-0.2, 0.2), 0.75, rng.randf_range(-0.2, 0.2)), 0.55,
-			Color(0.3, 0.42, 0.2, 0.0), 0.0, rng, 0.2, Vector3(1.2, 0.3, 1.1), -2.0, 0.08, 0.0)
-	return b.commit()
+# --- 식생(풀·들꽃). 나무·덤불은 TreeKit, 바위는 RockKit이 만든다. ---
 
 
 ## 풀잎 묶음(가는 삼각형 여러 개). 알파 = 흔들림(밑동 0, 끝 1).

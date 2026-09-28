@@ -22,6 +22,10 @@ const TEST_WAVES := {
 
 func _ready() -> void:
 	register_contents()
+	RenderQuality.apply_all(self)
+	Settings.changed.connect(func(key: StringName) -> void:
+		if key == &"graphics_quality":
+			RenderQuality.apply_all(self))
 	# 회색 상자 지형은 작아서 시작할 때 한 번 동기로 굽는다.
 	navigation.bake_navigation_mesh(false)
 

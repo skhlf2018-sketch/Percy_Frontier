@@ -73,18 +73,29 @@ func _ready() -> void:
 	sun = DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 110.0
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-	sun.shadow_blur = 1.2
 	add_child(sun)
 	moon = DirectionalLight3D.new()
 	moon.name = "Moon"
 	moon.light_color = Color(0.62, 0.72, 1.0)
 	moon.shadow_enabled = false
-	moon.directional_shadow_max_distance = 70.0
-	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	add_child(moon)
+	_apply_quality()
+	Settings.changed.connect(func(key: StringName) -> void:
+		if key == &"graphics_quality":
+			_apply_quality())
 	_apply()
+
+
+## 그래픽 품질(설정)에 맞춰 그림자·화면 공간 효과·전역 조명·볼륨 안개를 켜고 끈다.
+func _apply_quality() -> void:
+	var q := RenderQuality.level()
+	RenderQuality.apply_global(q)
+	if is_inside_tree():
+		RenderQuality.apply_viewport(get_viewport(), q)
+	RenderQuality.apply_environment(environment, q)
+	RenderQuality.apply_sun(sun, q)
+	RenderQuality.apply_sun(moon, q)
+	moon.directional_shadow_max_distance = minf(moon.directional_shadow_max_distance, 90.0)
 
 
 func _process(delta: float) -> void:
@@ -199,12 +210,20 @@ func _apply() -> void:
 	# 주변광과 안개: 밤에도 달빛 아래 지형 윤곽은 보이게 한다.
 	var ambient := Color(0.58, 0.63, 0.72).lerp(Color(0.26, 0.32, 0.5), night).lerp(Color(0.85, 0.6, 0.5), dusk * 0.3)
 	environment.ambient_light_color = ambient
-	environment.ambient_light_energy = lerpf(0.62, 0.62, night) * (1.0 - shade * 0.35) * (1.0 - eerie * 0.35) \
-		+ night * night_vision * 0.35
+	# 전역 조명(SDFGI)이 켜져 있으면 되튄 빛이 주변광 몫을 맡으므로 고정 주변광을 줄인다.
+	var gi := environment.sdfgi_enabled
+	environment.ambient_light_energy = (lerpf(0.62, 0.62, night) * (1.0 - shade * 0.35) * (1.0 - eerie * 0.35) \
+		+ night * night_vision * 0.35) * (0.8 if gi else 1.0)
 	var fog_col := horizon.lerp(Color(0.1, 0.13, 0.12), shade * 0.7)
 	environment.fog_light_color = fog_col
-	environment.fog_density = lerpf(0.0022, 0.0055, night) + shade * 0.012 + eerie * 0.012
+	var vol := environment.volumetric_fog_enabled
+	# 볼륨 안개가 켜져 있으면 햇살 줄기와 숲 안개를 볼륨 안개가 맡고, 거리 안개는 옅게 한다.
+	environment.fog_density = (lerpf(0.0022, 0.0055, night) + shade * 0.012 + eerie * 0.012) * (0.6 if vol else 1.0)
 	environment.fog_height_density = shade * 0.05
+	if vol:
+		environment.volumetric_fog_density = lerpf(0.004, 0.009, night) + shade * 0.022 + eerie * 0.02 + dusk * 0.004
+		environment.volumetric_fog_albedo = fog_col.lerp(Color(0.85, 0.88, 0.9), 0.4)
+		environment.volumetric_fog_anisotropy = 0.55
 
 	var p := phase()
 	if p != _phase:

@@ -355,6 +355,21 @@ func ground_color(p: Vector2, h: float) -> Color:
 	return col
 
 
+## 지표 종류 비율(지형 셰이더가 결을 섞는다): r 흙길, g 젖은 진흙, b 낙엽 바닥, a 자갈·모래
+func ground_weights(p: Vector2, h: float) -> Color:
+	var road := 0.0
+	if in_town(p, -6.0):
+		road = 0.45
+	else:
+		road = smoothstep(ROAD_HALF_WIDTH + 1.4, ROAD_HALF_WIDTH - 0.8, distance_to_road(p))
+	var wet := smoothstep(WATER_LEVEL + 0.8, WATER_LEVEL - 0.05, h)
+	wet = maxf(wet, smoothstep(MAW_RADIUS + MAW_BLEND + 3.0, MAW_RADIUS + 3.0, p.distance_to(MAW_CENTER)) * 0.85)
+	wet = maxf(wet, smoothstep(POND_RADIUS + 14.0, POND_RADIUS + 2.0, p.distance_to(POND_CENTER)) * 0.6)
+	var litter := clampf(shade_factor(p) * 0.95 + tree_density(p) * 0.25, 0.0, 1.0) * (1.0 - road) * (1.0 - wet * 0.7)
+	var sand := smoothstep(RIVER_HALF_WIDTH + 4.0, RIVER_HALF_WIDTH + 0.5, distance_to_river(p)) * (1.0 - wet * 0.5)
+	return Color(road, wet, litter, sand)
+
+
 # --- 내부 도우미 ---
 
 static func _bump(p: Vector2, center: Vector2, radius: float) -> float:
