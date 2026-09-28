@@ -1,0 +1,87 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"tongue_lash"
+display_name = "혀 휘감기"
+kind = 0
+min_range = 2.5
+max_range = 7.0
+windup = 0.6
+active_time = 0.25
+recovery = 0.8
+cooldown = 3.0
+damage = 10
+reach = 7.0
+hit_angle_deg = 20
+knockback = -6
+weight = 1.2
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"belly_flop"
+display_name = "몸 덮치기"
+kind = 1
+parryable = false
+min_range = 2.0
+max_range = 6.0
+windup = 0.9
+active_time = 0.5
+recovery = 1.0
+cooldown = 5.0
+damage = 16
+reach = 1.6
+hit_angle_deg = 90
+move_speed = 9
+knockback = 8
+
+[sub_resource type="Resource" id="Atk_2"]
+script = ExtResource("1_atk")
+id = &"bile_spit"
+display_name = "쓸개즙 뱉기"
+kind = 3
+parryable = false
+min_range = 4.0
+max_range = 20.0
+windup = 0.8
+active_time = 0.1
+recovery = 0.7
+cooldown = 4.0
+damage = 8
+token_group = 2
+projectile_speed = 14
+projectile_gravity = 9
+projectile_blast_radius = 2.0
+burn_buildup = 30
+
+[resource]
+script = ExtResource("2_data")
+id = &"bog_toad"
+display_name = "늪 두꺼비"
+family = "양서류"
+threat_tier = 0
+combat_role = "견제"
+description = "늪가에 웅크린 커다란 두꺼비. 길게 뻗는 혀로 사람을 끌어당긴 뒤 몸으로 덮친다. 혀가 뻗는 순간을 흘리거나 옆으로 비켜라. 젖은 피부라 불에는 강하지만 감전에 약하다."
+model_id = &"bog_toad"
+max_hp = 85
+walk_speed = 1.8
+run_speed = 4.0
+turn_speed_deg = 220
+poise = 30
+stagger_duration = 1.0
+mass_kg = 60
+sight_range = 22
+sight_fov_deg = 150
+proximity_sense = 3.0
+leash_radius = 30
+burn_mult = 0.6
+shock_mult = 1.5
+level = 3
+xp_reward = 28
+resonance_on_kill = 5
+ammo_drop_chance = 0.35
+heal_drop_chance = 0.08
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1"), SubResource("Atk_2")])

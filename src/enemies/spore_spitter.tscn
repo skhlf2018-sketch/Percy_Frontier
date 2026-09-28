@@ -8,55 +8,6 @@
 radius = 0.42
 height = 1.8
 
-[sub_resource type="StandardMaterial3D" id="Mat_stalk"]
-albedo_color = Color(0.36, 0.42, 0.26, 1)
-roughness = 0.9
-
-[sub_resource type="StandardMaterial3D" id="Mat_cap"]
-albedo_color = Color(0.5, 0.58, 0.3, 1)
-roughness = 0.8
-
-[sub_resource type="StandardMaterial3D" id="Mat_sac"]
-transparency = 1
-albedo_color = Color(1, 0.55, 0.15, 0.85)
-emission_enabled = true
-emission = Color(1, 0.45, 0.1, 1)
-emission_energy_multiplier = 2.0
-
-[sub_resource type="StandardMaterial3D" id="Mat_eye"]
-albedo_color = Color(0.95, 0.9, 0.3, 1)
-emission_enabled = true
-emission = Color(1, 0.9, 0.3, 1)
-emission_energy_multiplier = 1.5
-
-[sub_resource type="StandardMaterial3D" id="Mat_root"]
-albedo_color = Color(0.28, 0.24, 0.18, 1)
-roughness = 1.0
-
-[sub_resource type="CylinderMesh" id="Mesh_stalk"]
-top_radius = 0.22
-bottom_radius = 0.36
-height = 1.1
-
-[sub_resource type="SphereMesh" id="Mesh_cap"]
-radius = 0.42
-height = 0.84
-
-[sub_resource type="SphereMesh" id="Mesh_sac"]
-radius = 0.26
-height = 0.52
-
-[sub_resource type="TorusMesh" id="Mesh_mouth"]
-inner_radius = 0.07
-outer_radius = 0.12
-
-[sub_resource type="SphereMesh" id="Mesh_eye"]
-radius = 0.045
-height = 0.09
-
-[sub_resource type="BoxMesh" id="Mesh_root"]
-size = Vector3(0.12, 0.12, 0.55)
-
 [sub_resource type="SphereShape3D" id="Shape_sac"]
 radius = 0.29
 
@@ -77,58 +28,6 @@ eye_height = 1.3
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 position = Vector3(0, 0.9, 0)
 shape = SubResource("Shape_body")
-
-[node name="Visual" type="Node3D" parent="."]
-
-[node name="Stalk" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0, 0.55, 0)
-mesh = SubResource("Mesh_stalk")
-surface_material_override/0 = SubResource("Mat_stalk")
-
-[node name="Cap" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0, 1.25, 0)
-scale = Vector3(1, 0.7, 1)
-mesh = SubResource("Mesh_cap")
-surface_material_override/0 = SubResource("Mat_cap")
-
-[node name="Sac" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0, 1.62, 0.12)
-mesh = SubResource("Mesh_sac")
-surface_material_override/0 = SubResource("Mat_sac")
-
-[node name="Mouth" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0, 1.12, -0.36)
-rotation_degrees = Vector3(90, 0, 0)
-mesh = SubResource("Mesh_mouth")
-surface_material_override/0 = SubResource("Mat_root")
-
-[node name="EyeL" type="MeshInstance3D" parent="Visual"]
-position = Vector3(-0.13, 1.3, -0.34)
-mesh = SubResource("Mesh_eye")
-surface_material_override/0 = SubResource("Mat_eye")
-
-[node name="EyeR" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0.13, 1.3, -0.34)
-mesh = SubResource("Mesh_eye")
-surface_material_override/0 = SubResource("Mat_eye")
-
-[node name="RootA" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0, 0.05, -0.35)
-rotation_degrees = Vector3(0, 0, 0)
-mesh = SubResource("Mesh_root")
-surface_material_override/0 = SubResource("Mat_root")
-
-[node name="RootB" type="MeshInstance3D" parent="Visual"]
-position = Vector3(0.3, 0.05, 0.18)
-rotation_degrees = Vector3(0, 120, 0)
-mesh = SubResource("Mesh_root")
-surface_material_override/0 = SubResource("Mat_root")
-
-[node name="RootC" type="MeshInstance3D" parent="Visual"]
-position = Vector3(-0.3, 0.05, 0.18)
-rotation_degrees = Vector3(0, -120, 0)
-mesh = SubResource("Mesh_root")
-surface_material_override/0 = SubResource("Mat_root")
 
 [node name="SacHurtbox" type="Area3D" parent="."]
 position = Vector3(0, 1.62, 0.12)

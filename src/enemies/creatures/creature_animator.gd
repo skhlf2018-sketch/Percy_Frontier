@@ -6,7 +6,7 @@ extends RefCounted
 ##  - 두발: leg_upper/lower_l/r, foot_l/r, arm_upper/lower_l/r, hand_l/r, spine, chest, neck, head, jaw
 ## 회전 부호: 아래로 뻗은 팔다리는 +X가 앞으로, 위로 선 몸통·목은 -X가 앞으로 숙이기다.
 
-enum Body { QUADRUPED, BIPED, HOPPER }
+enum Body { QUADRUPED, BIPED, HOPPER, CRAWLER, FLYER, STATIC, SERPENT }
 
 var rig: CreatureRig
 var body: int = Body.QUADRUPED
@@ -62,6 +62,14 @@ func update(delta: float) -> void:
 			_biped(delta)
 		Body.HOPPER:
 			_hopper(delta)
+		Body.CRAWLER:
+			_crawler(delta)
+		Body.FLYER:
+			_flyer(delta)
+		Body.STATIC:
+			_static(delta)
+		Body.SERPENT:
+			_serpent(delta)
 		_:
 			_quadruped(delta)
 
@@ -249,3 +257,138 @@ func _biped(delta: float) -> void:
 	var ear := sin(_t * 1.3 + _seed) * 0.08
 	rig.rot(&"ear_l", Vector3(0, ear, -stag * 0.3))
 	rig.rot(&"ear_r", Vector3(0, -ear, stag * 0.3))
+
+
+# --- 여러 다리(거미·사마귀·포자 식생체) ---
+
+var _leg_count: int = -1
+
+
+func _crawler(delta: float) -> void:
+	if _leg_count < 0:
+		_leg_count = 0
+		while rig.has_bone(StringName("leg%d_upper" % _leg_count)):
+			_leg_count += 1
+	var v := _speed_s
+	var moving := clampf(v / 0.6, 0.0, 1.0)
+	var stride := leg_length * 1.3
+	_phase = fmod(_phase + delta * v / maxf(stride, 0.05), 1.0)
+	var wind := w(&"windup")
+	var strike := w(&"strike") + w(&"lunge")
+	var crouch := w(&"crouch") + w(&"hide")
+	var rear := wind * 0.35 - crouch * 0.2
+	for i in _leg_count:
+		# 왼0 오0 왼1 오1 … 번갈아 두 무리(세 다리씩 또는 네 다리씩)가 함께 움직인다.
+		var side := -1.0 if i % 2 == 0 else 1.0
+		var group := (i / 2 + i % 2) % 2
+		var p := fmod(_phase + 0.5 * group, 1.0)
+		var swing := sin(p * TAU) * 0.35 * moving
+		var lift := maxf(0.0, cos(p * TAU)) * 0.35 * moving
+		rig.rot(StringName("leg%d_upper" % i), Vector3(0.0, side * swing, side * (lift + crouch * 0.25)))
+		rig.rot(StringName("leg%d_lower" % i), Vector3(0.0, 0.0, -side * lift * 0.6))
+	var bob := sin(_phase * TAU * 2.0) * 0.012 * moving
+	rig.move(&"root", Vector3(0, bob - crouch * leg_length * 0.15, 0))
+	rig.rot(&"root", Vector3(rear, 0, 0))
+	# 머리·몸 흔들림, 배는 숨쉬듯
+	var breathe := sin(_t * 2.0 + _seed) * 0.03
+	rig.rot(&"abdomen", Vector3(breathe - rear * 0.5, sin(_t * 0.7 + _seed) * 0.05, 0))
+	rig.rot(&"neck", Vector3(look_pitch * 0.3 + wind * 0.25, look_yaw * 0.4, 0))
+	rig.rot(&"head", Vector3(look_pitch * 0.3, look_yaw * 0.4 + sin(_t * 25.0) * 0.2 * w(&"stagger"), 0))
+	rig.rot(&"jaw", Vector3(-(0.15 * wind + 0.35 * strike + 0.05 * sin(_t * 9.0 + _seed)), 0, 0))
+	# 낫다리: 전조에 치켜들고, 판정 때 앞으로 내려친다.
+	for i in 2:
+		var sn := "l" if i == 0 else "r"
+		var sx := -1.0 if i == 0 else 1.0
+		var up := Vector3(0.1, 0, 0).lerp(Vector3(-0.9, sx * 0.2, 0), wind).lerp(Vector3(0.9, 0, 0), strike)
+		var lo := Vector3(0.0, 0, 0).lerp(Vector3(-0.6, 0, 0), wind).lerp(Vector3(0.9, 0, 0), strike)
+		rig.rot(StringName("arm_upper_" + sn), up)
+		rig.rot(StringName("arm_lower_" + sn), lo)
+
+
+# --- 날짐승(박쥐) ---
+
+func _flyer(delta: float) -> void:
+	var dive := w(&"lunge") + w(&"strike")
+	var hover := 1.0 - dive
+	var rate := lerpf(9.0, 13.0, clampf(_speed_s / 6.0, 0.0, 1.0))
+	_phase = fmod(_phase + delta * rate / TAU, 1.0)
+	var flap := sin(_phase * TAU) * 0.9 * hover
+	var tuck := dive * 0.9
+	for i in 2:
+		var sn := "l" if i == 0 else "r"
+		var sx := -1.0 if i == 0 else 1.0
+		rig.rot(StringName("wing_upper_" + sn), Vector3(tuck * 0.4, sx * tuck * 0.6, sx * flap))
+		rig.rot(StringName("wing_lower_" + sn), Vector3(0, sx * tuck * 0.9, sx * flap * 0.6))
+	rig.move(&"root", Vector3(0, -sin(_phase * TAU) * 0.04 * hover, 0))
+	rig.rot(&"root", Vector3(-dive * 0.5 + look_pitch * 0.3, 0, -turn_rate * 0.08))
+	rig.rot(&"head", Vector3(look_pitch * 0.4, look_yaw * 0.5, 0))
+	rig.rot(&"jaw", Vector3(-(0.3 * w(&"windup") + 0.5 * dive), 0, 0))
+	var tw := sin(_t * 17.0 + _seed) * 0.15
+	rig.rot(&"ear_l", Vector3(0, tw, 0))
+	rig.rot(&"ear_r", Vector3(0, -tw, 0))
+
+
+# --- 움직이지 않는 것(포자낭·포자 모체) ---
+
+func _static(_delta: float) -> void:
+	var swell := w(&"windup")
+	var open := w(&"open") + w(&"cast")
+	var pulse := 1.0 + sin(_t * 1.6 + _seed) * 0.02 + swell * (0.25 + 0.05 * sin(_t * 30.0))
+	rig.scale_bone(&"body", Vector3.ONE * pulse)
+	for i in 5:
+		var bn := StringName("petal%d" % i)
+		if not rig.has_bone(bn):
+			break
+		var a := TAU * float(i) / 5.0
+		var outv := Vector3(sin(a), 0, cos(a))
+		# 꽃잎을 바깥쪽으로 젖힌다(몸 기준 바깥 축에 수직인 축으로 돈다).
+		var axis := outv.cross(Vector3.UP)
+		var ang := -(0.08 + 0.9 * open) + sin(_t * 1.1 + float(i)) * 0.03
+		rig.skeleton.set_bone_pose_rotation(rig.bone_idx(bn), Quaternion(axis.normalized(), ang))
+
+
+# --- 뱀몸(늪턱 구렁) ---
+
+var _roll: float = 0.0
+## 꼬리 휩쓸기 방향(+1 오른쪽, -1 왼쪽)
+var sweep_side: float = 1.0
+
+
+func _serpent(delta: float) -> void:
+	var v := _speed_s
+	var moving := clampf(v / 1.5, 0.0, 1.0)
+	_phase = fmod(_phase + delta * (0.25 + v * 0.35), 1.0)
+	var roar := w(&"roar")
+	var wind := w(&"windup")
+	var lunge := w(&"lunge")
+	var strike := w(&"strike")
+	var sweep := w(&"sweep")
+	var sub := w(&"submerge")
+	var roll := w(&"roll")
+	# 몸을 따라 뒤로 흐르는 물결(꼬리로 갈수록 크다)
+	var i := 0
+	while rig.has_bone(StringName("spine%d" % i)):
+		var t := float(i) / 9.0
+		var amp := lerpf(0.05, 0.28, t) * (0.35 + 0.65 * moving)
+		var wave := sin(_phase * TAU - float(i) * 0.75) * amp
+		var curl := sweep * sweep_side * lerpf(0.0, 0.5, t) + wind * lerpf(0.0, 0.12, t)
+		rig.rot(StringName("spine%d" % i), Vector3(0.0, wave + curl, 0.0))
+		i += 1
+	# 다리: 옆으로 벌린 기는 걸음
+	for k in 4:
+		var side := -1.0 if k % 2 == 0 else 1.0
+		var group := (k / 2 + k % 2) % 2
+		var p := fmod(_phase * 2.0 + 0.5 * group, 1.0)
+		var swing := sin(p * TAU) * 0.4 * moving
+		var lift := maxf(0.0, cos(p * TAU)) * 0.3 * moving
+		rig.rot(StringName("leg%d_upper" % k), Vector3(0.0, side * swing, side * (lift + sub * 0.8)))
+		rig.rot(StringName("leg%d_lower" % k), Vector3(0.0, 0.0, -side * lift * 0.5))
+	# 가라앉기·몸 굴리기·들이받기 자세
+	_roll = _roll + delta * 9.0 * roll if roll > 0.05 else lerp_angle(_roll, 0.0, 1.0 - exp(-6.0 * delta))
+	rig.move(&"root", Vector3(0, -sub * 2.2 - wind * 0.15 + lunge * 0.1, 0))
+	rig.rot(&"root", Vector3(-wind * 0.08 + roar * 0.12, 0, _roll))
+	var breathe := sin(_t * 1.2 + _seed) * 0.02
+	rig.rot(&"neck", Vector3(look_pitch * 0.3 + roar * 0.7 - wind * 0.15 + breathe, look_yaw * 0.5, 0))
+	rig.rot(&"head", Vector3(look_pitch * 0.3 + roar * 0.25 - lunge * 0.1, look_yaw * 0.4 + sin(_t * 28.0) * 0.12 * w(&"stagger"), 0))
+	var jaw := 0.08 + 0.2 * wind + 0.75 * roar + 0.6 * lunge + 0.5 * strike + 0.04 * sin(_t * 0.9 + _seed)
+	rig.rot(&"jaw", Vector3(-jaw, 0, 0))

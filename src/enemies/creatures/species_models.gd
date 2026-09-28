@@ -36,6 +36,30 @@ static func template(model_id: StringName) -> RigTemplate:
 		&"serial_rabbit":
 			b = rabbit({"top": Color(0.12, 0.11, 0.12), "bottom": Color(0.3, 0.26, 0.26), "scale": 1.25,
 				"eye": Color(1.0, 0.1, 0.05), "stripes": Color(0.55, 0.08, 0.08)})
+		&"rock_charger":
+			b = BeastModels.charger({})
+		&"goldhorn_charger":
+			b = BeastModels.charger({"scale": 1.1, "top": Color(0.28, 0.24, 0.2), "bottom": Color(0.44, 0.38, 0.3),
+				"horn": Color(0.78, 0.6, 0.22), "horn_tip": Color(1.0, 0.86, 0.45), "rock": Color(0.5, 0.44, 0.34),
+				"moss": 0.2, "nose_horn": true, "vent_col": Color(1.0, 0.75, 0.25), "seed": 19})
+		&"mossback_calf":
+			b = BeastModels.mossback_calf()
+		&"thorn_boar":
+			b = BeastModels.thorn_boar()
+		&"bog_toad":
+			b = BeastModels.bog_toad()
+		&"spore_spitter":
+			b = CrawlerModels.spore_walker()
+		&"bloat_pod":
+			b = CrawlerModels.bloat_pod()
+		&"spore_mother":
+			b = CrawlerModels.spore_mother()
+		&"bark_mantis":
+			b = CrawlerModels.bark_mantis()
+		&"cave_spider":
+			b = CrawlerModels.cave_spider()
+		&"cave_bat":
+			b = CrawlerModels.cave_bat()
 		_:
 			if String(model_id).begins_with("goblin_") or model_id == &"oneeye_sniper":
 				b = goblin(model_id)
@@ -120,7 +144,7 @@ static func wolf(p: Dictionary) -> RigBuilder:
 	var snout_len := 0.14 * s
 	var skull := Vector2(0.078, 0.074) * s
 	b.bone(&"jaw", &"head", head_pos + Vector3(0, -skull.y * 0.55, -skull_len * 0.25))
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var sn := "l" if side < 0.0 else "r"
 		b.bone(StringName("ear_" + sn), &"head", head_pos + Vector3(side * skull.x * 0.58, skull.y * 0.72, -skull_len * 0.02))
 	var tail_base := Vector3(0, H * 0.92 - hip.y * 0.3, L * 0.5 + hip.x * 0.95)
@@ -134,7 +158,7 @@ static func wolf(p: Dictionary) -> RigBuilder:
 	b.bone(&"tail3", &"tail2", tail_pts[3])
 	var fx := chest.x * 0.72
 	var hx := hip.x * 0.78
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var sn := "l" if side < 0.0 else "r"
 		b.bone(StringName("fl_upper_" + sn), &"chest", Vector3(side * fx, H - chest.y * 1.08, -L * 0.46))
 		b.bone(StringName("fl_lower_" + sn), StringName("fl_upper_" + sn), Vector3(side * fx * 1.02, H * 0.45, -L * 0.4))
@@ -201,7 +225,7 @@ static func wolf(p: Dictionary) -> RigBuilder:
 	b.ellipsoid(nose_pos, Vector3(0.026, 0.02, 0.02) * s, &"head", K.WET_SKIN, Color(0.05, 0.045, 0.045))
 	b.bald(nose_pos, 0.035 * s)
 	b.bald(hp + Vector3(0, -skull.y * 0.55, -skull_len - snout_len * 0.7), 0.03 * s)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var sn := "l" if side < 0.0 else "r"
 		var eye := hp + Vector3(side * skull.x * 0.6, skull.y * 0.22, eye_z)
 		var look := Vector3(side * 0.55, 0.05, -1.0)
@@ -231,7 +255,7 @@ static func wolf(p: Dictionary) -> RigBuilder:
 				return Color(c.lerp(ear_in, smoothstep(0.1, 0.7, -n.z)), c.a))
 	# 다리
 	b.fur = 1.0
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var sn := "l" if side < 0.0 else "r"
 		var u := StringName("fl_upper_" + sn)
 		var lo := StringName("fl_lower_" + sn)
@@ -275,7 +299,7 @@ static func wolf(p: Dictionary) -> RigBuilder:
 		b.loft(hind, K.FUR, top, bottom, 12, 3, Vector3.FORWARD, true, true, leg_fur)
 		for foot in [ft, hf]:
 			var fp := b.bone_pos(foot) + (Vector3(0, -0.05, -0.1) if foot == ft else Vector3(0, -0.02, -0.1)) * s
-			for c in [-1.0, 0.0, 1.0]:
+			for c: float in [-1.0, 0.0, 1.0]:
 				var base_p: Vector3 = fp + Vector3(c * 0.014 * s, 0.0, 0.0)
 				b.cone(base_p, base_p + Vector3(c * 0.004, -0.018, -0.02) * s, 0.005 * s, foot, K.HORN,
 					Color(0.16, 0.14, 0.13), Vector3.ZERO, 5)
@@ -330,7 +354,7 @@ static func rabbit(p: Dictionary) -> RigBuilder:
 	b.bone(&"ear_l", &"head", P.call(-0.03, 0.39, -0.2))
 	b.bone(&"ear_r", &"head", P.call(0.03, 0.39, -0.2))
 	b.bone(&"tail1", &"pelvis", P.call(0, 0.22, 0.28))
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var sn := "l" if side < 0.0 else "r"
 		b.bone(StringName("fl_upper_" + sn), &"chest", P.call(side * 0.06, 0.17, -0.12))
 		b.bone(StringName("fl_lower_" + sn), StringName("fl_upper_" + sn), P.call(side * 0.062, 0.09, -0.14))
@@ -354,7 +378,7 @@ static func rabbit(p: Dictionary) -> RigBuilder:
 	]
 	b.loft(head, K.FUR, top, bottom, 18, 4)
 	# 볼록한 볼과 코
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		b.ellipsoid(P.call(side * 0.04, 0.3, -0.285), Vector3(0.036, 0.03, 0.04) * s, &"head", K.FUR, bottom.lerp(top, 0.4))
 	var nose := P.call(0, 0.307, -0.338) as Vector3
 	b.ellipsoid(nose, Vector3(0.011, 0.008, 0.007) * s, &"head", K.WET_SKIN, Color(0.55, 0.32, 0.33))
@@ -362,7 +386,7 @@ static func rabbit(p: Dictionary) -> RigBuilder:
 	# 앞니(살인토끼의 상징)
 	b.ellipsoid(P.call(0, 0.277, -0.325), Vector3(0.013, 0.02, 0.006) * s, &"jaw", K.TEETH, Color(0.95, 0.93, 0.85))
 	b.bald(P.call(0, 0.28, -0.325), 0.025 * s)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var sn := "l" if side < 0.0 else "r"
 		var eye := P.call(side * 0.063, 0.345, -0.255) as Vector3
 		b.eye(eye, 0.02 * s, &"head", Vector3(side, 0.1, -0.45), eye_col, eye_col.darkened(0.6), 0.5, 1.1)
@@ -389,7 +413,7 @@ static func rabbit(p: Dictionary) -> RigBuilder:
 		b.cone(P.call(0, 0.395, -0.245), P.call(0, 0.52, -0.33), 0.022 * s, &"head", K.HORN,
 			Color(0.5, 0.43, 0.34), P.call(0, 0.02, 0.02), 8, Color(0.9, 0.86, 0.75))
 		b.bald(P.call(0, 0.39, -0.245), 0.03 * s)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var sn := "l" if side < 0.0 else "r"
 		var fu := StringName("fl_upper_" + sn)
 		var fl := StringName("fl_lower_" + sn)
@@ -481,7 +505,7 @@ static func goblin(role: StringName) -> RigBuilder:
 	b.bone(&"jaw", &"head", P.call(0, 1.08, -0.24))
 	b.bone(&"ear_l", &"head", P.call(-0.1, 1.17, -0.19))
 	b.bone(&"ear_r", &"head", P.call(0.1, 1.17, -0.19))
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var sn := "l" if side < 0.0 else "r"
 		b.bone(StringName("arm_upper_" + sn), &"chest", P.call(side * 0.16, 0.99, -0.1))
 		b.bone(StringName("arm_lower_" + sn), StringName("arm_upper_" + sn), P.call(side * 0.22, 0.77, -0.06))
@@ -500,7 +524,7 @@ static func goblin(role: StringName) -> RigBuilder:
 	]
 	b.loft(torso, K.SKIN, skin, belly, 20, 4, Vector3.FORWARD)
 	# 가슴근육, 굽은 등(승모근), 어깨
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		b.ellipsoid(P.call(side * 0.06, 0.935, -0.155), Vector3(0.065, 0.045, 0.03) * s, &"chest", K.SKIN, skin, belly)
 		b.ellipsoid(P.call(side * 0.165, 0.985, -0.1), Vector3(0.05, 0.048, 0.052) * s, StringName("arm_upper_" + ("l" if side < 0.0 else "r")),
 			K.SKIN, skin)
@@ -522,7 +546,7 @@ static func goblin(role: StringName) -> RigBuilder:
 	b.loft(skull, K.SKIN, skin, skin.lerp(belly, 0.3), 20, 4)
 	b.ellipsoid(P.call(0, 1.14, -0.285), Vector3(0.09, 0.08, 0.06) * s, &"head", K.SKIN, skin, skin.lerp(belly, 0.4))
 	b.ellipsoid(P.call(0, 1.19, -0.318), Vector3(0.092, 0.018, 0.024) * s, &"head", K.SKIN, skin.darkened(0.12))
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		b.ellipsoid(P.call(side * 0.07, 1.125, -0.298), Vector3(0.028, 0.02, 0.028) * s, &"head", K.SKIN, skin)
 	var nose_col := skin.lerp(Color(0.55, 0.32, 0.26), 0.45)
 	var nose: Array[RigBuilder.P] = [
@@ -534,7 +558,7 @@ static func goblin(role: StringName) -> RigBuilder:
 	b.loft(nose, K.SKIN, skin, nose_col, 12, 3, Vector3.UP, true, true,
 		func(v: Vector3, _n: Vector3, c: Color) -> Color:
 			return Color(c.lerp(nose_col, smoothstep(-0.36 * s, -0.405 * s, v.z) * 0.8), c.a))
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		b.ellipsoid(P.call(side * 0.012, 1.104, -0.402), Vector3(0.007, 0.004, 0.006) * s, &"head", K.SKIN, Color(0.08, 0.05, 0.04))
 	# 윗입술과 입 선
 	b.ellipsoid(P.call(0, 1.095, -0.33), Vector3(0.066, 0.022, 0.034) * s, &"head", K.SKIN, skin, belly)
@@ -553,7 +577,7 @@ static func goblin(role: StringName) -> RigBuilder:
 		var h := wr.randf_range(1.12, 1.24)
 		var wp := P.call(sin(a) * 0.105, h, -0.19 - cos(a) * 0.1) as Vector3
 		b.ellipsoid(wp, Vector3.ONE * wr.randf_range(0.006, 0.011) * s, &"head", K.SKIN, skin.darkened(0.15))
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var sn := "l" if side < 0.0 else "r"
 		b.cone(P.call(side * 0.036, 1.082, -0.345), P.call(side * 0.042, 1.122, -0.352), 0.009 * s, &"jaw", K.TEETH,
 			Color(0.82, 0.76, 0.55), Vector3.ZERO, 6, Color(0.95, 0.9, 0.75))
@@ -630,7 +654,7 @@ static func goblin(role: StringName) -> RigBuilder:
 			RigBuilder.pt(l2 + Vector3(0, -0.045, -0.12) * s, 0.042 * s, 0.022 * s, ftb),
 		]
 		b.loft(foot, K.SKIN, skin, dirt, 12, 3)
-		for c in [-1.0, 0.0, 1.0]:
+		for c: float in [-1.0, 0.0, 1.0]:
 			var tp := l2 + Vector3(c * 0.022, -0.05, -0.14) * s
 			b.cone(tp, tp + Vector3(0, -0.012, -0.025) * s, 0.008 * s, ftb, K.HORN, Color(0.2, 0.17, 0.13), Vector3.ZERO, 5)
 	# 옷: 허리띠와 해진 허리 천
@@ -693,12 +717,12 @@ static func _goblin_role_gear(b: RigBuilder, role: StringName, s: float, skin: C
 			b.loft(hood, K.CLOTH, Color(0.25, 0.3, 0.2), Color(0.2, 0.24, 0.16), 16, 3, Vector3.UP, true, false)
 		&"goblin_brute":
 			# 뼈 어깨받이
-			for side in [-1.0, 1.0]:
+			for side: float in [-1.0, 1.0]:
 				b.ellipsoid(P.call(side * 0.17, 1.02, -0.09), Vector3(0.07, 0.035, 0.07) * s, &"chest", K.HORN, bone_col.darkened(0.1))
 				b.cone(P.call(side * 0.19, 1.04, -0.09), P.call(side * 0.25, 1.12, -0.07), 0.018 * s, &"chest", K.HORN, bone_col)
 		&"goblin_gunner":
 			# 이마에 올린 고글(쇠 테 + 주황 유리)
-			for side in [-1.0, 1.0]:
+			for side: float in [-1.0, 1.0]:
 				var gp := P.call(side * 0.042, 1.235, -0.285) as Vector3
 				var ring: Array[RigBuilder.P] = [
 					RigBuilder.pt(gp + Vector3(0, 0, 0.012) * s, 0.026 * s, 0.024 * s, &"head"),
@@ -722,7 +746,7 @@ static func _goblin_role_gear(b: RigBuilder, role: StringName, s: float, skin: C
 		&"goblin_shaman":
 			# 짐승 두개골 가면과 깃털
 			b.ellipsoid(P.call(0, 1.18, -0.3), Vector3(0.09, 0.08, 0.035) * s, &"head", K.HORN, bone_col)
-			for side in [-1.0, 1.0]:
+			for side: float in [-1.0, 1.0]:
 				b.ellipsoid(P.call(side * 0.04, 1.185, -0.33), Vector3(0.018, 0.016, 0.01) * s, &"head", K.GLOW, Color(0.4, 1.0, 0.6))
 				b.cone(P.call(side * 0.06, 1.25, -0.24), P.call(side * 0.14, 1.42, -0.18), 0.02 * s, &"head", K.HORN, bone_col,
 					Vector3(side * 0.02, 0.0, 0.03) * s, 8, Color(0.35, 0.3, 0.25))
@@ -743,7 +767,7 @@ static func _goblin_role_gear(b: RigBuilder, role: StringName, s: float, skin: C
 				RigBuilder.pt(P.call(0, 1.29, -0.2), 0.07 * s, 0.07 * s, &"head"),
 			]
 			b.loft(helm, K.METAL, metal, metal.darkened(0.3), 16, 3, Vector3.FORWARD, false, true)
-			for side in [-1.0, 1.0]:
+			for side: float in [-1.0, 1.0]:
 				b.cone(P.call(side * 0.1, 1.24, -0.18), P.call(side * 0.26, 1.4, -0.1), 0.035 * s, &"head", K.HORN,
 					Color(0.35, 0.28, 0.2), Vector3(side * 0.03, -0.03, 0.02) * s, 10, bone_col)
 				b.ellipsoid(P.call(side * 0.18, 1.03, -0.09), Vector3(0.09, 0.045, 0.09) * s, &"chest", K.METAL, metal)

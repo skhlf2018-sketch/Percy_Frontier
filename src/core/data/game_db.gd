@@ -46,6 +46,15 @@ const ENEMIES := [
 	preload("res://data/enemies/goblin_shaman.tres"),
 	preload("res://data/enemies/goblin_chief.tres"),
 	preload("res://data/enemies/oneeye_sniper.tres"),
+	preload("res://data/enemies/mossback_calf.tres"),
+	preload("res://data/enemies/goldhorn_charger.tres"),
+	preload("res://data/enemies/thorn_boar.tres"),
+	preload("res://data/enemies/bog_toad.tres"),
+	preload("res://data/enemies/bark_mantis.tres"),
+	preload("res://data/enemies/cave_spider.tres"),
+	preload("res://data/enemies/cave_bat.tres"),
+	preload("res://data/enemies/bloat_pod.tres"),
+	preload("res://data/enemies/spore_mother.tres"),
 ]
 const CONSUMABLES := [
 	preload("res://data/consumables/field_suture.tres"),

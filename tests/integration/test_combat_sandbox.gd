@@ -316,7 +316,7 @@ func test_charger_armor_break_enrages() -> void:
 	var p := world.spawn_player(Vector3(0, 0, 0))
 	var charger: RockCharger = world.spawn(CHARGER, Vector3(0, 0, -8), 0.0)
 	await wait_physics_frames(3)
-	var plate: Hurtbox = charger.get_node("FrontPlateHurtbox")
+	var plate: Hurtbox = charger.find_children("FrontPlateHurtbox", "Hurtbox", true, false)[0]
 	var info := DamageInfo.create(200.0, DamageInfo.Kind.MELEE, p)
 	info.armor_damage_mult = 1.0
 	var result := plate.hit(info)
@@ -332,7 +332,7 @@ func test_stagger_resistance_grows() -> void:
 	var p := world.spawn_player(Vector3(0, 0, 0))
 	var charger: RockCharger = world.spawn(CHARGER, Vector3(0, 0, -8), 0.0)
 	await wait_physics_frames(3)
-	var body: Hurtbox = charger.get_node("BodyHurtbox")
+	var body: Hurtbox = charger.find_children("BodyHurtbox", "Hurtbox", true, false)[0]
 	var info := DamageInfo.create(1.0, DamageInfo.Kind.MELEE, p)
 	info.stagger = charger.data.poise + 1.0
 	body.hit(info)
@@ -353,7 +353,7 @@ func test_spitter_sac_burst_interrupts_attack() -> void:
 		await wait_physics_frames(1)
 		waited += 1.0 / 60.0
 	assert_false(spitter.telegraph_info().is_empty(), "전조를 시작한다")
-	var sac: Hurtbox = spitter.get_node("SacHurtbox")
+	var sac: Hurtbox = spitter.find_children("SacHurtbox", "Hurtbox", true, false)[0]
 	var info := DamageInfo.create(10.0, DamageInfo.Kind.GUN, p)
 	sac.hit(info)
 	assert_true(spitter.sac_depleted, "전조 중 주머니를 맞히면 터진다")

@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"tusk_charge"
+display_name = "엄니 돌진"
+kind = 2
+parryable = false
+min_range = 5.0
+max_range = 16.0
+windup = 0.85
+active_time = 1.15
+recovery = 0.8
+cooldown = 3.5
+damage = 16
+reach = 1.3
+hit_angle_deg = 60
+move_speed = 13
+knockback = 7
+wall_stun = 1.8
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"gore"
+display_name = "엄니 치받기"
+kind = 0
+max_range = 2.0
+windup = 0.5
+active_time = 0.15
+recovery = 0.6
+cooldown = 1.6
+damage = 11
+reach = 1.7
+hit_angle_deg = 90
+knockback = 4
+bleed_buildup = 18
+
+[resource]
+script = ExtResource("2_data")
+id = &"thorn_boar"
+display_name = "가시등 멧돼지"
+family = "멧돼지"
+threat_tier = 0
+combat_role = "돌격"
+description = "등에 가시가 돋은 멧돼지. 들이받고 지나쳐 멀리 돌아선 뒤 다시 들이받는다. 등은 가시로 덮였지만 배는 무르다. 들이받기를 옆으로 흘리면 나무에 박혀 잠시 정신을 잃는다."
+model_id = &"thorn_boar"
+max_hp = 90
+defense = 0.05
+walk_speed = 2.5
+run_speed = 6.5
+turn_speed_deg = 260
+poise = 35
+stagger_duration = 0.9
+mass_kg = 90
+sight_range = 24
+sight_fov_deg = 120
+proximity_sense = 3.0
+hearing_mult = 1.2
+leash_radius = 40
+pack_alert_radius = 12
+burn_mult = 1.1
+level = 3
+xp_reward = 30
+resonance_on_kill = 6
+ammo_drop_chance = 0.35
+heal_drop_chance = 0.08
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1")])

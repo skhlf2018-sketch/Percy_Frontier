@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"swell_burst"
+display_name = "부풀어 터지기"
+kind = 5
+parryable = false
+max_range = 3.5
+windup = 1.2
+active_time = 0.1
+recovery = 0.1
+cooldown = 99.0
+damage = 18
+token_group = 0
+projectile_blast_radius = 3.5
+burn_buildup = 60
+
+[resource]
+script = ExtResource("2_data")
+id = &"bloat_pod"
+display_name = "부푼 포자낭"
+family = "포자 식생체"
+threat_tier = 0
+combat_role = "함정"
+description = "땅에 박힌 부푼 포자 주머니. 가까이 가면 부풀어 오르다 터져 불붙는 포자를 뿌린다. 멀리서 쏘면 안전하게 터뜨릴 수 있고, 터질 때 곁의 적과 다른 포자낭도 함께 휘말린다."
+model_id = &"bloat_pod"
+max_hp = 30
+walk_speed = 0.0
+run_speed = 0.0
+turn_speed_deg = 0.0
+poise = 999
+stagger_duration = 0.1
+mass_kg = 50
+sight_range = 6
+sight_fov_deg = 360
+proximity_sense = 3.5
+hearing_mult = 0.0
+leash_radius = 0
+burn_mult = 1.6
+level = 2
+xp_reward = 8
+resonance_on_kill = 2
+ammo_drop_chance = 0.1
+heal_drop_chance = 0.0
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0")])

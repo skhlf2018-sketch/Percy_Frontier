@@ -23,6 +23,7 @@ burn_buildup = 45.0
 [resource]
 script = ExtResource("2_41mlj")
 id = &"spore_spitter"
+model_id = &"spore_spitter"
 display_name = "포자 사수"
 family = "포자 식생체"
 combat_role = "사격·지원"

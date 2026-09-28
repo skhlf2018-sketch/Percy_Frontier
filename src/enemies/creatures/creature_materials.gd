@@ -5,7 +5,7 @@ extends RefCounted
 ## 표면 결(털 뭉치, 비늘, 피부 주름, 껍질)은 이음매 없는 잡음으로 만든 법선 지도를 물체 공간 삼면 투영으로 입힌다.
 ## 외부 텍스처 없이 실행할 때 한 번 만들어 모든 개체가 나눠 쓴다.
 
-enum Kind { FUR, FUR_THIN, SKIN, SKIN_THIN, WET_SKIN, SCALE, CHITIN, HORN, EYE, CLOTH, LEATHER, METAL, WOOD, GLOW, SPORE, TEETH, STONE }
+enum Kind { FUR, FUR_THIN, SKIN, SKIN_THIN, WET_SKIN, SCALE, CHITIN, HORN, EYE, CLOTH, LEATHER, METAL, WOOD, GLOW, SPORE, TEETH, STONE, HIDE }
 
 const TEX_SIZE := 256
 const FUR_SHADER := preload("res://assets/shaders/fur_shell.gdshader")
@@ -157,6 +157,12 @@ static func _make(kind: int) -> Material:
 			var m := _base(0.88)
 			_detail(m, normal_texture(&"stone"), 2.5, 1.2)
 			return m
+		Kind.HIDE:
+			# 두꺼운 가죽: 깊은 주름, 반사가 거의 없다.
+			var m := _base(0.86)
+			_detail(m, normal_texture(&"hide"), 2.2, 1.1)
+			m.metallic_specular = 0.25
+			return m
 		Kind.SPORE:
 			var m := _base(0.55)
 			_detail(m, normal_texture(&"spore"), 4.0, 1.0)
@@ -293,6 +299,13 @@ static func height_image(kind: StringName) -> Image:
 			n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 			n.frequency = 0.03
 			n.fractal_octaves = 5
+		&"hide":
+			# 코끼리 가죽 같은 굵은 주름(세포 잡음의 경계)
+			n.noise_type = FastNoiseLite.TYPE_CELLULAR
+			n.frequency = 0.04
+			n.cellular_return_type = FastNoiseLite.RETURN_DISTANCE2_SUB
+			n.fractal_type = FastNoiseLite.FRACTAL_FBM
+			n.fractal_octaves = 3
 		&"stone":
 			n.noise_type = FastNoiseLite.TYPE_CELLULAR
 			n.frequency = 0.03

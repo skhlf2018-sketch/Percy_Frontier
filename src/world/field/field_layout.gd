@@ -41,22 +41,80 @@ const RIVER: Array[Vector2] = [
 	Vector2(-44, -262), Vector2(-58, -190), Vector2(-34, -118), Vector2(-48, -44),
 	Vector2(-24, 52), Vector2(-40, 120), Vector2(-14, 190), Vector2(-28, 262),
 ]
-## 야외 무리: [종류, x, z, 수, 매복]. 시작 지점에서 멀어질수록 위험해진다(기획서 §4.3, §5.1).
+## 야외 무리: [x, z, 구성, 설정]. 구성은 [[종 id, 수], [종 id, 수, "night"|"day"], ...].
+## 설정: ambush(매복), spread(배치 반경), cond(무리 전체가 "night"/"day"에만).
+## 시작 지점에서 멀어질수록 위험해진다(기획서 §4.3, §5.1). 지역마다 어울리는 종이 산다(§12, §14.5).
 const ENCOUNTERS := [
-	[&"rabbits", -128, 62, 3, true],
-	[&"rabbits", -150, 100, 3, true],
-	[&"rabbits", -84, 22, 4, true],
-	[&"rabbits", 14, 26, 4, true],
-	[&"rabbits", 70, 60, 3, true],
-	[&"rabbits", 32, -92, 3, true],
-	[&"rabbits", 118, -70, 4, true],
-	[&"charger", 150, -118, 1, false],
-	[&"charger", 190, -62, 1, false],
-	[&"charger", 120, -150, 1, false],
-	[&"spitters", -128, 150, 2, false],
-	[&"spitters", -170, 196, 2, false],
-	[&"spitters", -22, -100, 2, false],
-	[&"rabbits", -96, -150, 4, true],
+	# 경계 숲(강하 지점 둘레, Lv 2~3): 살인토끼 매복, 뿔토끼, 밤에는 연쇄살인범토끼와 늑대
+	[-128, 62, [[&"killer_rabbit", 3], [&"serial_rabbit", 1, "night"]], {"ambush": true}],
+	[-150, 100, [[&"killer_rabbit", 3]], {"ambush": true}],
+	[-84, 22, [[&"killer_rabbit", 4], [&"serial_rabbit", 1, "night"]], {"ambush": true}],
+	[-160, -10, [[&"horn_rabbit", 2]], {}],
+	[-110, 112, [[&"killer_rabbit", 2], [&"horn_rabbit", 1]], {"ambush": true}],
+	[-205, 72, [[&"killer_rabbit", 3]], {"ambush": true}],
+	[-60, 92, [[&"thorn_boar", 1]], {}],
+	[-98, -22, [[&"ash_wolf", 3]], {"cond": "night"}],
+	# 가운데(고목 언덕·다리 둘레, Lv 3~4)
+	[14, 26, [[&"killer_rabbit", 4]], {"ambush": true}],
+	[42, -12, [[&"horn_rabbit", 2]], {}],
+	[-8, -62, [[&"thorn_boar", 2]], {}],
+	[30, 94, [[&"goblin_scout", 1], [&"goblin_brute", 1], [&"goblin_thrower", 1]], {"spread": 3.5}],
+	[72, 58, [[&"killer_rabbit", 3]], {"ambush": true}],
+	[102, 18, [[&"ash_wolf", 3]], {}],
+	[-32, 118, [[&"bog_toad", 1], [&"killer_rabbit", 2]], {"ambush": true}],
+	# 무너진 감시탑의 고블린 초소(Lv 5~8): 탑 위의 외눈 저격수
+	[80, -52, [[&"oneeye_sniper", 1]], {"spread": 0.0}],
+	[92, -44, [[&"goblin_gunner", 2], [&"goblin_brute", 1], [&"goblin_shaman", 1]], {"spread": 3.5}],
+	[60, -80, [[&"goblin_scout", 1], [&"goblin_thrower", 1]], {"spread": 3.0}],
+	# 남쪽 고블린 야영지(Lv 5~7): 두목과 무리
+	[40, 200, [[&"goblin_chief", 1], [&"goblin_brute", 2], [&"goblin_shaman", 1]], {"spread": 4.0}],
+	[62, 184, [[&"goblin_gunner", 2], [&"goblin_thrower", 1]], {"spread": 3.5}],
+	[18, 216, [[&"goblin_brute", 1], [&"goblin_scout", 2]], {"spread": 3.5}],
+	[4, 168, [[&"goblin_scout", 1], [&"goblin_gunner", 1]], {"spread": 3.0}],
+	[78, 226, [[&"goblin_thrower", 2], [&"goblin_brute", 1]], {"spread": 3.5}],
+	# 북동 초원(Lv 5~8): 바위등 돌격수와 새끼, 멧돼지, 뿔토끼, 늑대 무리, 드문 황금뿔
+	[150, -118, [[&"rock_charger", 1], [&"mossback_calf", 2]], {"spread": 5.0}],
+	[190, -62, [[&"rock_charger", 1]], {}],
+	[120, -150, [[&"rock_charger", 1], [&"mossback_calf", 1]], {"spread": 5.0}],
+	[205, -152, [[&"goldhorn_charger", 1]], {"cond": "day"}],
+	[130, -72, [[&"horn_rabbit", 3]], {}],
+	[172, -28, [[&"thorn_boar", 2]], {}],
+	[222, -100, [[&"thorn_boar", 1], [&"horn_rabbit", 2]], {}],
+	[108, -108, [[&"ash_wolf", 4], [&"wolf_alpha", 1]], {"spread": 4.5}],
+	[232, -202, [[&"ash_wolf", 3]], {}],
+	# 북쪽 야영지 바깥
+	[18, -182, [[&"killer_rabbit", 3]], {"ambush": true}],
+	[82, -192, [[&"horn_rabbit", 2], [&"thorn_boar", 1]], {}],
+	# 그늘 숲(Lv 5~7): 나무껍질 사마귀, 거미, 포자 모체, 밤의 늑대와 은갈기
+	[-40, -112, [[&"bark_mantis", 1]], {}],
+	[-102, -98, [[&"bark_mantis", 1]], {}],
+	[-60, -182, [[&"cave_spider", 2]], {}],
+	[-122, -162, [[&"spore_mother", 1], [&"bloat_pod", 3]], {"spread": 5.0}],
+	[-20, -152, [[&"spore_spitter", 2], [&"bloat_pod", 2]], {"spread": 4.0}],
+	[-88, -58, [[&"ash_wolf", 3]], {"cond": "night"}],
+	[-132, -112, [[&"silvermane", 1]], {"cond": "night"}],
+	[-30, -204, [[&"bark_mantis", 1], [&"cave_spider", 1]], {}],
+	[-112, -204, [[&"cave_spider", 3]], {}],
+	[-152, -60, [[&"thorn_boar", 2]], {}],
+	# 북서 동굴 어귀: 박쥐와 거미
+	[-196, -172, [[&"cave_bat", 5]], {"spread": 3.0}],
+	[-214, -140, [[&"cave_spider", 2]], {}],
+	[-182, -206, [[&"cave_bat", 4], [&"cave_spider", 1]], {"spread": 3.0}],
+	# 남서 늪 연못: 포자 사수, 부푼 포자낭, 늪 두꺼비
+	[-128, 150, [[&"spore_spitter", 2]], {}],
+	[-172, 198, [[&"spore_spitter", 2], [&"bloat_pod", 2]], {"spread": 4.0}],
+	[-150, 138, [[&"bog_toad", 2]], {}],
+	[-188, 160, [[&"bog_toad", 1], [&"bloat_pod", 2]], {"spread": 3.5}],
+	[-118, 198, [[&"bog_toad", 1]], {}],
+	# 강가와 남쪽
+	[-46, 2, [[&"bog_toad", 1]], {}],
+	[-22, 232, [[&"bog_toad", 1], [&"thorn_boar", 1]], {}],
+	[-96, -150, [[&"killer_rabbit", 4]], {"ambush": true}],
+	# 동쪽(퍼시 둘레 바깥)
+	[204, 60, [[&"horn_rabbit", 2]], {}],
+	[232, 4, [[&"thorn_boar", 1], [&"ash_wolf", 2]], {}],
+	[212, 232, [[&"ash_wolf", 3]], {}],
+	[122, 232, [[&"killer_rabbit", 3]], {"ambush": true}],
 ]
 const ROAD_HALF_WIDTH := 2.6
 const RIVER_HALF_WIDTH := 5.0

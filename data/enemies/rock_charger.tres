@@ -38,6 +38,7 @@ wall_stun = 2.5
 [resource]
 script = ExtResource("2_oufx5")
 id = &"rock_charger"
+model_id = &"rock_charger"
 display_name = "바위등 돌격수"
 family = "갑각 짐승"
 threat_tier = 3

@@ -5,6 +5,8 @@ extends Node3D
 const MODELS: Array[StringName] = [
 	&"killer_rabbit", &"horn_rabbit", &"serial_rabbit", &"ash_wolf", &"wolf_alpha", &"silvermane",
 	&"goblin_scout", &"goblin_brute", &"goblin_gunner", &"goblin_thrower", &"goblin_shaman", &"goblin_chief", &"oneeye_sniper",
+	&"rock_charger", &"goldhorn_charger", &"mossback_calf", &"thorn_boar", &"bog_toad", &"spore_spitter", &"bloat_pod",
+	&"spore_mother", &"bark_mantis", &"cave_spider", &"cave_bat",
 ]
 
 const LINEUPS := {
@@ -39,9 +41,12 @@ func _ready() -> void:
 		await _shoot_lineup(lineup)
 		get_tree().quit()
 		return
-	for id in MODELS:
-		if not only.is_empty() and not only.has(String(id)):
-			continue
+	var ids: Array[StringName] = MODELS
+	if not only.is_empty():
+		ids = []
+		for o in only:
+			ids.append(StringName(o))
+	for id in ids:
 		await _shoot(id)
 	get_tree().quit()
 
@@ -96,12 +101,22 @@ func _shoot(id: StringName) -> void:
 	var aabb := t.custom_aabb.grow(-0.35)
 	var size := maxf(aabb.size.x, maxf(aabb.size.y, aabb.size.z))
 	var center := aabb.get_center()
-	center.y = aabb.size.y * 0.5
+	if id != &"cave_bat":
+		center.y = aabb.size.y * 0.5
+	else:
+		rig.position.y = 0.8
+		center.y = 0.8
 	var body := CreatureAnimator.Body.QUADRUPED
 	if String(id).contains("goblin") or id == &"oneeye_sniper":
 		body = CreatureAnimator.Body.BIPED
-	elif String(id).contains("rabbit"):
+	elif String(id).contains("rabbit") or id == &"bog_toad":
 		body = CreatureAnimator.Body.HOPPER
+	elif id in [&"spore_spitter", &"bark_mantis", &"cave_spider"]:
+		body = CreatureAnimator.Body.CRAWLER
+	elif id == &"cave_bat":
+		body = CreatureAnimator.Body.FLYER
+	elif id in [&"bloat_pod", &"spore_mother"]:
+		body = CreatureAnimator.Body.STATIC
 	var anim := CreatureAnimator.new(rig, body, aabb.size.y * 0.5, 6.0)
 	if pose != "":
 		anim.speed = 2.5 if pose == "walk" else 0.0

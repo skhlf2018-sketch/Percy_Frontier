@@ -21,8 +21,32 @@ var _strafe_timer: float = 0.0
 
 
 func _on_ready() -> void:
-	_sac = get_node_or_null(sac_path)
+	if _sac == null:
+		_sac = get_node_or_null(sac_path)
 	_strafe_sign = 1.0 if randf() < 0.5 else -1.0
+
+
+## 새 모델: 갓 뒤의 포자 주머니를 따로 붙인다(맞히면 터지고, 다시 자란다).
+func _on_body_built(rig_node: CreatureRig) -> void:
+	var sac := MeshInstance3D.new()
+	sac.name = "Sac"
+	var sm := SphereMesh.new()
+	sm.radius = 0.24
+	sm.height = 0.42
+	sac.mesh = sm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.55, 0.15, 0.9)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.45, 0.1)
+	m.emission_energy_multiplier = 1.8
+	m.rim_enabled = true
+	m.rim = 0.6
+	m.subsurf_scatter_enabled = true
+	m.subsurf_scatter_strength = 0.8
+	sac.material_override = m
+	rig_node.attach_socket(&"sac", sac)
+	_sac = sac
 
 
 func _attack_allowed(_a: EnemyAttackData) -> bool:
@@ -99,12 +123,13 @@ func _burst_sac() -> void:
 
 
 func _process(delta: float) -> void:
-	if _sac == null or state == State.DEAD:
+	if state == State.DEAD:
+		return
+	if _sac == null:
+		super._process(delta)
 		return
 	var s := 1.0
 	if _attack_phase == AttackPhase.WINDUP:
 		s = 1.0 + 0.25 * (telegraph_info().get("progress", 0.0) as float) + sin(_clock * 25.0) * 0.05
 	_sac.scale = _sac.scale.lerp(Vector3.ONE * s, 1.0 - exp(-12.0 * delta))
-	if _visual:
-		var speed := Vector2(velocity.x, velocity.z).length()
-		_visual.rotation.z = sin(_clock * 3.0) * 0.03 + (sin(_clock * 10.0) * 0.04 if speed > 0.5 else 0.0)
+	super._process(delta)

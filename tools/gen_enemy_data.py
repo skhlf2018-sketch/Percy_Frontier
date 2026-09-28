@@ -234,6 +234,165 @@ SPECIES: list[dict] = [
     ),
 ]
 
+SPECIES += [
+    # --- 갑각 짐승 ---
+    dict(
+        id="mossback_calf", display_name="이끼등 새끼", family="갑각 짐승", threat_tier=NORMAL, combat_role="방어",
+        description="바위등 돌격수의 새끼. 돌진은 못 하고 머리로 들이받는 게 고작이지만, 크게 다치면 우는 소리로 가까운 "
+        "어른을 부른다. 새끼 곁에서 싸우면 성체가 달려온다.",
+        level=2, max_hp=80, defense=0.05, walk_speed=2.0, run_speed=4.0, turn_speed_deg=200, poise=40,
+        stagger_duration=1.0, mass_kg=120, sight_range=20, sight_fov_deg=120, proximity_sense=3.0, leash_radius=30,
+        attacks=[
+            atk("calf_butt", "머리 받기", STRIKE, max_range=2.2, windup=0.6, active_time=0.18, recovery=0.8, cooldown=2.0,
+                damage=9, reach=1.9, hit_angle_deg=80, knockback=4),
+        ],
+        burn_mult=0.9, chill_mult=0.8, bleed_mult=0.7, xp_reward=16, resonance_on_kill=4, ammo_drop_chance=0.3,
+        heal_drop_chance=0.05, model_id="mossback_calf",
+    ),
+    dict(
+        id="goldhorn_charger", display_name="황금뿔 돌격수", family="갑각 짐승", threat_tier=RARE, combat_role="돌격",
+        description="금빛 뿔이 난 드문 돌격수. 한 번 돌진하고 멈추지 않고 곧바로 한 번 더 돌진한다. 가까이 붙으면 앞발로 "
+        "땅을 굴러 둘레를 모두 밀어낸다. 벽에 박히면 한참 정신을 못 차린다. 금빛 뿔은 공방에서 귀한 재료로 쓰인다.",
+        level=8, max_hp=620, defense=0.18, walk_speed=3.0, run_speed=6.2, turn_speed_deg=140, poise=120,
+        stagger_duration=1.5, mass_kg=520, sight_range=30, sight_fov_deg=110, proximity_sense=4.0, hearing_mult=0.9,
+        leash_radius=55,
+        attacks=[
+            atk("gold_charge", "황금뿔 돌진", CHARGE, parryable=False, min_range=7.0, max_range=24.0, windup=1.0,
+                active_time=1.6, recovery=1.0, cooldown=5.5, damage=30, reach=1.9, hit_angle_deg=60, move_speed=15,
+                knockback=10, wall_stun=3.0),
+            atk("stomp", "발구르기", STRIKE, parryable=False, max_range=4.5, windup=1.0, active_time=0.2, recovery=1.1,
+                cooldown=6.0, damage=20, reach=4.5, hit_angle_deg=360, knockback=9),
+            atk("gold_headbutt", "머리 받기", STRIKE, max_range=3.2, windup=0.7, active_time=0.2, recovery=0.9,
+                cooldown=2.2, damage=18, reach=2.9, hit_angle_deg=80, knockback=6),
+        ],
+        burn_mult=0.8, chill_mult=0.7, shock_mult=1.2, bleed_mult=0.6, xp_reward=260, resonance_on_kill=20,
+        ammo_drop_chance=1.0, heal_drop_chance=0.5, model_id="goldhorn_charger",
+    ),
+    # --- 멧돼지 ---
+    dict(
+        id="thorn_boar", display_name="가시등 멧돼지", family="멧돼지", threat_tier=NORMAL, combat_role="돌격",
+        description="등에 가시가 돋은 멧돼지. 들이받고 지나쳐 멀리 돌아선 뒤 다시 들이받는다. 등은 가시로 덮였지만 배는 "
+        "무르다. 들이받기를 옆으로 흘리면 나무에 박혀 잠시 정신을 잃는다.",
+        level=3, max_hp=90, defense=0.05, walk_speed=2.5, run_speed=6.5, turn_speed_deg=260, poise=35,
+        stagger_duration=0.9, mass_kg=90, sight_range=24, sight_fov_deg=120, proximity_sense=3.0, hearing_mult=1.2,
+        leash_radius=40, pack_alert_radius=12,
+        attacks=[
+            atk("tusk_charge", "엄니 돌진", CHARGE, parryable=False, min_range=5.0, max_range=16.0, windup=0.85,
+                active_time=1.15, recovery=0.8, cooldown=3.5, damage=16, reach=1.3, hit_angle_deg=60, move_speed=13,
+                knockback=7, wall_stun=1.8),
+            atk("gore", "엄니 치받기", STRIKE, max_range=2.0, windup=0.5, active_time=0.15, recovery=0.6, cooldown=1.6,
+                damage=11, reach=1.7, hit_angle_deg=90, knockback=4, bleed_buildup=18),
+        ],
+        burn_mult=1.1, xp_reward=30, resonance_on_kill=6, ammo_drop_chance=0.35, heal_drop_chance=0.08,
+        model_id="thorn_boar",
+    ),
+    # --- 늪 ---
+    dict(
+        id="bog_toad", display_name="늪 두꺼비", family="양서류", threat_tier=NORMAL, combat_role="견제",
+        description="늪가에 웅크린 커다란 두꺼비. 길게 뻗는 혀로 사람을 끌어당긴 뒤 몸으로 덮친다. 혀가 뻗는 순간을 흘리거나 "
+        "옆으로 비켜라. 젖은 피부라 불에는 강하지만 감전에 약하다.",
+        level=3, max_hp=85, walk_speed=1.8, run_speed=4.0, turn_speed_deg=220, poise=30, stagger_duration=1.0,
+        mass_kg=60, sight_range=22, sight_fov_deg=150, proximity_sense=3.0, leash_radius=30,
+        attacks=[
+            atk("tongue_lash", "혀 휘감기", STRIKE, min_range=2.5, max_range=7.0, windup=0.6, active_time=0.25,
+                recovery=0.8, cooldown=3.0, damage=10, reach=7.0, hit_angle_deg=20, knockback=-6, weight=1.2),
+            atk("belly_flop", "몸 덮치기", LUNGE, parryable=False, min_range=2.0, max_range=6.0, windup=0.9,
+                active_time=0.5, recovery=1.0, cooldown=5.0, damage=16, reach=1.6, hit_angle_deg=90, move_speed=9,
+                knockback=8),
+            atk("bile_spit", "쓸개즙 뱉기", PROJECTILE, parryable=False, min_range=4.0, max_range=20.0, windup=0.8,
+                active_time=0.1, recovery=0.7, cooldown=4.0, damage=8, projectile_speed=14, projectile_gravity=9,
+                projectile_blast_radius=2.0, burn_buildup=30, token_group=TOKEN_RANGED),
+        ],
+        burn_mult=0.6, shock_mult=1.5, xp_reward=28, resonance_on_kill=5, ammo_drop_chance=0.35, heal_drop_chance=0.08,
+        model_id="bog_toad",
+    ),
+    # --- 곤충·거미·박쥐 ---
+    dict(
+        id="bark_mantis", display_name="나무껍질 사마귀", family="곤충", threat_tier=ENHANCED, combat_role="매복",
+        description="나뭇가지처럼 꼼짝 않고 서 있다가 가까이 오는 것을 낫 같은 앞다리로 벤다. 움직이지 않을 때는 나무껍질과 "
+        "구별하기 어렵다. 낫질은 두 번 이어지니 첫 번째만 막고 방심하지 마라. 불에 약하다.",
+        level=5, max_hp=110, defense=0.1, walk_speed=2.2, run_speed=6.0, turn_speed_deg=400, poise=35,
+        stagger_duration=0.8, mass_kg=40, sight_range=20, sight_fov_deg=100, proximity_sense=4.0, hearing_mult=1.2,
+        leash_radius=30,
+        attacks=[
+            atk("scythe_double", "두 번 베기", STRIKE, max_range=2.6, windup=0.55, active_time=0.3, recovery=0.7,
+                cooldown=1.8, damage=14, reach=2.4, hit_angle_deg=70, knockback=3, bleed_buildup=25),
+            atk("scythe_lunge", "뛰어들어 베기", LUNGE, min_range=2.5, max_range=7.0, windup=0.6, active_time=0.45,
+                recovery=0.8, cooldown=3.2, damage=17, reach=1.8, hit_angle_deg=60, move_speed=12, knockback=4,
+                bleed_buildup=20),
+        ],
+        burn_mult=1.4, xp_reward=45, resonance_on_kill=8, ammo_drop_chance=0.45, heal_drop_chance=0.1,
+        model_id="bark_mantis",
+    ),
+    dict(
+        id="cave_spider", display_name="동굴 거미", family="거미류", threat_tier=NORMAL, combat_role="매복·견제",
+        description="어두운 곳에 사는 커다란 거미. 끈적한 거미줄을 쏘아 발을 묶은 뒤 뛰어올라 문다. 거미줄에 맞으면 몸이 "
+        "무거워진다. 불에 약하다.",
+        level=4, max_hp=90, defense=0.08, walk_speed=2.5, run_speed=6.5, turn_speed_deg=480, poise=28,
+        stagger_duration=0.8, mass_kg=30, sight_range=18, sight_fov_deg=180, proximity_sense=4.0, hearing_mult=1.4,
+        leash_radius=30, pack_alert_radius=15,
+        attacks=[
+            atk("web_shot", "거미줄 쏘기", PROJECTILE, parryable=False, min_range=4.0, max_range=18.0, windup=0.8,
+                active_time=0.1, recovery=0.6, cooldown=5.0, damage=3, projectile_speed=18, projectile_gravity=4,
+                projectile_blast_radius=1.5, chill_buildup=55, token_group=TOKEN_RANGED),
+            atk("venom_bite", "뛰어올라 물기", LUNGE, min_range=1.8, max_range=5.0, windup=0.5, active_time=0.35,
+                recovery=0.7, cooldown=2.2, damage=12, reach=1.4, hit_angle_deg=70, move_speed=11, knockback=3,
+                bleed_buildup=20),
+        ],
+        burn_mult=1.5, xp_reward=32, resonance_on_kill=6, ammo_drop_chance=0.4, heal_drop_chance=0.08,
+        model_id="cave_spider",
+    ),
+    dict(
+        id="cave_bat", display_name="동굴 박쥐", family="박쥐류", threat_tier=NORMAL, combat_role="교란",
+        description="동굴 천장에 매달려 있다가 떼로 날아와 할퀴고 문다. 날 때는 맞히기 어렵지만 덮치려고 내려오는 순간 "
+        "낮게 난다. 총소리를 들으면 한꺼번에 깨어난다.",
+        level=3, max_hp=35, walk_speed=4.0, run_speed=8.0, turn_speed_deg=720, poise=12, stagger_duration=0.8,
+        mass_kg=3, sight_range=25, sight_fov_deg=360, proximity_sense=6.0, hearing_mult=1.8, leash_radius=40,
+        pack_alert_radius=20,
+        attacks=[
+            atk("dive_bite", "내리꽂혀 물기", LUNGE, min_range=2.0, max_range=7.0, windup=0.5, active_time=0.5,
+                recovery=0.8, cooldown=2.5, damage=7, reach=1.2, hit_angle_deg=80, move_speed=12, knockback=2,
+                bleed_buildup=15),
+        ],
+        xp_reward=14, resonance_on_kill=3, ammo_drop_chance=0.25, heal_drop_chance=0.04,
+        model_id="cave_bat",
+    ),
+    # --- 포자 식생체 ---
+    dict(
+        id="bloat_pod", display_name="부푼 포자낭", family="포자 식생체", threat_tier=NORMAL, combat_role="함정",
+        description="땅에 박힌 부푼 포자 주머니. 가까이 가면 부풀어 오르다 터져 불붙는 포자를 뿌린다. 멀리서 쏘면 안전하게 "
+        "터뜨릴 수 있고, 터질 때 곁의 적과 다른 포자낭도 함께 휘말린다.",
+        level=2, max_hp=30, walk_speed=0.0, run_speed=0.0, turn_speed_deg=0.0, poise=999, stagger_duration=0.1,
+        mass_kg=50, sight_range=6, sight_fov_deg=360, proximity_sense=3.5, hearing_mult=0.0, leash_radius=0,
+        attacks=[
+            atk("swell_burst", "부풀어 터지기", SPECIAL, parryable=False, max_range=3.5, windup=1.2, active_time=0.1,
+                recovery=0.1, cooldown=99.0, damage=18, projectile_blast_radius=3.5, burn_buildup=60,
+                token_group=TOKEN_NONE),
+        ],
+        burn_mult=1.6, xp_reward=8, resonance_on_kill=2, ammo_drop_chance=0.1, heal_drop_chance=0.0,
+        model_id="bloat_pod",
+    ),
+    dict(
+        id="spore_mother", display_name="포자 모체", family="포자 식생체", threat_tier=ELITE, combat_role="소환",
+        description="숲 그늘에 뿌리내린 커다란 균체. 둘레에 포자낭을 낳고 불붙는 포자 구름을 뱉는다. 겉껍질은 질기지만, "
+        "숨을 들이쉴 때 갓이 벌어지며 붉은 핵이 드러난다. 그때가 기회다.",
+        level=6, max_hp=640, defense=0.1, walk_speed=0.0, run_speed=0.0, turn_speed_deg=60, poise=200,
+        stagger_duration=1.2, mass_kg=800, sight_range=30, sight_fov_deg=360, proximity_sense=5.0, hearing_mult=0.8,
+        leash_radius=0,
+        attacks=[
+            atk("spore_cloud", "포자 구름", PROJECTILE, parryable=False, min_range=3.0, max_range=26.0, windup=1.1,
+                active_time=0.1, recovery=0.8, cooldown=3.4, damage=14, projectile_speed=13, projectile_gravity=6,
+                projectile_blast_radius=3.0, burn_buildup=40, token_group=TOKEN_RANGED),
+            atk("birth_pod", "포자낭 낳기", SPECIAL, max_range=30.0, windup=1.4, active_time=0.3, recovery=0.6,
+                cooldown=9.0, token_group=TOKEN_NONE),
+            atk("bloom", "숨 들이쉬기", SPECIAL, max_range=30.0, windup=0.6, active_time=3.0, recovery=0.6,
+                cooldown=7.0, weight=0.8, token_group=TOKEN_NONE),
+        ],
+        burn_mult=1.4, chill_mult=1.2, xp_reward=200, resonance_on_kill=16, ammo_drop_chance=0.9, heal_drop_chance=0.4,
+        model_id="spore_mother",
+    ),
+]
+
 DATA_FIELDS = [
     "id", "display_name", "family", "threat_tier", "combat_role", "description", "model_id", "appears",
     "max_hp", "defense", "walk_speed", "run_speed", "turn_speed_deg", "poise", "stagger_duration", "mass_kg",

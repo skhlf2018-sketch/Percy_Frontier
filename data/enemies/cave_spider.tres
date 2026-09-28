@@ -1,0 +1,72 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"web_shot"
+display_name = "거미줄 쏘기"
+kind = 3
+parryable = false
+min_range = 4.0
+max_range = 18.0
+windup = 0.8
+active_time = 0.1
+recovery = 0.6
+cooldown = 5.0
+damage = 3
+token_group = 2
+projectile_speed = 18
+projectile_gravity = 4
+projectile_blast_radius = 1.5
+chill_buildup = 55
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"venom_bite"
+display_name = "뛰어올라 물기"
+kind = 1
+min_range = 1.8
+max_range = 5.0
+windup = 0.5
+active_time = 0.35
+recovery = 0.7
+cooldown = 2.2
+damage = 12
+reach = 1.4
+hit_angle_deg = 70
+move_speed = 11
+knockback = 3
+bleed_buildup = 20
+
+[resource]
+script = ExtResource("2_data")
+id = &"cave_spider"
+display_name = "동굴 거미"
+family = "거미류"
+threat_tier = 0
+combat_role = "매복·견제"
+description = "어두운 곳에 사는 커다란 거미. 끈적한 거미줄을 쏘아 발을 묶은 뒤 뛰어올라 문다. 거미줄에 맞으면 몸이 무거워진다. 불에 약하다."
+model_id = &"cave_spider"
+max_hp = 90
+defense = 0.08
+walk_speed = 2.5
+run_speed = 6.5
+turn_speed_deg = 480
+poise = 28
+stagger_duration = 0.8
+mass_kg = 30
+sight_range = 18
+sight_fov_deg = 180
+proximity_sense = 4.0
+hearing_mult = 1.4
+leash_radius = 30
+pack_alert_radius = 15
+burn_mult = 1.5
+level = 4
+xp_reward = 32
+resonance_on_kill = 6
+ammo_drop_chance = 0.4
+heal_drop_chance = 0.08
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1")])

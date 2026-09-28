@@ -1,0 +1,79 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"spore_cloud"
+display_name = "포자 구름"
+kind = 3
+parryable = false
+min_range = 3.0
+max_range = 26.0
+windup = 1.1
+active_time = 0.1
+recovery = 0.8
+cooldown = 3.4
+damage = 14
+token_group = 2
+projectile_speed = 13
+projectile_gravity = 6
+projectile_blast_radius = 3.0
+burn_buildup = 40
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"birth_pod"
+display_name = "포자낭 낳기"
+kind = 5
+max_range = 30.0
+windup = 1.4
+active_time = 0.3
+recovery = 0.6
+cooldown = 9.0
+token_group = 0
+
+[sub_resource type="Resource" id="Atk_2"]
+script = ExtResource("1_atk")
+id = &"bloom"
+display_name = "숨 들이쉬기"
+kind = 5
+max_range = 30.0
+windup = 0.6
+active_time = 3.0
+recovery = 0.6
+cooldown = 7.0
+weight = 0.8
+token_group = 0
+
+[resource]
+script = ExtResource("2_data")
+id = &"spore_mother"
+display_name = "포자 모체"
+family = "포자 식생체"
+threat_tier = 3
+combat_role = "소환"
+description = "숲 그늘에 뿌리내린 커다란 균체. 둘레에 포자낭을 낳고 불붙는 포자 구름을 뱉는다. 겉껍질은 질기지만, 숨을 들이쉴 때 갓이 벌어지며 붉은 핵이 드러난다. 그때가 기회다."
+model_id = &"spore_mother"
+max_hp = 640
+defense = 0.1
+walk_speed = 0.0
+run_speed = 0.0
+turn_speed_deg = 60
+poise = 200
+stagger_duration = 1.2
+mass_kg = 800
+sight_range = 30
+sight_fov_deg = 360
+proximity_sense = 5.0
+hearing_mult = 0.8
+leash_radius = 0
+burn_mult = 1.4
+chill_mult = 1.2
+level = 6
+xp_reward = 200
+resonance_on_kill = 16
+ammo_drop_chance = 0.9
+heal_drop_chance = 0.4
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1"), SubResource("Atk_2")])

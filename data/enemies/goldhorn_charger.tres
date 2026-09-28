@@ -1,0 +1,87 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/enemy_attack_data.gd" id="1_atk"]
+[ext_resource type="Script" path="res://src/core/data/enemy_data.gd" id="2_data"]
+
+[sub_resource type="Resource" id="Atk_0"]
+script = ExtResource("1_atk")
+id = &"gold_charge"
+display_name = "황금뿔 돌진"
+kind = 2
+parryable = false
+min_range = 7.0
+max_range = 24.0
+windup = 1.0
+active_time = 1.6
+recovery = 1.0
+cooldown = 5.5
+damage = 30
+reach = 1.9
+hit_angle_deg = 60
+move_speed = 15
+knockback = 10
+wall_stun = 3.0
+
+[sub_resource type="Resource" id="Atk_1"]
+script = ExtResource("1_atk")
+id = &"stomp"
+display_name = "발구르기"
+kind = 0
+parryable = false
+max_range = 4.5
+windup = 1.0
+active_time = 0.2
+recovery = 1.1
+cooldown = 6.0
+damage = 20
+reach = 4.5
+hit_angle_deg = 360
+knockback = 9
+
+[sub_resource type="Resource" id="Atk_2"]
+script = ExtResource("1_atk")
+id = &"gold_headbutt"
+display_name = "머리 받기"
+kind = 0
+max_range = 3.2
+windup = 0.7
+active_time = 0.2
+recovery = 0.9
+cooldown = 2.2
+damage = 18
+reach = 2.9
+hit_angle_deg = 80
+knockback = 6
+
+[resource]
+script = ExtResource("2_data")
+id = &"goldhorn_charger"
+display_name = "황금뿔 돌격수"
+family = "갑각 짐승"
+threat_tier = 2
+combat_role = "돌격"
+description = "금빛 뿔이 난 드문 돌격수. 한 번 돌진하고 멈추지 않고 곧바로 한 번 더 돌진한다. 가까이 붙으면 앞발로 땅을 굴러 둘레를 모두 밀어낸다. 벽에 박히면 한참 정신을 못 차린다. 금빛 뿔은 공방에서 귀한 재료로 쓰인다."
+model_id = &"goldhorn_charger"
+max_hp = 620
+defense = 0.18
+walk_speed = 3.0
+run_speed = 6.2
+turn_speed_deg = 140
+poise = 120
+stagger_duration = 1.5
+mass_kg = 520
+sight_range = 30
+sight_fov_deg = 110
+proximity_sense = 4.0
+hearing_mult = 0.9
+leash_radius = 55
+burn_mult = 0.8
+chill_mult = 0.7
+shock_mult = 1.2
+bleed_mult = 0.6
+level = 8
+xp_reward = 260
+resonance_on_kill = 20
+ammo_drop_chance = 1.0
+heal_drop_chance = 0.5
+attacks = Array[ExtResource("1_atk")]([SubResource("Atk_0"), SubResource("Atk_1"), SubResource("Atk_2")])

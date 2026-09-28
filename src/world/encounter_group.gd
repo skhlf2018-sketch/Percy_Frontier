@@ -9,8 +9,12 @@ signal engaged
 @export var enemy_scene: PackedScene
 ## 종 id로 만들 때(EnemyBody). 비어 있으면 enemy_scene을 쓴다.
 @export var species: StringName
-## 섞어 넣을 종: [[종 id, 수], ...]. 지정하면 count·species 대신 이 목록대로 만든다.
+## 섞어 넣을 종: [[종 id, 수], [종 id, 수, "night"|"day"], ...]. 지정하면 count·species 대신 이 목록대로 만든다.
 @export var mix: Array = []
+## 무리 전체가 나타나는 때: "" 언제나, "night" 밤에만, "day" 낮에만
+@export var condition: String = ""
+## 지금이 밤인지 알려 주는 함수(야외에서 FieldEncounters가 넣는다). 비어 있으면 낮으로 본다.
+var is_night: Callable = Callable()
 @export var count: int = 1
 ## 여러 마리일 때 원형 배치 반경
 @export var spread: float = 2.5
@@ -25,11 +29,38 @@ func _ready() -> void:
 	spawn_all.call_deferred()
 
 
-## 이번에 만들 종 목록(무리 구성)
+func _night() -> bool:
+	return is_night.is_valid() and bool(is_night.call())
+
+
+func _time_ok(cond: String) -> bool:
+	match cond:
+		"night":
+			return _night()
+		"day":
+			return not _night()
+	return true
+
+
+## 시간에 따라 구성이 달라지는 무리인지
+func has_time_condition() -> bool:
+	if condition != "":
+		return true
+	for m: Array in mix:
+		if m.size() > 2:
+			return true
+	return false
+
+
+## 이번에 만들 종 목록(무리 구성). 지금 시간에 맞지 않는 종은 뺀다.
 func roster() -> Array[StringName]:
 	var out: Array[StringName] = []
+	if not _time_ok(condition):
+		return out
 	if not mix.is_empty():
 		for m: Array in mix:
+			if m.size() > 2 and not _time_ok(String(m[2])):
+				continue
 			for i in int(m[1]):
 				out.append(StringName(m[0]))
 		return out

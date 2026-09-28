@@ -57,22 +57,62 @@ func _on_armor_broken(_hb: Hurtbox) -> void:
 	GameEvents.notify("%s의 전면 장갑이 부서졌다 — 분노 상태" % data.display_name, GameEvents.NoticeKind.INFO)
 
 
-func _process(delta: float) -> void:
-	if _visual == null or state == State.DEAD:
-		return
-	var speed := Vector2(velocity.x, velocity.z).length()
-	_step_phase += delta * speed * 1.2
-	var lean := 0.0
-	var y := absf(sin(_step_phase)) * 0.05 * clampf(speed / 4.0, 0.0, 1.0)
-	if _attack_phase == AttackPhase.WINDUP:
-		lean = 0.18
-		y += sin(_clock * 40.0) * 0.015
-	elif _attack_phase == AttackPhase.ACTIVE and _attack and _attack.kind == EnemyAttackData.Kind.CHARGE:
-		lean = 0.12
-	elif state == State.STUNNED:
-		lean = -0.1
-		_visual.rotation.z = sin(_clock * 6.0) * 0.06
-	if state != State.STUNNED:
-		_visual.rotation.z = lerpf(_visual.rotation.z, 0.0, 1.0 - exp(-8.0 * delta))
-	_visual.rotation.x = lerpf(_visual.rotation.x, -lean, 1.0 - exp(-10.0 * delta))
-	_visual.position.y = y
+## 새 모델: 얼굴 앞의 바위 장갑판과 그 밑의 핵을 붙이고 장갑 판정에 잇는다.
+func _on_body_built(rig_node: CreatureRig) -> void:
+	var plate := _make_plate()
+	rig_node.attach_socket(&"face", plate, Transform3D(Basis(), Vector3(0, 0.02, -0.12)))
+	var core := MeshInstance3D.new()
+	core.name = "Core"
+	var sm := SphereMesh.new()
+	sm.radius = 0.32
+	sm.height = 0.5
+	core.mesh = sm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.4, 0.15)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.35, 0.1)
+	m.emission_energy_multiplier = 2.5
+	core.material_override = m
+	core.visible = false
+	rig_node.attach_socket(&"face", core, Transform3D(Basis(), Vector3(0, 0.0, -0.05)))
+	for hb in _hurtboxes_named(&"FrontPlateHurtbox"):
+		hb.armor_visual = plate
+		hb.exposed_visual = core
+
+
+func _hurtboxes_named(n: StringName) -> Array[Hurtbox]:
+	var out: Array[Hurtbox] = []
+	for hb in find_children(String(n), "Hurtbox", true, false):
+		out.append(hb)
+	return out
+
+
+## 바위 장갑판: 이마를 덮는 두꺼운 바위(이끼 낀 윗면)
+func _make_plate() -> Node3D:
+	var b := RigBuilder.new()
+	b.bone(&"root", &"", Vector3.ZERO)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 41
+	var rock := Color(0.44, 0.41, 0.37)
+	var slab: Array[RigBuilder.P] = [
+		RigBuilder.pt(Vector3(0, 0.0, 0.18), 0.62, 0.5, &"root"),
+		RigBuilder.pt(Vector3(0, 0.05, -0.05), 0.72, 0.58, &"root"),
+		RigBuilder.pt(Vector3(0, 0.02, -0.2), 0.6, 0.48, &"root"),
+	]
+	b.loft(slab, CreatureMaterials.Kind.STONE, rock, rock.darkened(0.3), 18, 3, Vector3.UP, true, true,
+		func(v: Vector3, n: Vector3, c: Color) -> Color:
+			var crack := smoothstep(0.07, 0.0, absf(SpeciesModels.noise3(v * 3.0)))
+			var moss := smoothstep(0.4, 0.9, n.y) * smoothstep(0.0, 0.4, SpeciesModels.noise3(v * 2.0 + Vector3(2, 0, 5)))
+			return Color(c.darkened(crack * 0.5).lerp(Color(0.26, 0.36, 0.16), moss * 0.8), c.a))
+	BeastModels.rock_lumps(b, &"root", Vector3(0, 0.35, 0.0), 3, 0.18, rng, 0.7, rock)
+	var t := b.build()
+	var mi := MeshInstance3D.new()
+	mi.name = "Plate"
+	mi.mesh = t.mesh
+	return mi
+
+
+func _anim_action() -> StringName:
+	if state == State.STUNNED:
+		return &"stun"
+	return super._anim_action()

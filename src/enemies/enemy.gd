@@ -42,6 +42,11 @@ const TELEGRAPH_HEAVY_COLOR := Color(1.0, 0.18, 0.12)
 @export var ambush: bool = false
 ## 눈 높이(시야 판정 기준)
 @export var eye_height: float = 1.0
+## 날아다니는 적(중력 대신 땅 위 높이를 유지한다)
+var flying: bool = false
+var fly_height: float = 2.6
+var _ground_y: float = 0.0
+var _ground_timer: float = 0.0
 
 var hp: float = 0.0
 var state: int = State.IDLE
@@ -96,6 +101,11 @@ var _prev_yaw: float = 0.0
 var _aim_point := Vector3.ZERO
 var _aim_locked: bool = false
 var _laser: MeshInstance3D = null
+var _path_ok: bool = false
+## 동작 LOD: 멀거나 화면 밖이면 몇 프레임에 한 번만 뼈를 움직인다.
+var _anim_skip: int = 0
+var _anim_accum: float = 0.0
+var _on_screen: bool = true
 
 static var _overlay_cache: Dictionary = {}
 
@@ -240,7 +250,9 @@ func _physics_process(delta: float) -> void:
 		velocity.z = 0.0
 	else:
 		_process_state(delta)
-	if not is_on_floor():
+	if flying:
+		_fly(delta)
+	elif not is_on_floor():
 		velocity.y -= GRAVITY * delta
 	else:
 		velocity.y = maxf(velocity.y, -1.0)
@@ -255,6 +267,28 @@ func _physics_process(delta: float) -> void:
 
 
 func _after_move(_delta: float) -> void:
+	pass
+
+
+## 나는 적: 땅 위 목표 높이로 오르내린다.
+func _fly(delta: float) -> void:
+	_ground_timer -= delta
+	if _ground_timer <= 0.0:
+		_ground_timer = 0.25
+		var q := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 2.0, global_position + Vector3.DOWN * 30.0,
+			CombatLayers.WORLD)
+		var hit := get_world_3d().direct_space_state.intersect_ray(q)
+		_ground_y = hit.position.y if not hit.is_empty() else global_position.y - fly_height
+	var want := _fly_target_y()
+	velocity.y = clampf((want - global_position.y) * 3.0, -7.0, 7.0)
+
+
+func _fly_target_y() -> float:
+	return _ground_y + fly_height
+
+
+## EnemyBody가 모델을 입힌 뒤 부른다(종별 부품: 장갑판, 포자 주머니 등).
+func _on_body_built(_rig_node: CreatureRig) -> void:
 	pass
 
 
@@ -288,8 +322,25 @@ func _crash(stun_time: float) -> void:
 
 
 func _process(delta: float) -> void:
-	if _anim and state != State.DEAD:
-		_animate(delta)
+	if _anim == null or state == State.DEAD:
+		return
+	# 멀거나 화면 밖이면 뼈 갱신을 줄인다(쌓인 시간만큼 한 번에 움직인다).
+	_anim_accum += delta
+	_anim_skip -= 1
+	if _anim_skip > 0:
+		return
+	var cam := get_viewport().get_camera_3d()
+	var dist := cam.global_position.distance_to(global_position) if cam else 0.0
+	var every := 1
+	if not _on_screen:
+		every = 8
+	elif dist > 70.0:
+		every = 4
+	elif dist > 35.0:
+		every = 2
+	_anim_skip = every
+	_animate(_anim_accum)
+	_anim_accum = 0.0
 
 
 ## 절차적 동작: 이동 속도, 대상을 향한 고개, 행동 자세를 넘긴다.
@@ -643,9 +694,11 @@ func _nav_direction(point: Vector3, delta: float) -> Vector3:
 	if NavigationServer3D.map_get_iteration_id(_nav.get_navigation_map()) > 0 and not _nav.is_navigation_finished():
 		var candidate := _nav.get_next_path_position()
 		# 이 자리의 내비게이션 구역이 아직 지도에 들어오지 않았으면(굽는 중) 길이 엉뚱한 구역에서 시작한다.
-		# 그때는 목표로 곧장 간다.
-		var path := _nav.get_current_navigation_path()
-		if not path.is_empty() and Vector2(path[0].x - global_position.x, path[0].z - global_position.z).length() < 3.0:
+		# 그때는 목표로 곧장 간다. 길 전체를 꺼내 보는 일은 길을 새로 찾을 때만 한다.
+		if _repath_timer == NAV_REPATH_INTERVAL:
+			var path := _nav.get_current_navigation_path()
+			_path_ok = not path.is_empty() and Vector2(path[0].x - global_position.x, path[0].z - global_position.z).length() < 3.0
+		if _path_ok:
 			next = candidate
 	var dir := next - global_position
 	dir.y = 0.0
@@ -655,11 +708,12 @@ func _nav_direction(point: Vector3, delta: float) -> Vector3:
 	return dir.normalized() if dir.length_squared() > 0.0001 else Vector3.ZERO
 
 
-## 같은 무리끼리 겹치지 않도록 밀어낸다.
+## 같은 무리끼리 겹치지 않도록 밀어낸다(야외 무리는 같은 무리 안에서만 본다).
 func _separation() -> Vector3:
 	var push := Vector3.ZERO
-	for e in get_tree().get_nodes_in_group(Hearing.ENEMY_GROUP):
-		if e == self or not (e is Node3D):
+	var others: Array = encounter.members if encounter and "members" in encounter else get_tree().get_nodes_in_group(Hearing.ENEMY_GROUP)
+	for e in others:
+		if e == self or not is_instance_valid(e) or not (e is Node3D):
 			continue
 		var d: Vector3 = global_position - e.global_position
 		d.y = 0.0

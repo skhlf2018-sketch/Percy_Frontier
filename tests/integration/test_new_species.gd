@@ -5,7 +5,12 @@ extends TestCase
 const SPECIES: Array[StringName] = [
 	&"horn_rabbit", &"serial_rabbit", &"ash_wolf", &"wolf_alpha", &"silvermane",
 	&"goblin_scout", &"goblin_brute", &"goblin_gunner", &"goblin_thrower", &"goblin_shaman", &"goblin_chief", &"oneeye_sniper",
+	&"mossback_calf", &"goldhorn_charger", &"thorn_boar", &"bog_toad", &"bark_mantis", &"cave_spider", &"cave_bat",
+	&"bloat_pod", &"spore_mother",
 ]
+const RABBIT := preload("res://src/enemies/killer_rabbit.tscn")
+const CHARGER := preload("res://src/enemies/rock_charger.tscn")
+const SPITTER := preload("res://src/enemies/spore_spitter.tscn")
 
 var world: TestWorld
 
@@ -192,3 +197,93 @@ func test_wolf_alpha_howl_buffs_pack() -> void:
 		if alpha.state != Enemy.State.ATTACK:
 			break
 	assert_true(w1.is_buffed() and w2.is_buffed(), "울음을 들은 늑대들이 사나워진다")
+
+
+func test_old_scene_species_use_new_models() -> void:
+	for scene: PackedScene in [RABBIT, CHARGER, SPITTER]:
+		var e := world.spawn(scene, Vector3(0, 0, -8), 0.0)
+		await wait_physics_frames(2)
+		assert_not_null(e.rig(), "%s: 새 절차적 모델" % e.data.id)
+		for hb in e.find_children("*", "Hurtbox", true, false):
+			assert_true((hb as Hurtbox).entity == e, "%s: 피격 부위가 몸에 이어져 있다" % hb.name)
+		e.queue_free()
+		await wait_frames(1)
+
+
+func test_charger_plate_breaks_and_exposes_core() -> void:
+	var charger: RockCharger = world.spawn(CHARGER, Vector3(0, 0, -8), 0.0)
+	await wait_physics_frames(2)
+	var plate: Hurtbox = charger.find_children("FrontPlateHurtbox", "Hurtbox", true, false)[0]
+	assert_not_null(plate.armor_visual, "장갑판 모델이 이어져 있다")
+	assert_not_null(plate.exposed_visual, "핵 모델이 이어져 있다")
+	assert_false(plate.exposed_visual.visible)
+	plate.apply_armor_damage(9999.0)
+	assert_false(plate.armor_visual.visible, "장갑판이 사라진다")
+	assert_true(plate.exposed_visual.visible, "핵이 드러난다")
+
+
+func test_bloat_pods_chain_explode() -> void:
+	var p := world.spawn_player(Vector3(0, 0, 0))
+	var a: BloatPod = world.spawn_species(&"bloat_pod", Vector3(0, 0, -12), 0.0)
+	var b: BloatPod = world.spawn_species(&"bloat_pod", Vector3(2.0, 0, -12), 0.0)
+	var wolf: Enemy = world.spawn_species(&"ash_wolf", Vector3(-1.5, 0, -12), 0.0)
+	await wait_physics_frames(2)
+	var info := DamageInfo.create(999.0, DamageInfo.Kind.GUN, p)
+	a.receive_hit(info, null)
+	await wait_physics_frames(30)
+	assert_false(b.is_alive(), "곁의 포자낭도 연달아 터진다")
+	assert_lt(wolf.hp, wolf.data.max_hp, "곁의 적도 휘말린다")
+
+
+func test_spore_mother_spawns_pods_and_exposes_core() -> void:
+	var p := world.spawn_player(Vector3(0, 0, 0))
+	var mother: SporeMother = world.spawn_species(&"spore_mother", Vector3(0, 0, -14), 0.0)
+	await wait_physics_frames(2)
+	mother.target = p
+	var birth: EnemyAttackData = null
+	var bloom: EnemyAttackData = null
+	for a in mother.data.attacks:
+		if a.id == &"birth_pod":
+			birth = a
+		elif a.id == &"bloom":
+			bloom = a
+	mother._start_attack(birth)
+	for i in 150:
+		await wait_physics_frames(1)
+		if mother.state != Enemy.State.ATTACK:
+			break
+	var pods := 0
+	for e in world.root.get_children():
+		if e is BloatPod:
+			pods += 1
+	assert_eq(pods, 1, "포자낭을 낳는다")
+	var core: Hurtbox = mother.find_children("CoreHurtbox", "Hurtbox", true, false)[0]
+	assert_false(core.is_enabled(), "평소에는 핵이 닫혀 있다")
+	mother._start_attack(bloom)
+	var opened := false
+	for i in 320:
+		await wait_physics_frames(1)
+		if core.is_enabled():
+			opened = true
+		if mother.state != Enemy.State.ATTACK:
+			break
+	assert_true(opened, "숨을 들이쉴 때 핵이 드러난다")
+	assert_false(core.is_enabled(), "다시 닫힌다")
+
+
+func test_bat_flies_above_ground() -> void:
+	var bat := world.spawn_species(&"cave_bat", Vector3(0, 0.5, -8), 0.0)
+	await wait_physics_frames(90)
+	assert_gt(bat.global_position.y, 1.5, "땅 위에 떠 있다")
+
+
+func test_mantis_stays_hidden_until_close() -> void:
+	var p := world.spawn_player(Vector3(0, 0, 0))
+	var m: BarkMantis = world.spawn_species(&"bark_mantis", Vector3(0, 0, -12), PI)
+	await wait_physics_frames(30)
+	assert_true(m.hidden, "멀리서는 숨어 있다")
+	assert_null(m.target)
+	p.global_position = Vector3(0, 0, -8.5)
+	await wait_physics_frames(30)
+	assert_false(m.hidden, "가까이 가면 드러난다")
+	assert_true(m.target == p)
