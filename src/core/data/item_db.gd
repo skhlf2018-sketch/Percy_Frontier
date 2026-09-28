@@ -62,6 +62,11 @@ const ITEMS := {
 		"desc": "외눈 저격수가 아끼던 조준경. 무기 공방에서 특별한 소총을 만드는 재료."},
 	&"gold_horn": {"name": "황금뿔", "value": 150, "color": Color(1.0, 0.8, 0.3), "trophy": true,
 		"desc": "황금뿔 돌격수의 뿔. 무기 공방에서 특별한 산탄총을 만드는 재료."},
+	# 보스 재료(기획서 §11.2: 보스·유니크 핵은 전용 장비와 스킬 해금에 쓴다)
+	&"maw_scale": {"name": "늪턱 비늘판", "value": 45, "color": Color(0.36, 0.42, 0.26),
+		"desc": "늪턱 구렁의 등에서 떨어진 두꺼운 비늘판. 무기 공방에서 상위 강화에 쓴다."},
+	&"maw_core": {"name": "늪턱 구렁의 핵", "value": 260, "color": Color(0.95, 0.35, 0.3), "trophy": true, "core": true,
+		"desc": "늪턱 구렁의 목 아래에서 꺼낸 붉은 핵. 아직도 느리게 뛴다. 무기 공방에서 특별한 무기를 벼리는 재료."},
 }
 
 ## 몬스터별 재료 드롭: [아이템, 확률, 최소, 최대]
@@ -90,6 +95,7 @@ const DROPS := {
 	&"cave_bat": [[&"bat_wing", 0.5, 1, 1]],
 	&"bloat_pod": [[&"fire_spore", 0.5, 1, 2]],
 	&"spore_mother": [[&"mother_core", 1.0, 1, 1], [&"spore_sac", 1.0, 2, 3], [&"fire_spore", 1.0, 3, 5]],
+	&"mire_maw": [[&"maw_scale", 1.0, 3, 4]],
 }
 ## 몬스터별 은화 범위
 const SILVER := {
@@ -117,6 +123,7 @@ const SILVER := {
 	&"cave_bat": [1, 3],
 	&"bloat_pod": [0, 2],
 	&"spore_mother": [40, 60],
+	&"mire_maw": [180, 240],
 }
 
 
@@ -139,6 +146,16 @@ static func color_of(id: StringName) -> Color:
 ## 희귀 전리품(공방에서 전용 무기를 만드는 재료)
 static func is_trophy(id: StringName) -> bool:
 	return ITEMS.has(id) and bool(ITEMS[id].get("trophy", false))
+
+
+## 보스·유니크 핵
+static func is_core(id: StringName) -> bool:
+	return ITEMS.has(id) and bool(ITEMS[id].get("core", false))
+
+
+## "모두 판다"에서 빼는 물건(의뢰 물품, 전용 무기 재료, 핵)
+static func is_keepsake(id: StringName) -> bool:
+	return is_quest_item(id) or is_trophy(id) or is_core(id)
 
 
 static func is_quest_item(id: StringName) -> bool:

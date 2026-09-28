@@ -5,7 +5,8 @@ extends RefCounted
 ## 표면 결(털 뭉치, 비늘, 피부 주름, 껍질)은 이음매 없는 잡음으로 만든 법선 지도를 물체 공간 삼면 투영으로 입힌다.
 ## 외부 텍스처 없이 실행할 때 한 번 만들어 모든 개체가 나눠 쓴다.
 
-enum Kind { FUR, FUR_THIN, SKIN, SKIN_THIN, WET_SKIN, SCALE, CHITIN, HORN, EYE, CLOTH, LEATHER, METAL, WOOD, GLOW, SPORE, TEETH, STONE, HIDE }
+enum Kind { FUR, FUR_THIN, SKIN, SKIN_THIN, WET_SKIN, SCALE, CHITIN, HORN, EYE, CLOTH, LEATHER, METAL, WOOD, GLOW, SPORE, TEETH, STONE, HIDE,
+	PLATED }
 
 const TEX_SIZE := 256
 const FUR_SHADER := preload("res://assets/shaders/fur_shell.gdshader")
@@ -163,6 +164,15 @@ static func _make(kind: int) -> Material:
 			_detail(m, normal_texture(&"hide"), 2.2, 1.1)
 			m.metallic_specular = 0.25
 			return m
+		Kind.PLATED:
+			# 큰 짐승의 비늘판 가죽(악어류): 굵은 사각 비늘판과 그 사이 홈, 젖은 윤기
+			var m := _base(0.58)
+			_detail(m, normal_texture(&"plates"), 0.45, 1.1)
+			m.clearcoat_enabled = true
+			m.clearcoat = 0.3
+			m.clearcoat_roughness = 0.4
+			m.metallic_specular = 0.4
+			return m
 		Kind.SPORE:
 			var m := _base(0.55)
 			_detail(m, normal_texture(&"spore"), 4.0, 1.0)
@@ -241,6 +251,8 @@ static func normal_texture(kind: StringName) -> Texture2D:
 
 static func _bump_scale(kind: StringName) -> float:
 	match kind:
+		&"plates":
+			return 5.0
 		&"fur":
 			return 6.0
 		&"scale":
@@ -256,6 +268,8 @@ static func _bump_scale(kind: StringName) -> float:
 
 ## 결의 높이 지도(밝을수록 높다). 테스트와 환경 재질도 쓴다.
 static func height_image(kind: StringName) -> Image:
+	if kind == &"plates":
+		return _plates_image()
 	var n := FastNoiseLite.new()
 	n.seed = hash(String(kind)) & 0xFFFF
 	var w := TEX_SIZE
@@ -328,4 +342,37 @@ static func height_image(kind: StringName) -> Image:
 	img.convert(Image.FORMAT_RGBA8)
 	if w != TEX_SIZE or h != TEX_SIZE:
 		img.resize(TEX_SIZE, TEX_SIZE, Image.INTERPOLATE_CUBIC)
+	return img
+
+
+## 비늘판: 모서리가 각진 세포(맨해튼 거리)마다 가운데가 솟고 사이가 파인 판. 판마다 높이가 조금씩 다르다.
+static func _plates_image() -> Image:
+	var size := TEX_SIZE * 2
+	var edge := FastNoiseLite.new()
+	edge.seed = 4242
+	edge.noise_type = FastNoiseLite.TYPE_CELLULAR
+	edge.frequency = 0.022
+	edge.cellular_distance_function = FastNoiseLite.DISTANCE_MANHATTAN
+	edge.cellular_return_type = FastNoiseLite.RETURN_DISTANCE2_SUB
+	edge.cellular_jitter = 0.7
+	edge.fractal_type = FastNoiseLite.FRACTAL_NONE
+	var cell: FastNoiseLite = edge.duplicate()
+	cell.cellular_return_type = FastNoiseLite.RETURN_CELL_VALUE
+	var grain := FastNoiseLite.new()
+	grain.seed = 4243
+	grain.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	grain.frequency = 0.09
+	grain.fractal_octaves = 3
+	var a := edge.get_seamless_image(size, size, false, false, 0.1, true)
+	var b := cell.get_seamless_image(size, size, false, false, 0.1, true)
+	var g := grain.get_seamless_image(size, size, false, false, 0.1, true)
+	a.convert(Image.FORMAT_RGBA8)
+	b.convert(Image.FORMAT_RGBA8)
+	g.convert(Image.FORMAT_RGBA8)
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	for y in size:
+		for x in size:
+			var e := smoothstep(0.0, 0.35, a.get_pixel(x, y).r)
+			var h := e * (0.75 + 0.25 * b.get_pixel(x, y).r) + g.get_pixel(x, y).r * 0.12
+			img.set_pixel(x, y, Color(h, h, h, 1.0))
 	return img

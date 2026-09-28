@@ -47,6 +47,9 @@ var fur_length: float = 0.025
 var fur_density: float = 9.0
 ## 털이 없는 자리(눈, 코, 입). [중심, 반지름]
 var _bald: Array = []
+## 관 단면 모양: func(theta: float, center: Vector3) -> float (반지름 배율). 비어 있으면 타원.
+## theta 0은 옆, PI/2는 위(up_hint 쪽)다. 설정한 뒤 만드는 관에 모두 쓰이므로 다 쓰면 비운다.
+var section: Callable = Callable()
 
 
 static func pt(pos: Vector3, rx: float, ry: float, bone: StringName) -> P:
@@ -198,7 +201,8 @@ func loft(points: Array[P], kind: int, top: Color, bottom: Color, sides: int = 1
 		var ry: float = g[4]
 		for j in ring_n:
 			var th := arc.x + (arc.y - arc.x) * float(j) / float(sides)
-			ring.append(c + sd * cos(th) * rx + up * sin(th) * ry)
+			var m := float(section.call(th, c)) if section.is_valid() else 1.0
+			ring.append(c + sd * cos(th) * rx * m + up * sin(th) * ry * m)
 		pos.append(ring)
 	for r in gr:
 		var g: Array = grid[r]

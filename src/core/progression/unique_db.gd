@@ -56,6 +56,7 @@ const MARKS := {
 
 const TITLES := {
 	&"night_survivor": "밤을 넘긴 자",
+	&"maw_hunter": "늪턱을 꺾은 자",
 }
 
 

@@ -210,6 +210,23 @@ const PLANS := {
 			["BodyHurtbox", N, 1.0, "몸통", ["capsule", 0.3, 1.25], Vector3(0, 0.95, 0), {}],
 		],
 	},
+	# --- 보스 ---
+	&"mire_maw": {
+		"script": "res://src/enemies/mire_maw.gd", "data": "res://data/enemies/mire_maw.tres",
+		"body": B.SERPENT, "leg": 1.2, "run": 5.0, "collision": [1.1, 2.2, 1.1], "eye": 1.35,
+		"hurtboxes": [
+			["ThroatHurtbox", W, 2.5, "목 아래 턱살", ["sphere", 0.45], &"throat", {"disabled": true}],
+			["EyeLHurtbox", W, 1.8, "왼눈", ["sphere", 0.14], &"eye_l", {}],
+			["EyeRHurtbox", W, 1.8, "오른눈", ["sphere", 0.14], &"eye_r", {}],
+			["HeadHurtbox", N, 1.0, "머리", ["box", Vector3(0.95, 0.56, 2.4)], &"head", {}],
+			["BackHurtbox", A, 1.0, "등 골판", ["box", Vector3(1.3, 0.45, 2.6)], &"back",
+				{"armor": 400.0, "pass": 0.25, "broken_zone": N, "broken_mult": 1.25}],
+			["ChestHurtbox", N, 1.0, "몸통", ["box", Vector3(1.8, 1.2, 1.8)], &"chest", {}],
+			["BellyHurtbox", N, 1.0, "몸통", ["box", Vector3(1.7, 1.1, 2.3)], &"belly", {}],
+			["TailHurtbox", N, 0.8, "꼬리", ["box", Vector3(1.0, 0.8, 2.4)], &"tail", {}],
+			["TailTipHurtbox", N, 0.8, "꼬리", ["box", Vector3(0.55, 0.5, 2.4)], &"tail_tip", {}],
+		],
+	},
 	&"oneeye_sniper": {
 		"script": "res://src/enemies/goblin.gd", "data": "res://data/enemies/oneeye_sniper.tres",
 		"body": B.BIPED, "leg": 0.57, "run": 5.2, "collision": [0.31, 1.25, 0.62], "eye": 1.15,

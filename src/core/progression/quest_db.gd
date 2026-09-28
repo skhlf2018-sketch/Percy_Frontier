@@ -2,7 +2,7 @@ class_name QuestDB
 extends RefCounted
 ## 이 개발 빌드의 의뢰(기획서 §17): 메인 1, 지역 1, 인물 1, 발견·추적 1.
 ## 단계 종류: area(지역 도착), talk(주민과 대화), kill(몬스터 처치 수), item(아이템 보유 수),
-## clue(유니크 단서 수), unique(유니크 사건에서 살아남기).
+## clue(유니크 단서 수), unique(유니크 사건에서 살아남기), boss(보스 처치. 먼저 쓰러뜨렸어도 인정한다).
 ## hint는 지도와 추적 표시에 쓰는 대략적인 목표 지점(정확한 표식이 아니라 방향과 거리만 알려 준다).
 
 const QUESTS := {
@@ -19,7 +19,19 @@ const QUESTS := {
 				"consume": {&"stone_scale": 3}, "hint": Vector2(169, 151)},
 		],
 		"reward": {"xp": 200, "silver": 120},
-		"done_text": "통신탑이 다시 신호를 보내기 시작했다. 이 개발 빌드의 메인 이야기는 여기까지다.",
+		"done_text": "통신탑이 다시 신호를 보내기 시작했다. 그런데 남서쪽 늪길로 오던 탐사대의 신호가 끊겼다.",
+	},
+	&"mire_maw_hunt": {
+		"title": "늪의 구렁", "type": "메인",
+		"steps": [
+			{"text": "남서쪽 늪길에서 끊긴 탐사대 신호 — 늪을 잘 아는 사냥꾼 노라에게 묻는다", "type": &"talk",
+				"target": &"hunter", "need": 1, "hint": Vector2(114, 128)},
+			{"text": "늪 연못 너머 구렁에 사는 늪턱 구렁을 쓰러뜨린다 — 구렁 동쪽 둔덕의 거점에서 쉬어 갈 것", "type": &"boss",
+				"target": &"mire_maw", "need": 1, "hint": Vector2(-196, 208), "radius": 30.0},
+			{"text": "의뢰 담당자 카일에게 알린다", "type": &"talk", "target": &"clerk", "need": 1, "hint": Vector2(137, 141)},
+		],
+		"reward": {"xp": 400, "silver": 250},
+		"done_text": "남서쪽 늪길이 다시 열렸다. 무기 공방에 늪길로 들어온 물건이 생겼다. 이 개발 빌드의 메인 이야기는 여기까지다.",
 	},
 	&"rabbit_trouble": {
 		"title": "길목의 토끼 소동", "type": "지역", "giver": &"clerk",

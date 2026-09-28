@@ -19,6 +19,8 @@ var item_counter: Callable
 var clue_counter: Callable
 ## 유니크 사건에서 살아남았는지 셀 때 부르는 함수(유니크 id → 0 또는 1)
 var unique_counter: Callable
+## 보스를 쓰러뜨렸는지 셀 때 부르는 함수(보스 id → 0 또는 1)
+var boss_counter: Callable
 
 
 func state_of(id: StringName) -> int:
@@ -70,7 +72,7 @@ func notify(kind: StringName, target: StringName, amount: int = 1) -> void:
 			continue
 		if step.target != &"any" and step.target != target:
 			continue
-		if kind == &"item" or kind == &"clue" or kind == &"unique":
+		if kind == &"item" or kind == &"clue" or kind == &"unique" or kind == &"boss":
 			_check_counts(id)
 			continue
 		quests[id].count = count_of(id) + amount
@@ -109,6 +111,8 @@ func _check_counts(id: StringName) -> void:
 		counter = clue_counter
 	elif step.type == &"unique":
 		counter = unique_counter
+	elif step.type == &"boss":
+		counter = boss_counter
 	if not counter.is_valid():
 		return
 	var have := int(counter.call(step.target))

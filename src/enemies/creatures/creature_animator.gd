@@ -352,8 +352,12 @@ func _static(_delta: float) -> void:
 var _roll: float = 0.0
 ## 꼬리 휩쓸기 방향(+1 오른쪽, -1 왼쪽)
 var sweep_side: float = 1.0
+## 진흙 속에 잠긴 정도(0..1). 1이면 몸 전체가 바닥 아래로 내려간다(잠든 동안, 잠수 중).
+var sink: float = 0.0
 
 
+## 행동: roar(머리를 쳐들고 턱을 벌린다), windup/lunge/strike(턱), sweep(꼬리를 sweep_side로 휘두른다),
+## roll(몸을 굴린다), throw_windup/throw(진흙 뱉기), stun(옆으로 쓰러져 늘어진다), stuck(솟구친 채 박혀 목을 드러낸다)
 func _serpent(delta: float) -> void:
 	var v := _speed_s
 	var moving := clampf(v / 1.5, 0.0, 1.0)
@@ -363,32 +367,45 @@ func _serpent(delta: float) -> void:
 	var lunge := w(&"lunge")
 	var strike := w(&"strike")
 	var sweep := w(&"sweep")
-	var sub := w(&"submerge")
 	var roll := w(&"roll")
-	# 몸을 따라 뒤로 흐르는 물결(꼬리로 갈수록 크다)
+	var stun := w(&"stun")
+	var stuck := w(&"stuck")
+	var spit_up := w(&"throw_windup")
+	var spit := w(&"throw")
+	var limp := clampf(stun + stuck * 0.6, 0.0, 1.0)
+	# 몸을 따라 뒤로 흐르는 물결(꼬리로 갈수록 크다). 기절하면 늘어진다.
 	var i := 0
 	while rig.has_bone(StringName("spine%d" % i)):
 		var t := float(i) / 9.0
-		var amp := lerpf(0.05, 0.28, t) * (0.35 + 0.65 * moving)
+		var amp := lerpf(0.05, 0.28, t) * (0.35 + 0.65 * moving) * (1.0 - limp * 0.8)
 		var wave := sin(_phase * TAU - float(i) * 0.75) * amp
-		var curl := sweep * sweep_side * lerpf(0.0, 0.5, t) + wind * lerpf(0.0, 0.12, t)
+		var curl := sweep * sweep_side * lerpf(0.0, 0.5, t) + wind * lerpf(0.0, 0.12, t) + stun * 0.08 * t
 		rig.rot(StringName("spine%d" % i), Vector3(0.0, wave + curl, 0.0))
 		i += 1
-	# 다리: 옆으로 벌린 기는 걸음
+	# 다리: 옆으로 벌린 기는 걸음. 잠기면 몸에 붙인다.
 	for k in 4:
 		var side := -1.0 if k % 2 == 0 else 1.0
 		var group := (k / 2 + k % 2) % 2
 		var p := fmod(_phase * 2.0 + 0.5 * group, 1.0)
 		var swing := sin(p * TAU) * 0.4 * moving
 		var lift := maxf(0.0, cos(p * TAU)) * 0.3 * moving
-		rig.rot(StringName("leg%d_upper" % k), Vector3(0.0, side * swing, side * (lift + sub * 0.8)))
+		rig.rot(StringName("leg%d_upper" % k), Vector3(0.0, side * swing, side * (lift + sink * 0.8 + stun * 0.35)))
 		rig.rot(StringName("leg%d_lower" % k), Vector3(0.0, 0.0, -side * lift * 0.5))
-	# 가라앉기·몸 굴리기·들이받기 자세
-	_roll = _roll + delta * 9.0 * roll if roll > 0.05 else lerp_angle(_roll, 0.0, 1.0 - exp(-6.0 * delta))
-	rig.move(&"root", Vector3(0, -sub * 2.2 - wind * 0.15 + lunge * 0.1, 0))
-	rig.rot(&"root", Vector3(-wind * 0.08 + roar * 0.12, 0, _roll))
+	# 몸 굴리기(돌진), 기절하면 옆으로 조금 기운다.
+	if roll > 0.05:
+		_roll += delta * 9.0 * roll
+	else:
+		_roll = lerp_angle(_roll, 0.3 * stun, 1.0 - exp(-4.0 * delta))
+	rig.move(&"root", Vector3(0, -sink * 2.2 - stuck * 0.55 - wind * 0.15 + lunge * 0.1, 0))
+	rig.rot(&"root", Vector3(-wind * 0.08 + roar * 0.12 + stuck * 0.12, 0, _roll))
 	var breathe := sin(_t * 1.2 + _seed) * 0.02
-	rig.rot(&"neck", Vector3(look_pitch * 0.3 + roar * 0.7 - wind * 0.15 + breathe, look_yaw * 0.5, 0))
-	rig.rot(&"head", Vector3(look_pitch * 0.3 + roar * 0.25 - lunge * 0.1, look_yaw * 0.4 + sin(_t * 28.0) * 0.12 * w(&"stagger"), 0))
-	var jaw := 0.08 + 0.2 * wind + 0.75 * roar + 0.6 * lunge + 0.5 * strike + 0.04 * sin(_t * 0.9 + _seed)
+	var awake := 1.0 - limp
+	# 기절하면 머리를 반쯤 쳐든 채 멍하게 흔든다(목 아래 턱살이 앞에서 보이게).
+	var neck_x := look_pitch * 0.3 * awake + roar * 0.7 - wind * 0.15 + breathe + stuck * 0.6 + stun * 0.32 \
+		+ spit_up * 0.45 - spit * 0.1
+	rig.rot(&"neck", Vector3(neck_x, look_yaw * 0.5 * awake, 0))
+	var shake := sin(_t * 28.0) * 0.12 * w(&"stagger") + sin(_t * 3.0) * 0.06 * stuck + sin(_t * 1.7) * 0.18 * stun
+	rig.rot(&"head", Vector3(look_pitch * 0.3 * awake + roar * 0.25 - lunge * 0.1 + stuck * 0.2, look_yaw * 0.4 * awake + shake, 0))
+	var jaw := 0.08 + 0.2 * wind + 0.75 * roar + 0.6 * lunge + 0.5 * strike + 0.04 * sin(_t * 0.9 + _seed) \
+		+ 0.3 * stun + 0.45 * stuck + 0.35 * spit_up + 0.7 * spit
 	rig.rot(&"jaw", Vector3(-jaw, 0, 0))

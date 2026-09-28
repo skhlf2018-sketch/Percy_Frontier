@@ -24,6 +24,10 @@ const POND_RADIUS := 25.0
 const MEADOW_CENTER := Vector2(150, -104)     # 북동 초원 언덕
 const MEADOW_RADIUS := 78.0
 const BRIDGE := Vector2(-24, 52)              # 강을 건너는 나무다리
+const MAW_CENTER := Vector2(-196, 208)        # 늪턱 구렁(1지역 보스 전장): 남서 늪 끝의 물에 잠긴 구덩이
+const MAW_RADIUS := 19.0                      # 물에 잠긴 평평한 바닥 반경
+const MAW_BLEND := 12.0                       # 바닥에서 둘레 지형까지 이어지는 비탈 폭
+const MAW_FLOOR := -0.4                       # 바닥 높이(물 높이보다 낮아 얕은 물이 고인다)
 
 ## 강하선 잔해 → 다리 → 퍼시 정문으로 이어지는 흙길
 const ROAD: Array[Vector2] = [
@@ -102,7 +106,7 @@ const ENCOUNTERS := [
 	[-182, -206, [[&"cave_bat", 4], [&"cave_spider", 1]], {"spread": 3.0}],
 	# 남서 늪 연못: 포자 사수, 부푼 포자낭, 늪 두꺼비
 	[-128, 150, [[&"spore_spitter", 2]], {}],
-	[-172, 198, [[&"spore_spitter", 2], [&"bloat_pod", 2]], {"spread": 4.0}],
+	[-146, 206, [[&"spore_spitter", 2], [&"bloat_pod", 2]], {"spread": 4.0}],
 	[-150, 138, [[&"bog_toad", 2]], {}],
 	[-188, 160, [[&"bog_toad", 1], [&"bloat_pod", 2]], {"spread": 3.5}],
 	[-118, 198, [[&"bog_toad", 1]], {}],
@@ -203,6 +207,11 @@ func height(x: float, z: float) -> float:
 	if dp < 1.6:
 		var pond_bed := WATER_LEVEL - POND_DEPTH * (1.0 - clampf(dp, 0.0, 1.0) * clampf(dp, 0.0, 1.0))
 		h = lerpf(h, minf(h, pond_bed + maxf(dp - 1.0, 0.0) * 3.0), smoothstep(1.6, 0.9, dp))
+	# 늪턱 구렁: 얕은 물이 고인 둥근 구덩이. 둘레 지형이 높은 남서쪽은 벽처럼 가파르고, 연못 쪽으로 트여 있다.
+	var dm := p.distance_to(MAW_CENTER)
+	if dm < MAW_RADIUS + MAW_BLEND:
+		var floor_h := MAW_FLOOR + _n_detail.get_noise_2d(x * 1.7, z * 1.7) * 0.05
+		h = lerpf(h, minf(h, floor_h), smoothstep(MAW_RADIUS + MAW_BLEND, MAW_RADIUS, dm))
 	return h
 
 
@@ -284,6 +293,8 @@ func is_clear_area(p: Vector2) -> bool:
 			return true
 	if p.distance_to(OLD_TREE) < 16.0 or p.distance_to(WATCHTOWER) < 14.0:
 		return true
+	if p.distance_to(MAW_CENTER) < MAW_RADIUS + 7.0:
+		return true
 	return false
 
 
@@ -331,6 +342,10 @@ func ground_color(p: Vector2, h: float) -> Color:
 	if not in_town(p, -6.0):
 		road = smoothstep(ROAD_HALF_WIDTH + 0.9, ROAD_HALF_WIDTH - 0.6, distance_to_road(p))
 	var col := grass.lerp(Color(0.46, 0.37, 0.26), road)
+	# 늪턱 구렁의 비탈: 젖은 진흙
+	var dm := p.distance_to(MAW_CENTER)
+	if dm < MAW_RADIUS + MAW_BLEND + 4.0:
+		col = col.lerp(Color(0.25, 0.22, 0.15), smoothstep(MAW_RADIUS + MAW_BLEND + 4.0, MAW_RADIUS + 2.0, dm) * 0.7)
 	# 물가 모래와 물속 진흙
 	if h < WATER_LEVEL + 0.6:
 		col = col.lerp(Color(0.53, 0.48, 0.36), smoothstep(WATER_LEVEL + 0.6, WATER_LEVEL + 0.1, h))

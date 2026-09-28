@@ -57,7 +57,7 @@ func _draw() -> void:
 		var screen := camera.unproject_position(world_pos) if not behind else Vector2.ZERO
 		var on_screen := not behind and Rect2(Vector2.ZERO, view).has_point(screen)
 		if on_screen:
-			if (e.recently_damaged() and e.health_ratio() < 1.0) or (e.is_engaged() and dist < 32.0):
+			if e.shows_overhead_health() and ((e.recently_damaged() and e.health_ratio() < 1.0) or (e.is_engaged() and dist < 32.0)):
 				_draw_health(font, screen, e)
 			if not tele.is_empty():
 				_draw_telegraph(screen + Vector2(0, -26), tele, boost, dist)

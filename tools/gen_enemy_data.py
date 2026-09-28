@@ -393,6 +393,41 @@ SPECIES += [
     ),
 ]
 
+SPECIES += [
+    # --- 1지역 보스 ---
+    dict(
+        id="mire_maw", display_name="늪턱 구렁", family="파충류", threat_tier=BOSS, combat_role="보스",
+        description="남서쪽 늪 깊은 구렁에 사는 포식자. 악어의 머리와 뱀의 긴 몸을 가졌다. 가까이서는 턱을 내리꽂고, "
+        "옆이나 뒤로 돌면 꼬리로 휩쓸고, 멀리 있으면 크게 뛰어들어 문다. 뛰어들다 돌기둥에 부딪히면 한참 정신을 잃는다. "
+        "다치면 진흙 속으로 숨어 발밑에서 솟구치고, 크게 다치면 몸을 굴리며 돌진한다. 목 아래의 붉은 턱살이 약점이다.",
+        level=9, max_hp=2600, defense=0.15, walk_speed=2.2, run_speed=5.5, turn_speed_deg=80, poise=320,
+        stagger_duration=1.6, mass_kg=2500, sight_range=40, sight_fov_deg=200, proximity_sense=6.0, hearing_mult=1.0,
+        leash_radius=34, boss_status_rules=True,
+        attacks=[
+            atk("jaw_snap", "턱 내리꽂기", STRIKE, max_range=4.2, windup=0.8, active_time=0.2, recovery=1.0, cooldown=2.4,
+                damage=26, reach=4.4, hit_angle_deg=70, knockback=6),
+            atk("lunge_bite", "뛰어들어 물기", CHARGE, parryable=False, min_range=5.0, max_range=15.0, windup=1.1,
+                active_time=0.75, recovery=1.4, cooldown=5.0, damage=38, reach=4.4, hit_angle_deg=60, move_speed=18,
+                knockback=10, wall_stun=3.2),
+            atk("tail_sweep", "꼬리 휩쓸기", STRIKE, parryable=False, max_range=8.5, windup=0.9, active_time=0.3,
+                recovery=1.1, cooldown=4.0, damage=22, reach=8.5, hit_angle_deg=360, knockback=9, weight=1.4),
+            atk("mud_spit", "진흙 뱉기", PROJECTILE, parryable=False, min_range=6.0, max_range=28.0, windup=0.9,
+                active_time=0.1, recovery=0.8, cooldown=4.5, damage=12, projectile_speed=16, projectile_gravity=9,
+                projectile_blast_radius=3.5, chill_buildup=40, token_group=TOKEN_RANGED),
+            atk("submerge", "진흙 속으로", SPECIAL, parryable=False, min_range=0.0, max_range=40.0, windup=0.9,
+                active_time=3.2, recovery=0.1, cooldown=13.0, damage=34, knockback=10, weight=1.2,
+                token_group=TOKEN_NONE),
+            atk("roar", "포효", SPECIAL, parryable=False, min_range=0.0, max_range=60.0, windup=1.2, active_time=0.8,
+                recovery=0.5, cooldown=99.0, weight=0.0, token_group=TOKEN_NONE),
+            atk("death_roll", "몸 굴려 돌진", CHARGE, parryable=False, min_range=4.0, max_range=18.0, windup=1.2,
+                active_time=1.2, recovery=1.6, cooldown=7.0, damage=30, reach=4.0, hit_angle_deg=70, move_speed=16,
+                knockback=12, wall_stun=3.6),
+        ],
+        burn_mult=0.9, chill_mult=1.1, shock_mult=1.2, bleed_mult=0.8, xp_reward=900, resonance_on_kill=40,
+        ammo_drop_chance=1.0, heal_drop_chance=1.0, model_id="mire_maw",
+    ),
+]
+
 DATA_FIELDS = [
     "id", "display_name", "family", "threat_tier", "combat_role", "description", "model_id", "appears",
     "max_hp", "defense", "walk_speed", "run_speed", "turn_speed_deg", "poise", "stagger_duration", "mass_kg",

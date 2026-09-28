@@ -60,6 +60,8 @@ static func template(model_id: StringName) -> RigTemplate:
 			b = CrawlerModels.cave_spider()
 		&"cave_bat":
 			b = CrawlerModels.cave_bat()
+		&"mire_maw":
+			b = BossModels.mire_maw()
 		_:
 			if String(model_id).begins_with("goblin_") or model_id == &"oneeye_sniper":
 				b = goblin(model_id)

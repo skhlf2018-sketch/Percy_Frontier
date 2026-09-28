@@ -152,6 +152,9 @@ func _build_water() -> void:
 	plane.subdivide_depth = 8
 	var mat := ShaderMaterial.new()
 	mat.shader = WATER_SHADER
+	mat.set_shader_parameter(&"murk_a", Vector4(FieldLayout.POND_CENTER.x, FieldLayout.POND_CENTER.y, FieldLayout.POND_RADIUS + 15.0, 0.0))
+	mat.set_shader_parameter(&"murk_b", Vector4(FieldLayout.MAW_CENTER.x, FieldLayout.MAW_CENTER.y,
+		FieldLayout.MAW_RADIUS + FieldLayout.MAW_BLEND + 3.0, 0.0))
 	var water := MeshInstance3D.new()
 	water.name = "Water"
 	water.mesh = plane

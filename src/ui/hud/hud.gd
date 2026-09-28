@@ -57,6 +57,8 @@ var _unique_panel: VBoxContainer
 var _unique_name: Label
 var _unique_hint: Label
 var _unique_bar: StatBar
+## 보스 체력바(보스와 싸우는 동안)
+var _boss_bar: BossBar
 
 var _hit_sound_cooldown: float = 0.0
 var _damage_flash: float = 0.0
@@ -226,6 +228,11 @@ func _build() -> void:
 	_unique_hint = _label("살아남아라 — 패링과 간발의 회피로 흥미를 끌면 물러난다", 16, &"HudSmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	_unique_hint.add_theme_color_override("font_color", MUTED)
 	_unique_panel.add_child(_unique_hint)
+
+	# 아래 가운데 스킬 칸 위: 보스 체력바(위쪽 알림 띠와 겹치지 않게)
+	_boss_bar = BossBar.new()
+	_boss_bar.visible = false
+	_place(_boss_bar, Vector2(0.5, 1), Vector2(-430, -262), Vector2(860, 84))
 
 	# 오른쪽 가운데: 무기 비교
 	_compare = PanelContainer.new()
@@ -606,6 +613,26 @@ func _update_field(delta: float) -> void:
 			"살아남아라 — 패링과 간발의 회피로 흥미를 끌면 물러난다"
 	else:
 		_unique_panel.visible = false
+	_update_boss_bar()
+
+
+## 보스와 싸우는 동안 보스 체력바를 보인다. 약점이 드러나면 알린다.
+func _update_boss_bar() -> void:
+	var arena := _field.mire_arena
+	if arena == null or not arena.shows_boss_bar():
+		_boss_bar.visible = false
+		return
+	var boss := arena.boss
+	var hint := ""
+	var hot := false
+	if boss.throat_exposed():
+		hint = "목 아래 붉은 턱살이 드러났다 — 지금 노려라"
+		hot = true
+	elif boss.is_hidden():
+		hint = "진흙 속에 숨었다 — 발밑의 붉은 고리를 피하라"
+	_boss_bar.visible = true
+	_boss_bar.set_state(boss.data.display_name, boss.health_ratio(), boss.phase,
+		[MireMaw.PHASE2_RATIO, MireMaw.PHASE3_RATIO] as Array[float], hint, hot)
 
 
 # --- 무기 비교 ---

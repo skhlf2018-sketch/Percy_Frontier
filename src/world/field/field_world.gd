@@ -17,6 +17,7 @@ const AREAS := {
 	&"watchtower": "감시탑 언덕",
 	&"camp": "북쪽 야영지",
 	&"river": "경계 강",
+	&"maw_hollow": "늪턱 구렁",
 }
 
 var layout: FieldLayout
@@ -35,6 +36,8 @@ var quest_items: Array[QuestItemSpot] = []
 ## 유니크 단서 자리와 유니크 사건
 var clue_spots: Array[ClueSpot] = []
 var predator_event: NightPredatorEvent
+## 1지역 보스 전장(늪턱 구렁)
+var mire_arena: MireArena
 
 ## 지도가 드러나는 반경(m)
 const MAP_REVEAL_RADIUS := 44.0
@@ -43,7 +46,7 @@ const AREA_LABELS := {
 	&"drop_site": FieldLayout.DROP_SITE, &"border_forest": Vector2(-110, 70), &"shade_forest": FieldLayout.SHADE_CENTER,
 	&"meadow": FieldLayout.MEADOW_CENTER, &"percy": FieldLayout.TOWN_CENTER, &"pond": FieldLayout.POND_CENTER,
 	&"old_tree": FieldLayout.OLD_TREE, &"watchtower": FieldLayout.WATCHTOWER, &"camp": FieldLayout.CAMP,
-	&"river": Vector2(-40, 150),
+	&"river": Vector2(-40, 150), &"maw_hollow": FieldLayout.MAW_CENTER,
 }
 
 var _current_area: StringName = &""
@@ -83,6 +86,9 @@ func _ready() -> void:
 	predator_event = NightPredatorEvent.new()
 	predator_event.setup(self)
 	add_child(predator_event)
+	mire_arena = MireArena.new()
+	mire_arena.setup(self)
+	add_child(mire_arena)
 	encounters_node = FieldEncounters.new()
 	encounters_node.name = "Encounters"
 	add_child(encounters_node)
@@ -186,6 +192,13 @@ func _clear_spot(at: Vector2, radius: float) -> Vector2:
 	return at
 
 
+## 휴식하면 야외 무리와 함께 보스도 제자리에 잠든다(싸우는 중이 아닐 때).
+func reset_all_encounters() -> void:
+	super.reset_all_encounters()
+	if mire_arena:
+		mire_arena.reset_if_idle()
+
+
 func refresh_quest_items() -> void:
 	for it in quest_items:
 		it.refresh()
@@ -212,6 +225,7 @@ func track_player(player: Player) -> void:
 	ambience.player = player
 	encounters_node.focus = player
 	predator_event.player = player
+	mire_arena.player = player
 	day_night.night_vision = 1.0 if GameState.has_mark(&"predator_mark") else 0.0
 	var p := Vector2(player.global_position.x, player.global_position.z)
 	day_night.local_shade = layout.shade_factor(p)
@@ -238,6 +252,8 @@ func area_at(p: Vector2) -> StringName:
 		return &"old_tree"
 	if p.distance_to(FieldLayout.WATCHTOWER) < 30.0:
 		return &"watchtower"
+	if p.distance_to(FieldLayout.MAW_CENTER) < FieldLayout.MAW_RADIUS + FieldLayout.MAW_BLEND + 9.0:
+		return &"maw_hollow"
 	if p.distance_to(FieldLayout.POND_CENTER) < FieldLayout.POND_RADIUS + 18.0:
 		return &"pond"
 	if layout.shade_factor(p) > 0.55:

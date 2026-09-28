@@ -72,6 +72,11 @@ func _clerk(npc: TownNpc, progressed: Array[StringName]) -> void:
 			+ "북동 초원의 바위등 돌격수 등껍질, 돌비늘 조각이면 고칠 수 있습니다. 세 개만 구해다 주세요. 대장장이 도르가가 손볼 겁니다."
 	elif progressed.has(&"rabbit_trouble"):
 		text = "토끼들이 좀 잠잠해졌다고 하더군요. 수고하셨습니다. 약속한 은화입니다."
+	elif progressed.has(&"mire_maw_hunt"):
+		text = "늪턱 구렁을… 정말로요? 늪길 탐사대의 흔적도 거기서 찾으셨다니. 이제 남서쪽 늪길로 짐마차가 다닐 수 있겠군요. " \
+			+ "무기 공방에도 늪길로 들어온 물건이 생길 겁니다."
+	elif q.is_active(&"mire_maw_hunt") and q.step_of(&"mire_maw_hunt") == 0:
+		text = "통신탑을 고치자마자 나쁜 소식입니다. 남서쪽 늪길로 오던 탐사대의 신호가 끊겼어요. 늪이라면 사냥꾼 노라가 잘 압니다."
 	elif q.is_active(&"main_signal") and q.step_of(&"main_signal") == 2:
 		text = "돌비늘 조각은 북동 초원의 바위등 돌격수에게서 나옵니다. 정면 장갑이 단단하니 등 뒤의 배기공이나 돌진 뒤 벽에 부딪혀 기절한 틈을 노리세요."
 	var entries: Array = []
@@ -159,7 +164,14 @@ func _hunter(npc: TownNpc, progressed: Array[StringName]) -> void:
 	var q := GameState.quests
 	var text := "숲에서 먹고사는 사람이야. 요즘 숲이 이상해."
 	var survived: bool = GameState.unique_record(&"night_predator").survived
-	if progressed.has(&"night_silence"):
+	if progressed.has(&"mire_maw_hunt"):
+		text = "늪길 탐사대 말이군. …늪턱 구렁 짓이야. 남서쪽 연못 너머, 늪이 끝나는 곳에 물이 고인 구렁이 있어. " \
+			+ "악어 머리에 뱀 같은 몸통을 가진 놈이지. 멀리 있으면 크게 뛰어들어 무는데, 그때 옆으로 비켜서 돌기둥에 처박히게 해. " \
+			+ "한참 정신을 못 차려. 그 틈에 목 아래 붉은 턱살을 노려. 옆이나 뒤로 돌면 꼬리가 날아오니 머리 쪽에 붙고. " \
+			+ "다치면 진흙 속으로 숨는데, 발밑에 붉은 고리가 보이면 바로 뛰어. 구렁 동쪽 둔덕에 쉬어 갈 자리가 있어."
+	elif q.is_active(&"mire_maw_hunt") and q.step_of(&"mire_maw_hunt") == 1:
+		text = "늪턱 구렁은 머리로 들이받는 놈이야. 돌기둥 앞에 서 있다가 뛰어들 때 비켜. 붉은 턱살이 드러나면 그때가 기회야."
+	elif progressed.has(&"night_silence"):
 		text = "…그걸 봤다고? 그리고 살아서 돌아왔고. 그 표식, 한동안 지워지지 않을 거야. 숲의 작은 것들은 이제 너를 피하겠지."
 	elif q.is_active(&"night_silence") and q.step_of(&"night_silence") == 0:
 		text = "그늘 숲 가장자리를 살펴봐. 나무에 난 자국, 이상하게 큰 발자국. 북쪽 야영지에 누가 남기고 간 물건도 있다더군. " \
@@ -221,7 +233,8 @@ func open_sell(npc: TownNpc) -> void:
 			continue
 		var count := GameState.item_count(id)
 		var value := ItemDB.value_of(id)
-		total += count * value
+		if not ItemDB.is_keepsake(id):
+			total += count * value
 		entries.append({"text": "%s ×%d  ·  하나에 은화 %d" % [ItemDB.name_of(id), count, value],
 			"detail": String(ItemDB.ITEMS[id].desc) + "\n누르면 하나 팝니다. 의뢰나 강화에 쓸 재료는 남겨 두세요.",
 			"keep_open": true, "action": func() -> void:
@@ -231,9 +244,10 @@ func open_sell(npc: TownNpc) -> void:
 	if entries.is_empty():
 		_menus().open_choice("잡화점 · 팔기", "팔 만한 재료가 없습니다. 몬스터를 쓰러뜨리면 재료가 떨어집니다.", [])
 		return
-	entries.append({"text": "모두 판다 (은화 %d)" % total, "keep_open": true, "action": func() -> void:
+	entries.append({"text": "모두 판다 (은화 %d)" % total, "detail": "전용 무기 재료와 핵은 빼고 팝니다(하나씩은 팔 수 있습니다).",
+		"keep_open": true, "action": func() -> void:
 		for id: StringName in GameState.inventory.keys():
-			if not ItemDB.is_quest_item(id):
+			if not ItemDB.is_keepsake(id):
 				var n := GameState.item_count(id)
 				if GameState.remove_item(id, n):
 					GameState.add_silver(n * ItemDB.value_of(id))
@@ -247,6 +261,8 @@ func open_sell(npc: TownNpc) -> void:
 ## 공방이 파는 표준품. 값은 무기 데이터의 price.
 const SHOP_WEAPONS: Array[StringName] = [&"rifle_bfa3", &"shotgun_logger", &"energy_re2", &"sniper_l14",
 	&"pistol_bf9", &"sword_survey", &"karambit_hook", &"twin_moon"]
+## 늪턱 구렁을 쓰러뜨린 뒤 늪길로 들어오는 무기
+const SHOP_WEAPONS_MIRE: Array[StringName] = [&"bolt_rifle", &"chief_greatblade"]
 
 
 ## 공방 진열품: 데이터에 적힌 기본 희귀도로 만들고, 특성은 무기마다 늘 같게 굴린다(볼 때마다 바뀌지 않게).
@@ -309,10 +325,18 @@ func _select_slot_of(it: WeaponItem) -> void:
 			game.player.weapons.select_slot(WeaponManager.Slot.SECONDARY)
 
 
+## 사고팔 무기 목록. 지역 보스를 쓰러뜨리면 늪길로 새 물건이 들어온다(기획서 §18.2).
+static func shop_weapons() -> Array[StringName]:
+	var out: Array[StringName] = SHOP_WEAPONS.duplicate()
+	if GameState.boss_defeated(&"mire_maw"):
+		out.append_array(SHOP_WEAPONS_MIRE)
+	return out
+
+
 func open_buy_weapons(npc: TownNpc) -> void:
 	var entries: Array = []
 	var full := GameState.warehouse_full()
-	for base in SHOP_WEAPONS:
+	for base in shop_weapons():
 		var it := shop_item(base)
 		if not it.is_valid():
 			continue

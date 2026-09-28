@@ -55,6 +55,8 @@ var unique_log: Dictionary = {}
 ## 유니크가 남긴 각인과 칭호
 var marks: Array[StringName] = []
 var titles: Array[StringName] = []
+## 보스 기록(기획서 §20.1 "보스 처치 기록"): id → {"seen", "defeated", "attempts"}
+var bosses: Dictionary = {}
 
 const MAP_CELLS := 64
 const MAP_CELL_SIZE := 8.0
@@ -100,7 +102,9 @@ func reset_session() -> void:
 	unique_log = {}
 	marks = []
 	titles = []
+	bosses = {}
 	quests.clue_counter = clue_count
+	quests.boss_counter = func(boss_id: StringName) -> int: return 1 if boss_defeated(boss_id) else 0
 	quests.unique_counter = func(unique_id: StringName) -> int: return 1 if unique_record(unique_id).survived else 0
 	skills_changed.emit()
 	loadout_changed.emit()
@@ -154,6 +158,7 @@ func to_dict() -> Dictionary:
 		"unique_log": _string_keys(unique_log),
 		"marks": marks.map(func(x: StringName) -> String: return String(x)),
 		"titles": titles.map(func(x: StringName) -> String: return String(x)),
+		"bosses": _string_keys(bosses),
 	}
 
 
@@ -229,6 +234,15 @@ func from_dict(d: Dictionary) -> void:
 	for t in d.get("titles", []):
 		if UniqueDB.TITLES.has(StringName(t)) and not titles.has(StringName(t)):
 			titles.append(StringName(t))
+	var bl: Dictionary = d.get("bosses", {})
+	for k in bl:
+		var id := StringName(k)
+		var data := GameDB.enemy(id)
+		if data == null or data.threat_tier != EnemyData.ThreatTier.BOSS or not (bl[k] is Dictionary):
+			continue
+		var rec: Dictionary = bl[k]
+		bosses[id] = {"seen": bool(rec.get("seen", false)), "defeated": bool(rec.get("defeated", false)),
+			"attempts": maxi(int(rec.get("attempts", 0)), 0)}
 	skills_changed.emit()
 	loadout_changed.emit()
 	inventory_changed.emit()
@@ -330,6 +344,33 @@ func record_unique(unique_id: StringName, key: String) -> bool:
 	rec[key] = true
 	unique_log[unique_id] = rec
 	exploration_changed.emit()
+	return true
+
+
+# --- 보스 기록(기획서 §16, §19.3: 이야기상 처치는 유지된다) ---
+
+func boss_record(boss_id: StringName) -> Dictionary:
+	return bosses.get(boss_id, {"seen": false, "defeated": false, "attempts": 0})
+
+
+func boss_defeated(boss_id: StringName) -> bool:
+	return bool(boss_record(boss_id).defeated)
+
+
+## 보스 기록 항목(seen/defeated)을 채우거나 도전 횟수(attempts)를 센다. 처음 채웠으면 true.
+func record_boss(boss_id: StringName, key: String) -> bool:
+	var rec := boss_record(boss_id).duplicate()
+	if key == "attempts":
+		rec.attempts = int(rec.attempts) + 1
+		bosses[boss_id] = rec
+		return true
+	if bool(rec.get(key, false)):
+		return false
+	rec[key] = true
+	bosses[boss_id] = rec
+	exploration_changed.emit()
+	if key == "defeated":
+		quests.notify(&"boss", boss_id)
 	return true
 
 
@@ -437,6 +478,8 @@ func spend_silver(amount: int) -> bool:
 
 const MAX_UPGRADE := 3
 const WAREHOUSE_SIZE := 12
+## 확정 보상이 들어가는 여유 칸(창고가 가득 찼을 때)
+const REWARD_OVERFLOW := 6
 
 
 func _base_of(slot: int) -> StringName:
@@ -469,6 +512,15 @@ func set_upgrade(slot: int, level: int) -> void:
 
 func warehouse_full() -> bool:
 	return warehouse.size() >= WAREHOUSE_SIZE
+
+
+## 보스·유니크 확정 보상: 창고가 가득 차 있어도 넣는다(기획서 §11.1: 중요한 보상은 사라지지 않는다).
+## 넘친 칸은 보상 전용 여유 칸(REWARD_OVERFLOW)에 들어가며, 비울 때까지 창고에 새 무기를 맡길 수 없다.
+func store_reward(item: WeaponItem) -> void:
+	if item == null or warehouse.has(item):
+		return
+	warehouse.append(item)
+	loadout_changed.emit()
 
 
 ## 창고에 넣는다. 자리가 없으면 false.
@@ -520,7 +572,7 @@ func _load_weapons(d: Dictionary) -> void:
 		warehouse = []
 		for w in d.get("warehouse", []):
 			var it := WeaponItem.from_dict(w)
-			if it and warehouse.size() < WAREHOUSE_SIZE:
+			if it and warehouse.size() < WAREHOUSE_SIZE + REWARD_OVERFLOW:
 				warehouse.append(it)
 		return
 	# v0.3 이전: 칸별 id와 강화 단계, 가진 무기 목록

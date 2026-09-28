@@ -21,6 +21,7 @@ const MELEE := [
 	preload("res://data/melee/bone_spear.tres"),
 	preload("res://data/melee/hand_axe.tres"),
 	preload("res://data/melee/chief_greatblade.tres"),
+	preload("res://data/melee/maw_fang.tres"),
 ]
 const SKILLS := [
 	preload("res://data/skills/frost_pulse.tres"),
@@ -55,6 +56,7 @@ const ENEMIES := [
 	preload("res://data/enemies/cave_bat.tres"),
 	preload("res://data/enemies/bloat_pod.tres"),
 	preload("res://data/enemies/spore_mother.tres"),
+	preload("res://data/enemies/mire_maw.tres"),
 ]
 const CONSUMABLES := [
 	preload("res://data/consumables/field_suture.tres"),

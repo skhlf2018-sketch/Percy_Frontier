@@ -139,9 +139,15 @@ func _start_intro() -> void:
 
 
 ## 메인 의뢰 「구조 신호」를 시작한다(새 게임은 도입부가 끝난 뒤, 불러온 게임은 아직 없을 때).
+## 구조 신호를 끝낸 저장이면 다음 메인 의뢰 「늪의 구렁」을 잇는다.
 func _start_main_quest() -> void:
-	if field and GameState.quests.state_of(&"main_signal") == QuestLog.State.INACTIVE:
-		GameState.quests.start(&"main_signal")
+	if field == null:
+		return
+	var q := GameState.quests
+	if q.state_of(&"main_signal") == QuestLog.State.INACTIVE:
+		q.start(&"main_signal")
+	elif q.is_done(&"main_signal") and q.state_of(&"mire_maw_hunt") == QuestLog.State.INACTIVE:
+		q.start(&"mire_maw_hunt")
 
 
 func is_intro_playing() -> bool:
@@ -338,6 +344,7 @@ func _on_quest_completed(quest_id: StringName) -> void:
 		field.town.fix_tower()
 		GameEvents.announce("통신탑 복구", "공명 이동 해금 · 거점에서 발견한 다른 거점으로 이동할 수 있습니다",
 			GameEvents.AnnounceKind.SYSTEM)
+		GameState.quests.start(&"mire_maw_hunt")
 	request_autosave()
 
 

@@ -99,6 +99,9 @@ func _run() -> void:
 	if only == "unique":
 		await _unique_shots()
 		return
+	if only == "boss":
+		await _boss_shots()
+		return
 	var t := game.field.landmarks.spots["new_game"] as Transform3D
 	var start := Vector2(t.origin.x, t.origin.z)
 	await _view("01_start_morning", start, FieldLayout.DROP_SITE + Vector2(-2, -4), 8.5, -4.0)
@@ -320,3 +323,43 @@ func _unique_shots() -> void:
 	await _menu_shot("70_status_mark")
 	game.menus.open_status(StatusWindow.TAB_BESTIARY)
 	await _menu_shot("71_bestiary_unique")
+
+
+## 보스 전장 「늪턱 구렁」: 둔덕의 거점에서 내려다본 구렁, 잠든 보스의 거품, 깨어난 보스와 보스 체력바, 기절한 보스
+func _boss_shots() -> void:
+	only = ""
+	var c := FieldLayout.MAW_CENTER
+	var arena := game.field.mire_arena
+	await _view("50_maw_overview", MireArena.REST_SPOT + Vector2(-4, 0), c, 11.0, -14.0)
+	await _view("51_maw_inside_dusk", c + Vector2(20, -12), c, 18.6, -4.0)
+	# 깨어난 보스(체력바가 보이게 HUD를 켠다)
+	game.hud.visible = true
+	await _view("52_maw_approach", c + Vector2(15, -8), c, 10.5, -6.0)
+	var boss := arena.boss
+	if boss == null:
+		return
+	boss.awaken(game.player)
+	for i in 50:
+		await get_tree().physics_frame
+	await _shot("53_maw_roar")
+	for i in 90:
+		await get_tree().physics_frame
+		game.player.stats.hp = game.player.stats.max_hp
+	await _shot("54_maw_fight")
+	boss._apply_damage(boss.data.max_hp * 0.4, null, Hurtbox.Zone.NORMAL)
+	if boss._attack:
+		boss._end_attack(false)
+	boss._state_timer = 6.0
+	boss._set_state(Enemy.State.STUNNED)
+	var head := boss.rig().bone_global_position(&"head")
+	var eye := Vector2(head.x, head.z) + Vector2(boss.global_basis.z.x, boss.global_basis.z.z) * -5.0 \
+		+ Vector2(boss.global_basis.x.x, boss.global_basis.x.z) * 2.5
+	var pl := game.player
+	pl.global_position = game.field.terrain.point_at(eye) + Vector3.UP * 0.05
+	var d := head - pl.global_position
+	pl.yaw = atan2(-d.x, -d.z)
+	pl.pitch = deg_to_rad(-8.0)
+	pl.reset_physics_interpolation()
+	for i in 40:
+		await get_tree().physics_frame
+	await _shot("55_maw_stunned_throat")

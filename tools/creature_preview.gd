@@ -20,6 +20,9 @@ var out_dir := "user://creature_preview"
 var only: Array[String] = []
 var pose := ""
 var lineup := ""
+## 모델을 돌려 세우는 각도(도)와 카메라 거리 배율
+var yaw_deg := 150.0
+var dist_mult := 1.0
 var cam: Camera3D
 
 
@@ -35,6 +38,10 @@ func _ready() -> void:
 			Settings.set_value(&"graphics_quality", int(arg.substr(10)), false)
 		elif arg.begins_with("--lineup="):
 			lineup = arg.substr(9)
+		elif arg.begins_with("--yaw="):
+			yaw_deg = float(arg.substr(6))
+		elif arg.begins_with("--dist="):
+			dist_mult = float(arg.substr(7))
 	DirAccess.make_dir_recursive_absolute(out_dir if out_dir.is_absolute_path() else ProjectSettings.globalize_path(out_dir))
 	_stage()
 	if lineup != "":
@@ -74,11 +81,11 @@ func _stage() -> void:
 	sun.rotation_degrees = Vector3(-38, -35, 0)
 	sun.light_energy = 1.25
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 12.0
+	sun.directional_shadow_max_distance = 40.0
 	add_child(sun)
 	var ground := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
-	pm.size = Vector2(30, 30)
+	pm.size = Vector2(60, 60)
 	ground.mesh = pm
 	var gm := StandardMaterial3D.new()
 	gm.albedo_color = Color(0.32, 0.36, 0.24)
@@ -97,7 +104,7 @@ func _shoot(id: StringName) -> void:
 		return
 	var rig := t.instantiate()
 	add_child(rig)
-	rig.rotation.y = deg_to_rad(150.0)
+	rig.rotation.y = deg_to_rad(yaw_deg)
 	var aabb := t.custom_aabb.grow(-0.35)
 	var size := maxf(aabb.size.x, maxf(aabb.size.y, aabb.size.z))
 	var center := aabb.get_center()
@@ -117,6 +124,8 @@ func _shoot(id: StringName) -> void:
 		body = CreatureAnimator.Body.FLYER
 	elif id in [&"bloat_pod", &"spore_mother"]:
 		body = CreatureAnimator.Body.STATIC
+	elif id == &"mire_maw":
+		body = CreatureAnimator.Body.SERPENT
 	var anim := CreatureAnimator.new(rig, body, aabb.size.y * 0.5, 6.0)
 	if pose != "":
 		anim.speed = 2.5 if pose == "walk" else 0.0
@@ -124,7 +133,8 @@ func _shoot(id: StringName) -> void:
 		anim.action_weight = 1.0
 	for i in 30:
 		anim.update(1.0 / 60.0)
-	cam.global_position = center + Vector3(0.0, size * 0.22, size * 1.55)
+	center = rig.transform * center
+	cam.global_position = center + Vector3(0.0, size * 0.22, size * 1.55) * dist_mult
 	cam.look_at(center + Vector3(0, -size * 0.05, 0))
 	for i in 4:
 		await get_tree().process_frame

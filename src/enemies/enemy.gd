@@ -198,6 +198,11 @@ func marker_position() -> Vector3:
 	return global_position + Vector3.UP * (eye_height + 0.55)
 
 
+## 머리 위 체력바를 보일지(보스는 화면 아래 보스 체력바를 쓴다)
+func shows_overhead_health() -> bool:
+	return true
+
+
 ## 공격 전조 정보. 전조 중이 아니면 빈 사전.
 func telegraph_info() -> Dictionary:
 	if _attack == null or _attack_phase != AttackPhase.WINDUP:
@@ -928,7 +933,8 @@ func _fire_projectile(a: EnemyAttackData) -> void:
 	var flight := origin.distance_to(aim_point) / maxf(a.projectile_speed, 1.0)
 	aim_point += Vector3(target.velocity.x, 0.0, target.velocity.z) * flight * 0.5
 	var vel := ballistic_velocity(origin, aim_point, a.projectile_speed, a.projectile_gravity)
-	var p := Projectile.create(Color(1.0, 0.5, 0.15), 0.16, 1.0)
+	var color := _projectile_color()
+	var p := Projectile.create(color, 0.16 * _projectile_size(), 1.0)
 	p.collision_mask = CombatLayers.ENEMY_ATTACK_MASK
 	p.collide_with_areas = false
 	p.gravity = a.projectile_gravity
@@ -936,17 +942,31 @@ func _fire_projectile(a: EnemyAttackData) -> void:
 	# 발사한 적이 먼저 죽어도 폭발이 일어나도록 self를 잡지 않는 람다와 약한 참조를 쓴다.
 	var attack := a
 	var attacker_ref: WeakRef = weakref(self)
-	p.on_hit = func(hit: Dictionary) -> void: Enemy.projectile_blast(p, attack, hit.position, attacker_ref)
-	p.on_expire = func() -> void: Enemy.projectile_blast(p, attack, p.global_position, attacker_ref)
+	var sound := _projectile_blast_sound()
+	p.on_hit = func(hit: Dictionary) -> void: Enemy.projectile_blast(p, attack, hit.position, attacker_ref, color, sound)
+	p.on_expire = func() -> void: Enemy.projectile_blast(p, attack, p.global_position, attacker_ref, color, sound)
 	var parent: Node = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	p.launch(parent, origin, vel)
 
 
+## 투사체 색·크기·터지는 소리(종별로 바꾼다: 진흙 덩이 등)
+func _projectile_color() -> Color:
+	return Color(1.0, 0.5, 0.15)
+
+
+func _projectile_size() -> float:
+	return 1.0
+
+
+func _projectile_blast_sound() -> StringName:
+	return &"sac_burst"
+
+
 ## 투사체 폭발: 범위 안의 플레이어에게 방어·패링할 수 없는 피해(회피 무적으로 피할 수 있다).
-static func projectile_blast(ctx: Node3D, a: EnemyAttackData, position: Vector3, attacker_ref: WeakRef) -> void:
-	var color := Color(1.0, 0.5, 0.15)
+static func projectile_blast(ctx: Node3D, a: EnemyAttackData, position: Vector3, attacker_ref: WeakRef,
+		color := Color(1.0, 0.5, 0.15), sound := &"sac_burst") -> void:
 	CombatFx.explosion(ctx, position, a.projectile_blast_radius, color)
-	Sfx.play_at(&"sac_burst", position)
+	Sfx.play_at(sound, position)
 	if ctx == null or not ctx.is_inside_tree():
 		return
 	var players := ctx.get_tree().get_nodes_in_group(&"player")
