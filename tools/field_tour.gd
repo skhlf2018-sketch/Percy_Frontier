@@ -116,6 +116,9 @@ func _run() -> void:
 	if only == "boss":
 		await _boss_shots()
 		return
+	if only == "melee":
+		await _melee_shots()
+		return
 	var t := game.field.landmarks.spots["new_game"] as Transform3D
 	var start := Vector2(t.origin.x, t.origin.z)
 	await _view("01_start_morning", start, FieldLayout.DROP_SITE + Vector2(-2, -4), 8.5, -4.0)
@@ -189,6 +192,40 @@ func _menu_shot(shot_name: String, frames: int = 6) -> void:
 	await _shot(shot_name)
 	game.menus.close_all()
 	await _frames(2)
+
+
+## 근접 무기 1인칭(쌍월 단검의 초승달 한 쌍과 방어 자세, 카람빗)과 바닥에 떨어진 모습
+func _melee_shots() -> void:
+	only = ""
+	var t := game.field.landmarks.spots["new_game"] as Transform3D
+	var start := Vector2(t.origin.x, t.origin.z)
+	var pl := game.player
+	var look := start + Vector2(30, 6)
+	GameState.equip_item(WeaponItem.create(&"twin_moon"))
+	await _frames(3)
+	pl.weapons.select_slot(WeaponManager.Slot.MELEE)
+	await _view("70_melee_twin_moon", start, look, 10.0, -2.0)
+	await _frames(30)
+	await _shot("70_melee_twin_moon")
+	pl.weapons.simulate_aim(true)
+	await _frames(20)
+	await _shot("71_melee_twin_block")
+	pl.weapons.simulate_aim(false)
+	GameState.equip_item(WeaponItem.create(&"karambit_hook"))
+	await _frames(3)
+	pl.weapons.select_slot(WeaponManager.Slot.MELEE)
+	await _frames(40)
+	await _shot("72_melee_karambit")
+	# 바닥에 떨어진 무기(희귀도 빛기둥과 함께)
+	var fwd := pl.look_basis() * Vector3.FORWARD
+	var base := pl.global_position + Vector3(fwd.x, 0.0, fwd.z).normalized() * 2.2
+	var right := Vector3(-fwd.z, 0.0, fwd.x).normalized()
+	WeaponPickup.drop(game.field, WeaponItem.create(&"twin_moon", ItemRarity.Tier.RARE), base - right * 0.5)
+	WeaponPickup.drop(game.field, WeaponItem.create(&"karambit_hook", ItemRarity.Tier.EPIC), base + right * 0.5)
+	pl.pitch = deg_to_rad(-40.0)
+	pl.reset_physics_interpolation()
+	await _frames(20)
+	await _shot("73_melee_drops")
 
 
 ## 퍼시 주민·시설·의뢰·지도 화면

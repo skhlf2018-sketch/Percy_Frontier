@@ -32,6 +32,23 @@ const PLUNGE_RADIUS := 3.3
 const COUNTER_DAMAGE_MULT := 1.5
 ## 쌍검: 두 손의 기본 자세
 const TWIN_POSITION := Vector3(0.0, -0.3, -0.48)
+## 쌍월 기본 자세(두 손 마디 기준): 두 초승달을 곧추세워 옆면(달 모양)을 보이고 칼끝을 조금 안쪽으로 모은다.
+const TWIN_R_REST_POS := Vector3(0.19, 0.02, 0.0)
+const TWIN_R_REST_ROT := Vector3(-14.0, 10.0, 10.0)
+const TWIN_L_REST_POS := Vector3(-0.19, 0.02, 0.0)
+const TWIN_L_REST_ROT := Vector3(-14.0, -10.0, -10.0)
+## 근접 무기 기본 자세의 회전과 방어 자세(모델이 따로 정하지 않으면)
+const MELEE_REST_ROT := Vector3(-35.0, 12.0, -18.0)
+const MELEE_BLOCK_POS := Vector3(0.12, -0.14, -0.5)
+const MELEE_BLOCK_ROT := Vector3(-10.0, 10.0, 75.0)
+## 쌍월 방어: 두 초승달의 끝을 맞대어 둥근 달 모양을 만든다.
+const TWIN_R_BLOCK_POS := Vector3(0.068, 0.07, -0.05)
+const TWIN_R_BLOCK_ROT := Vector3(-2.0, 4.0, 18.0)
+## 근접 무기 살펴보기(근접 무기를 든 채 재장전 키): 카람빗은 손가락 고리를 축으로 두 바퀴 돌린다.
+const INSPECT_TIME := 0.9
+const INSPECT_SPINS := 2.0
+## 카람빗을 꺼낼 때 고리를 축으로 한 바퀴 돌린다.
+const EQUIP_SPINS := 1.0
 
 const HIP_POSITION := Vector3(0.23, -0.25, -0.55)
 const MELEE_POSITION := Vector3(0.3, -0.36, -0.52)
@@ -81,6 +98,7 @@ var _combo: int = 0
 var _combo_timer: float = 0.0
 var _block_started: float = -1.0
 var _quick_left: float = 0.0
+var _inspect_left: float = 0.0
 var _quick_hit_done: bool = true
 var _technique: int = Technique.NONE
 var _tech_elapsed: float = 0.0
@@ -255,7 +273,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if Settings.get_value(&"aim_toggle"):
 			_aim_toggled = not _aim_toggled
 	elif event.is_action_pressed(&"reload"):
-		try_reload()
+		if is_melee_equipped():
+			try_inspect()
+		else:
+			try_reload()
 	elif event.is_action_pressed(&"weapon_1"):
 		select_slot(Slot.PRIMARY)
 	elif event.is_action_pressed(&"weapon_2"):
@@ -298,6 +319,10 @@ func _physics_process(delta: float) -> void:
 		if state.tick(delta, player.ammo):
 			_on_reload_done(state)
 	_equip_left = maxf(0.0, _equip_left - delta)
+	if _inspect_left > 0.0:
+		_inspect_left = maxf(0.0, _inspect_left - delta)
+		if not is_melee_equipped() or is_blocking() or _melee_phase != MeleePhase.NONE or _technique != Technique.NONE:
+			_inspect_left = 0.0
 	_lowered_left = maxf(0.0, _lowered_left - delta)
 	_guard_broken_left = maxf(0.0, _guard_broken_left - delta)
 	_update_aim(delta)
@@ -558,6 +583,20 @@ static func _add_buildup(info: DamageInfo, extra: Dictionary, scale: float) -> v
 			info.status_buildup[k] = float(info.status_buildup.get(k, 0.0)) + float(extra[k]) * scale
 
 
+## 근접 무기를 들고 가만히 있을 때 무기를 살펴본다(카람빗은 손가락 고리로 돌린다).
+func try_inspect() -> bool:
+	if not is_melee_equipped() or not player.can_act() or not is_ready() or is_blocking() \
+			or _melee_phase != MeleePhase.NONE or _technique != Technique.NONE:
+		return false
+	_inspect_left = INSPECT_TIME
+	Sfx.play(&"melee_swing", -14.0, 1.35)
+	return true
+
+
+func is_inspecting() -> bool:
+	return _inspect_left > 0.0
+
+
 func try_reload() -> bool:
 	var gun := current_gun()
 	if gun == null or not player.can_act() or not is_ready():
@@ -627,6 +666,7 @@ func _cancel_actions() -> void:
 	_quick_left = 0.0
 	_quick_hit_done = true
 	_technique = Technique.NONE
+	_inspect_left = 0.0
 
 
 # --- 근접 ---
@@ -1103,11 +1143,17 @@ func _process(delta: float) -> void:
 				rot = Vector3(lerpf(-40.0, -88.0, t), 0.0, -10.0)
 				pos += Vector3(-0.12, 0.08, -0.12 * t)
 	elif current_slot == Slot.MELEE:
-		pos = MELEE_POSITION
-		rot = Vector3(-35.0, 12.0, -18.0)
+		var mview: Dictionary = _views.get(melee.id, {})
+		pos = mview.get("rest_pos", MELEE_POSITION)
+		rot = mview.get("rest_rot", MELEE_REST_ROT)
+		if _inspect_left > 0.0:
+			# 살펴보기: 화면 가운데 쪽으로 조금 들어 날 옆면을 보인다(카람빗은 고리로 돌린다).
+			var ins := sin((1.0 - _inspect_left / INSPECT_TIME) * PI)
+			pos += Vector3(-0.06, 0.04, 0.02) * ins
+			rot += (Vector3(4.0, -8.0, 12.0) if mview.has("spin") else Vector3(10.0, 65.0, 30.0)) * ins
 		if is_blocking():
-			pos = Vector3(0.12, -0.14, -0.5)
-			rot = Vector3(-10.0, 10.0, 75.0)
+			pos = mview.get("block_pos", MELEE_BLOCK_POS)
+			rot = mview.get("block_rot", MELEE_BLOCK_ROT)
 		match _melee_phase:
 			MeleePhase.CHARGING:
 				var c := clampf(_melee_hold / maxf(melee.heavy_charge_time, 0.01), 0.0, 1.0)
@@ -1151,6 +1197,28 @@ func _process(delta: float) -> void:
 	rot.x += 4.0 * _kick * lerpf(1.0, 0.4, ads_blend)
 	var target := Transform3D(Basis.from_euler(rot * (PI / 180.0)), pos)
 	_vm_root.transform = _vm_root.transform.interpolate_with(target, 1.0 - exp(-22.0 * delta))
+	_spin_melee()
+
+
+## 카람빗: 꺼낼 때 한 바퀴, 살펴볼 때 두 바퀴 손가락 고리를 축으로 칼을 돌린다(손은 그대로).
+func _spin_melee() -> void:
+	var view: Dictionary = _views.get(melee.id, {}) if melee else {}
+	var spin: Node3D = view.get("spin")
+	if spin == null:
+		return
+	var turns := 0.0
+	if current_slot == Slot.MELEE and _quick_left <= 0.0:
+		if _equip_left > 0.0:
+			turns = EQUIP_SPINS * _ease_spin(1.0 - _equip_left / MELEE_EQUIP_TIME)
+		elif _inspect_left > 0.0:
+			turns = INSPECT_SPINS * _ease_spin(1.0 - _inspect_left / INSPECT_TIME)
+	spin.rotation.z = -TAU * turns
+
+
+## 빠르게 돌다가 끝에서 부드럽게 멈춘다.
+static func _ease_spin(t: float) -> float:
+	t = clampf(t, 0.0, 1.0)
+	return 1.0 - pow(1.0 - t, 2.2)
 
 
 ## 쌍검 양손 동작: 약공격은 좌우를 번갈아, 강공격은 두 손을 크게 돌려 벤다.
@@ -1160,17 +1228,23 @@ func _animate_twin(delta: float) -> void:
 	var left: Node3D = view.get("left")
 	if right == null or left == null:
 		return
-	# 기본 자세: 칼끝이 앞쪽 위를 향하고 바깥으로 조금 벌어진다.
-	var r_rot := Vector3(-64.0, 10.0, -24.0)
-	var l_rot := Vector3(-64.0, -10.0, 24.0)
-	var r_pos := Vector3(0.2, 0.0, 0.0)
-	var l_pos := Vector3(-0.2, 0.0, 0.0)
+	var r_rot := TWIN_R_REST_ROT
+	var l_rot := TWIN_L_REST_ROT
+	var r_pos := TWIN_R_REST_POS
+	var l_pos := TWIN_L_REST_POS
 	if is_blocking():
-		# 방어: 두 칼을 가슴 앞에서 낮게 엇갈린다.
-		r_rot = Vector3(-24.0, 22.0, 46.0)
-		l_rot = Vector3(-24.0, -22.0, -46.0)
-		r_pos = Vector3(0.13, 0.0, -0.02)
-		l_pos = Vector3(-0.13, 0.0, -0.02)
+		# 방어: 두 초승달의 끝을 맞대어 가슴 앞에 둥근 달을 세운다(왼손은 거울에 비춘 자세).
+		r_rot = TWIN_R_BLOCK_ROT
+		l_rot = TWIN_R_BLOCK_ROT * Vector3(1.0, -1.0, -1.0)
+		r_pos = TWIN_R_BLOCK_POS
+		l_pos = TWIN_R_BLOCK_POS * Vector3(-1.0, 1.0, 1.0)
+	elif _inspect_left > 0.0:
+		# 살펴보기: 두 날을 손목으로 비틀어 옆면과 날등을 번갈아 보인다(달이 찼다 기우는 것처럼).
+		var ins := sin((1.0 - _inspect_left / INSPECT_TIME) * PI)
+		r_rot += Vector3(-6.0, -75.0, 8.0) * ins
+		l_rot += Vector3(-6.0, 75.0, -8.0) * ins
+		r_pos += Vector3(-0.03, 0.04, 0.0) * ins
+		l_pos += Vector3(0.03, 0.04, 0.0) * ins
 	var swing_right := _combo % 2 == 1
 	match _melee_phase:
 		MeleePhase.CHARGING:

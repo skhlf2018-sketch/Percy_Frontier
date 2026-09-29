@@ -12,6 +12,17 @@ const SHADER := preload("res://assets/shaders/viewmodel.gdshader")
 const RIGHT_SLEEVE := Vector3(0.35, -0.55, 0.75)
 const LEFT_SLEEVE := Vector3(-0.42, -0.52, 0.74)
 
+## 카람빗: 손가락 고리 가운데(손 가운데 기준, 새끼손가락이 지나는 자리), 날이 휘는 원의 중심과 등 반지름
+const KARAMBIT_RING := Vector2(0.026, -0.034)
+const KARAMBIT_CURVE_CENTER := Vector2(-0.0338, 0.056)
+const KARAMBIT_SPINE_R := 0.04
+## 카람빗을 든 기본 자세(카메라 기준): 주먹은 화면 오른쪽 아래, 칼 옆면이 보여 날의 곡선이 화면 가운데 쪽으로 휜다.
+const KARAMBIT_REST_POS := Vector3(0.15, -0.11, -0.3)
+const KARAMBIT_REST_ROT := Vector3(-5.0, -20.0, 20.0)
+## 카람빗 방어: 날을 가슴 앞으로 내밀어 화면 가운데 쪽을 겨눈다.
+const KARAMBIT_BLOCK_POS := Vector3(0.1, -0.1, -0.3)
+const KARAMBIT_BLOCK_ROT := Vector3(0.0, -35.0, 45.0)
+
 ## true면 1인칭 전용 셰이더 대신 일반 재질과 그림자를 쓴다(바닥에 떨어진 무기, 적이 든 무기).
 static var _world_mode: bool = false
 static var _bevel_cache: Dictionary = {}
@@ -19,6 +30,7 @@ static var _bevel_cache: Dictionary = {}
 
 static func clear_cache() -> void:
 	_bevel_cache.clear()
+	BladeMesh.clear_cache()
 
 
 ## 같은 모양을 세계 속 물체로 만든다(바닥에 떨어진 무기, 고블린이 든 무기).
@@ -265,10 +277,12 @@ static func build_melee(data: MeleeData, rarity: int = 0) -> Dictionary:
 	var guard := _accent(data.accent_color.lightened(0.25), rarity, 0.45, 0.65, &"metal")
 	var cols := _hand_colors()
 	var handle_r := 0.017
+	var hand_pos := Vector3(0, -0.005, 0)
+	var extra := {}
 	match data.viewmodel_style:
 		&"twin":
-			# 쌍검: 양손에 하나씩(왼손은 오른손을 거울에 비춘 모양)
-			var steel := _mat(data.body_color, 0.3, 0.6, Color.BLACK, 0.0, &"metal")
+			# 쌍월: 초승달 날 한 쌍. 오른손은 흰 달, 왼손은 거울에 비춘 검은 달. 볼록한 날이 바깥을 보고,
+			# 오목한 안쪽이 서로 마주 봐서 두 날을 맞대면 둥근 달 모양이 된다.
 			var right := Node3D.new()
 			right.name = "Right"
 			right.position = Vector3(0.2, 0, 0)
@@ -278,13 +292,16 @@ static func build_melee(data: MeleeData, rarity: int = 0) -> Dictionary:
 			left.position = Vector3(-0.2, 0, 0)
 			root.add_child(left)
 			for hand: Node3D in [right, left]:
+				var dark := hand == left
 				if not _world_mode:
-					var h := _hand(hand, HandModel.grip(0.015, cols[0], cols[1], RIGHT_SLEEVE, false), Vector3(0, 0.04, 0), Vector3.ZERO)
-					if hand == left:
+					var h := _hand(hand, HandModel.grip(0.0145, cols[0], cols[1], RIGHT_SLEEVE, false), Vector3(0, 0.04, 0), Vector3.ZERO)
+					if dark:
 						h.scale = Vector3(-1, 1, 1)
-				_cyl(hand, 0.015, 0.11, Vector3(0, 0.045, 0), grip, Vector3.ZERO)
-				_bbox(hand, Vector3(0.08, 0.016, 0.028), Vector3(0, 0.105, 0), guard)
-				_blade(hand, Vector3(0, 0.26, 0), 0.028, 0.3, 0.006, steel)
+				var knife := _moon_knife(data, rarity, dark)
+				knife.position = Vector3(0, 0.045, 0)
+				if dark:
+					knife.scale = Vector3(-1, 1, 1)
+				hand.add_child(knife)
 			return {"root": root, "left": left, "right": right}
 		&"cleaver":
 			# 넓적한 네모 날의 식칼
@@ -318,20 +335,164 @@ static func build_melee(data: MeleeData, rarity: int = 0) -> Dictionary:
 				_bbox(root, Vector3(0.02, 0.03, 0.014), Vector3(0.05, 0.35 + i * 0.2, 0), guard)
 			handle_r = 0.022
 		&"karambit":
-			_bbox(root, Vector3(0.026, 0.11, 0.032), Vector3(0, 0, 0), grip)
-			_torus(root, 0.016, 0.026, Vector3(0, -0.075, 0), guard, Vector3(0, 0, 90))
-			_bbox(root, Vector3(0.006, 0.07, 0.03), Vector3(0, 0.085, -0.012), blade, Vector3(-20, 0, 0), 0.001)
-			_bbox(root, Vector3(0.006, 0.06, 0.026), Vector3(0, 0.135, -0.05), blade, Vector3(-55, 0, 0), 0.001)
-			_bbox(root, Vector3(0.006, 0.05, 0.02), Vector3(0, 0.155, -0.1), blade, Vector3(-95, 0, 0), 0.001)
-			handle_r = 0.016
+			# 카람빗(바로 쥐기): 새끼손가락을 끼운 고리가 주먹 아래에 걸리고, 새 발톱처럼 굽은 날이 주먹 위로 솟아
+			# 화면 가운데 쪽으로 휘어 내려온다. 고리를 축으로 칼만 돌릴 수 있게 "spin" 마디에 단다.
+			var parts := _karambit(data, rarity)
+			root.add_child(parts.spin)
+			extra["spin"] = parts.spin
+			extra["rest_pos"] = KARAMBIT_REST_POS
+			extra["rest_rot"] = KARAMBIT_REST_ROT
+			extra["block_pos"] = KARAMBIT_BLOCK_POS
+			extra["block_rot"] = KARAMBIT_BLOCK_ROT
+			handle_r = 0.0125
+			hand_pos = Vector3.ZERO
 		_:
 			_cyl(root, 0.018, 0.17, Vector3(0, 0, 0), grip, Vector3.ZERO)
 			_bbox(root, Vector3(0.15, 0.024, 0.035), Vector3(0, 0.095, 0), guard)
 			_blade(root, Vector3(0, 0.47, 0), 0.038, 0.72, 0.008, blade)
 			_cyl(root, 0.024, 0.03, Vector3(0, -0.095, 0), guard, Vector3.ZERO)
 	if not _world_mode:
-		_hand(root, HandModel.grip(handle_r, cols[0], cols[1], RIGHT_SLEEVE, false), Vector3(0, -0.005, 0), Vector3.ZERO)
-	return {"root": root}
+		_hand(root, HandModel.grip(handle_r, cols[0], cols[1], RIGHT_SLEEVE, false), hand_pos, Vector3.ZERO)
+	extra["root"] = root
+	return extra
+
+
+## 쌍월의 초승달 칼 한 자루. 손잡이 가운데가 원점이고 날은 +Y로 선다. dark면 검은 달(검게 그을린 강철, 보랏빛 날).
+static func _moon_knife(data: MeleeData, rarity: int, dark: bool) -> Node3D:
+	var knife := Node3D.new()
+	knife.name = "MoonKnife"
+	var steel_col := Color(0.14, 0.14, 0.18) if dark else data.body_color.lerp(Color(0.95, 0.97, 1.0), 0.55)
+	var glow := Color(0.62, 0.42, 1.0) if dark else Color(0.6, 0.8, 1.0)
+	var body := _mat(steel_col, 0.26 if dark else 0.2, 0.88, glow, 0.0 if dark else 0.05, &"metal")
+	var edge := _mat(Color(0.34, 0.3, 0.5) if dark else Color(0.94, 0.97, 1.0), 0.1, 1.0, glow, 0.9, &"metal")
+	var grip := _mat(Color(0.07, 0.06, 0.09) if dark else data.accent_color, 0.8, 0.05, Color.BLACK, 0.0, &"leather")
+	var fitting := _accent(Color(0.2, 0.19, 0.25) if dark else Color(0.76, 0.79, 0.86), rarity, 0.35, 0.85, &"metal")
+	var stone := _mat(glow.lerp(Color.WHITE, 0.35), 0.1, 0.0, glow, 1.8)
+	# 손잡이(가죽 감기와 금속 띠), 둥근 달 테 코등이, 달돌을 박은 자루 끝
+	_cyl(knife, 0.0145, 0.1, Vector3.ZERO, grip, Vector3.ZERO)
+	for y: float in [-0.047, 0.047]:
+		_cyl(knife, 0.0158, 0.007, Vector3(0, y, 0), fitting, Vector3.ZERO)
+	_cyl(knife, 0.021, 0.008, Vector3(0, 0.055, 0), fitting, Vector3.ZERO)
+	_torus(knife, 0.017, 0.024, Vector3(0, 0.055, 0), fitting, Vector3.ZERO)
+	_sphere(knife, 0.0155, Vector3(0, -0.058, 0), fitting)
+	_sphere(knife, 0.0082, Vector3(0, -0.07, 0), stone)
+	var m := _crescent_meshes()
+	var at := Vector3(0, 0.058, 0)
+	_add(knife, m[&"body"], at, body, Vector3.ZERO)
+	_add(knife, m[&"edge"], at, edge, Vector3.ZERO)
+	return knife
+
+
+## 초승달 날(양날). 두 원이 만나는 뿔 사이의 볼록한 쪽이 날이고, 아래 뿔 가까이를 잘라 코등이에 꽂는다.
+## 잘린 밑동의 가운데가 원점이고, 날은 +Y로 서서 바깥(+X)으로 부풀었다가 끝이 손잡이 위로 돌아온다.
+static func _crescent_meshes() -> Dictionary:
+	var chord := 0.25
+	var bulge_out := 0.088
+	var bulge_in := 0.038
+	var ro := (chord * chord * 0.25 + bulge_out * bulge_out) / (2.0 * bulge_out)
+	var ri := (chord * chord * 0.25 + bulge_in * bulge_in) / (2.0 * bulge_in)
+	var co := Vector2(-(ro - bulge_out), chord * 0.5)
+	var ci := Vector2(-(ri - bulge_in), chord * 0.5)
+	var sides := BladeMesh.crescent(co, ro, ci, ri, 28, 0.1, 1.0)
+	var inner := sides[0]
+	var outer := sides[1]
+	var base := (inner[0] + outer[0]) * 0.5
+	var tilt := deg_to_rad(-14.0)
+	var half_t := PackedFloat32Array()
+	for i in inner.size():
+		inner[i] = (inner[i] - base).rotated(tilt)
+		outer[i] = (outer[i] - base).rotated(tilt)
+		half_t.append(lerpf(0.0029, 0.0009, float(i) / float(inner.size() - 1)))
+	return BladeMesh.band(inner, outer, half_t, BladeMesh.Profile.DOUBLE_EDGE, false, "moon_crescent")
+
+
+## 카람빗 조각들. 손 가운데가 원점. 고리 가운데를 축으로 도는 "spin" 마디 아래에 칼을 단다.
+static func _karambit(data: MeleeData, rarity: int) -> Dictionary:
+	var spin := Node3D.new()
+	spin.name = "Spin"
+	spin.position = Vector3(KARAMBIT_RING.x, KARAMBIT_RING.y, 0.0)
+	var knife := Node3D.new()
+	knife.name = "Karambit"
+	knife.position = -spin.position
+	spin.add_child(knife)
+	var steel := _mat(data.body_color.lightened(0.25), 0.24, 0.9, Color.BLACK, 0.0, &"metal")
+	var edge := _mat(data.body_color.lerp(Color(0.97, 0.98, 1.0), 0.65), 0.1, 1.0, Color.BLACK, 0.0, &"metal")
+	var scales := _mat(data.accent_color, 0.6, 0.05, Color.BLACK, 0.0, &"polymer")
+	var liner := _accent(data.body_color.darkened(0.15), rarity, 0.35, 0.85, &"metal")
+	var screw := _mat(data.body_color.darkened(0.4), 0.35, 0.9, Color.BLACK, 0.0, &"metal")
+	var m := _karambit_meshes()
+	for part: StringName in [&"blade", &"handle", &"liner", &"ring", &"ring_liner"]:
+		var parts: Dictionary = m[part]
+		var mat: Material = scales
+		match part:
+			&"blade":
+				mat = steel
+			&"liner", &"ring_liner":
+				mat = liner
+		_add(knife, parts[&"body"], Vector3.ZERO, mat, Vector3.ZERO)
+		if parts[&"edge"] != null:
+			_add(knife, parts[&"edge"], Vector3.ZERO, edge, Vector3.ZERO)
+	# 손잡이 판을 조인 나사
+	for p: Vector2 in [Vector2(0.005, -0.004), Vector2(-0.001, 0.034)]:
+		for side: float in [-1.0, 1.0]:
+			_cyl(knife, 0.0031, 0.0012, Vector3(p.x, p.y, side * 0.0064), screw, Vector3(90, 0, 0))
+	return {"spin": spin, "knife": knife}
+
+
+## 카람빗 메시(한 번만 만든다): 날, 손잡이 판, 판 사이의 금속 라이너, 손가락 고리.
+static func _karambit_meshes() -> Dictionary:
+	# 날: 등(볼록)은 원호를 따라 위로 솟았다가 안쪽(-X)으로 돌아 내려오고, 날(오목)은 그 안쪽에 선다.
+	var spine := PackedVector2Array()
+	var edge := PackedVector2Array()
+	var blade_t := PackedFloat32Array()
+	var steps := 30
+	for s in steps:
+		var t := float(s) / float(steps - 1)
+		var a := deg_to_rad(lerpf(0.0, 138.0, t))
+		var w := 0.025 * (1.0 + 0.08 * sin(t * PI * 0.8)) * (1.0 - pow(smoothstep(0.26, 1.0, t), 1.15))
+		var dir := Vector2(cos(a), sin(a))
+		spine.append(KARAMBIT_CURVE_CENTER + dir * KARAMBIT_SPINE_R)
+		edge.append(KARAMBIT_CURVE_CENTER + dir * (KARAMBIT_SPINE_R - w))
+		blade_t.append(lerpf(0.0023, 0.0004, pow(t, 1.3)))
+	var blade := BladeMesh.band(spine, edge, blade_t, BladeMesh.Profile.SINGLE_EDGE, false, "karambit_blade")
+	# 손잡이: 고리 위에서 주먹 속을 지나 날 밑동까지 살짝 굽는다.
+	# 안쪽(-X, 손가락 끝 쪽)에 손가락 홈 셋(검지·가운뎃손가락·약손가락)과 날 가까이의 손가락 받이.
+	var line := BladeMesh.bezier(Vector2(0.014, -0.021), Vector2(0.004, -0.004), Vector2(-0.002, 0.026), Vector2(-0.005, 0.059), 22)
+	var inner_w := PackedFloat32Array()
+	var outer_w := PackedFloat32Array()
+	var inner_l := PackedFloat32Array()
+	var outer_l := PackedFloat32Array()
+	var scale_t := PackedFloat32Array()
+	var liner_t := PackedFloat32Array()
+	for p in line:
+		var ow := 0.0112 + 0.0009 * exp(-pow((p.y - 0.012) / 0.02, 2.0))
+		var iw := 0.0112
+		for fy: float in [0.034, 0.012, -0.01]:
+			iw -= 0.0021 * exp(-pow((p.y - fy) / 0.0062, 2.0))
+		iw += 0.0062 * exp(-pow((p.y - 0.049) / 0.0045, 2.0))
+		inner_w.append(iw)
+		outer_w.append(ow)
+		inner_l.append(iw + 0.0007)
+		outer_l.append(ow + 0.0007)
+		scale_t.append(0.0062)
+		liner_t.append(0.0019)
+	# 선이 아래에서 위로 가므로 진행 방향의 왼쪽이 -X(안쪽)다.
+	var sides := BladeMesh.offset_sides(line, inner_w, outer_w)
+	var handle := BladeMesh.band(sides[0], sides[1], scale_t, BladeMesh.Profile.ROUNDED, false, "karambit_handle")
+	var lsides := BladeMesh.offset_sides(line, inner_l, outer_l)
+	var liner := BladeMesh.band(lsides[0], lsides[1], liner_t, BladeMesh.Profile.ROUNDED, false, "karambit_liner")
+	# 손가락 고리
+	var ring_steps := 32
+	var ring_t := PackedFloat32Array()
+	var ring_lt := PackedFloat32Array()
+	for i in ring_steps:
+		ring_t.append(0.0058)
+		ring_lt.append(0.0019)
+	var ring := BladeMesh.band(BladeMesh.circle(KARAMBIT_RING, 0.0118, ring_steps), BladeMesh.circle(KARAMBIT_RING, 0.0192, ring_steps),
+		ring_t, BladeMesh.Profile.ROUNDED, true, "karambit_ring")
+	var ring_liner := BladeMesh.band(BladeMesh.circle(KARAMBIT_RING, 0.0111, ring_steps), BladeMesh.circle(KARAMBIT_RING, 0.0199, ring_steps),
+		ring_lt, BladeMesh.Profile.ROUNDED, true, "karambit_ring_liner")
+	return {&"blade": blade, &"handle": handle, &"liner": liner, &"ring": ring, &"ring_liner": ring_liner}
 
 
 ## 날: 가운데가 두툼하고 가장자리가 얇은 날(끝은 뾰족하다). center는 날 가운데, 폭 w, 길이 l, 두께 t.

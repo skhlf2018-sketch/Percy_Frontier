@@ -19,7 +19,7 @@ const REBINDABLE := [
 	[&"dodge", "회피"],
 	[&"fire", "발사·근접 공격"],
 	[&"aim", "조준·방어"],
-	[&"reload", "재장전"],
+	[&"reload", "재장전 · 근접 무기 살펴보기"],
 	[&"melee_quick", "빠른 근접 공격"],
 	[&"interact", "상호작용"],
 	[&"weapon_next", "다음 무기"],
