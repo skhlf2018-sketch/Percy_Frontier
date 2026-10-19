@@ -33,4 +33,7 @@ PC 1인칭 오픈월드 액션 RPG. Godot 4.7.2 / GDScript(정적 타입) / Forw
 - 전달: 파일 전송 한도가 30MB라 `7z a -t7z -m0=lzma2 -mx=9 -mfb=273 -md=64m -ms=on`으로 압축한다. 넘으면 나눠 보낸다.
 - 스크린샷: `xvfb-run -a godot --path . --resolution 1600x900 res://tools/field_tour.tscn -- --out=<폴더> [--only=town|town:40_,41_|unique|boss|melee|menus|ui|01_,07_] [--quality=0~3]`
   (`--quality`를 주면 `user://field_tour_settings.cfg`에 남으니 비교할 때는 늘 적는다)
+- 홍보 영상: `tools/promo_render.sh <출력.avi> 1280x720 30 2 [장면번호,...]`(실제 게임을 연출해 찍는다, 장면은 `tools/promo_video.gd` 머리말)
+  → `FFMPEG=<ffmpeg> tools/promo_encode.sh <출력.avi> <로그> 30 <출력.mp4> [목표MB]`(배경 음악 `tools/promo_music.py`를 장면에 맞춰 섞는다).
+  ffmpeg는 기본으로 없다: `pip3 install --target=<scratch>/pyff imageio-ffmpeg`의 정적 실행 파일을 쓴다. llvmpipe라 720p 한 장에 2~3초 걸린다.
 - 네트워크: Poly Haven·ambientCG 같은 에셋 사이트는 이 환경의 네트워크 정책에서 막혀 있다(GitHub는 됨).

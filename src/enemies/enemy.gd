@@ -1273,6 +1273,9 @@ func _die(info: DamageInfo, zone: int) -> void:
 	for hb in _hurtboxes:
 		hb.set_enabled(false)
 	status.clear_all()
+	# 죽은 뒤에는 덧칠을 다시 그리지 않으므로 전조·피격 빛을 지운다(공격 전조 중에 죽으면 시체가 노랗게 남았다).
+	_hit_flash = 0.0
+	_clear_overlay()
 	_corpse_timer = CORPSE_TIME
 	var by_player := info != null and info.is_from_player()
 	if by_player or (target != null):
@@ -1354,6 +1357,14 @@ func _update_overlay() -> void:
 			g.material_overlay = mat
 	if _fur and is_instance_valid(_fur):
 		_fur.set_instance_shader_parameter(&"overlay_tint", color if color.a > 0.01 else Color(0, 0, 0, 0))
+
+
+func _clear_overlay() -> void:
+	for g in _geometry:
+		if is_instance_valid(g):
+			g.material_overlay = null
+	if _fur and is_instance_valid(_fur):
+		_fur.set_instance_shader_parameter(&"overlay_tint", Color(0, 0, 0, 0))
 
 
 static func _overlay_material(color: Color) -> StandardMaterial3D:

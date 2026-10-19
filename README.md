@@ -108,6 +108,8 @@ Windows에서는 `godot --headless --path . --import` 후 `godot --headless --pa
 
 `tools/screenshots.sh`는 게임을 가상 화면에 띄워 주요 장면(HUD, 전조, 조준경, 메뉴 등)을 PNG로 저장합니다(xvfb와 Vulkan 드라이버 필요). 필드 장면은 `xvfb-run -a godot --path . --resolution 1600x900 res://tools/field_tour.tscn -- --out=<폴더> [--only=town|unique|boss|melee|menus|ui|01_,07_] [--quality=0~3]`로 찍습니다(`--only`는 쉼표로 여러 장을 고를 수 있고, `--quality`는 그래픽 품질 낮음~최고). 몬스터 모델은 `res://tools/creature_preview.tscn`으로 한 장씩 볼 수 있습니다.
 
+홍보 영상(1편: 게임 시작 오프닝과 게임 소개)은 `tools/promo_render.sh`로 실제 게임을 정해진 연출대로 움직여 찍고(Godot 동영상 기록), `tools/promo_encode.sh`로 코드로 합성한 배경 음악을 섞어 MP4로 만듭니다.
+
 ## 폴더 구조
 
 ```

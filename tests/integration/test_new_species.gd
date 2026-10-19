@@ -287,3 +287,22 @@ func test_mantis_stays_hidden_until_close() -> void:
 	await wait_physics_frames(30)
 	assert_false(m.hidden, "가까이 가면 드러난다")
 	assert_true(m.target == p)
+
+
+func test_corpse_drops_telegraph_overlay() -> void:
+	# 공격 전조(노란 빛) 중에 죽은 몬스터의 시체가 그 빛을 계속 두르고 있으면 안 된다.
+	world.spawn_player(Vector3(0, 0, 8))
+	var e := world.spawn_species(&"goblin_brute", Vector3.ZERO)
+	await wait_physics_frames(3)
+	e._hit_flash = 0.07
+	e._update_overlay()
+	var lit := 0
+	for g in e._geometry:
+		if g.material_overlay != null:
+			lit += 1
+	assert_gt(lit, 0, "덧칠이 켜진 상태에서 시작")
+	e._apply_damage(e.hp + 100.0, null, Hurtbox.Zone.NORMAL)
+	await wait_physics_frames(2)
+	assert_false(e.is_alive())
+	for g in e._geometry:
+		assert_null(g.material_overlay, "시체에는 전조·피격 빛이 남지 않는다")
